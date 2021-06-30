@@ -1,49 +1,26 @@
 #include "Functions.h"
 #include "Oled.h"
-
-unsigned long lastMsg = 0;
-unsigned long lastUpdate = 0;
-int value = 0;
-char PinLastVal = 0;
-
-
+#include "MQTT.h"
+#include "Sensors.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
 void setup() {
   GPIOInit();
   SystemStart();
+  InitSensors();
   ClientIdCreation();
   DisplayInit();
-
-//    // Force WPA secured WiFi for the software access point.
-//    // Because OTA is remote code execution (RCE) by definition, the password
-//    // should be kept secret. By default, WiFiSettings will become an insecure
-//    // WiFi access point and happily tell anyone the password. The password
-//    // will instead be provided on the Serial connection, which is a bit safer.
-//    WiFiSettings.secure = false;
-//
-//    // Set callbacks to start OTA when the portal is active
-//    WiFiSettings.onPortal = []() {
-//        setup_ota();
-//    };
-//    WiFiSettings.onPortalWaitLoop = []() {
-//        ArduinoOTA.handle();
-//    };
-//
-//    // Use stored credentials to connect to your WiFi access point.
-//    // If no credentials are stored or if the access point is out of reach,
-//    // an access point will be started with a captive portal to configure WiFi.
-//    WiFiSettings.connect();
-//
-//    Serial.print("Password: ");
-//    Serial.println(WiFiSettings.password);
-//    setup_ota();  // If you also want the OTA during regular execution
-//    Serial.println(WiFi.localIP());
+  WiFiStart();
+  MQTTStart();
+  Serial.println("Setup Done!");
 }
 
 void loop() {
-  WiFiConnectAnimation(100);
+  //WiFiConnectAnimation(100);
+  MqttLoop();
+  SyncLoop();
+  //Serial.println("Running");
 //  ArduinoOTA.handle();  // If you also want the OTA during regular execution
 //  MqttLoop();
 //  unsigned long now = millis();

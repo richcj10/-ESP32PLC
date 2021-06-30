@@ -1,4 +1,10 @@
 #include "Functions.h"
+#include "Oled.h"
+#include "Sensors.h"
+#include "MQTT.h"
+
+unsigned long lastMsg = 0;
+unsigned long lastUpdate = 0;
 String clientId = "";
 
 void SystemStart(){
@@ -9,12 +15,50 @@ void SystemStart(){
 
 void GPIOInit(){
   pinMode(LED, OUTPUT);
+  pinMode(MP1INPUT, INPUT);
+}
+
+void SyncLoop(){
+  unsigned long now = millis();
+  if (now - lastUpdate > 500){
+    digitalWrite(LED,!digitalRead(LED));
+    ReadDS18B20OneWire();
+  }
+  if (now - lastMsg > 1000){
+    SendDeviceEnviroment();
+    SendChestFreezer();
+  }
 }
 
 void setup_ota() {
-    ArduinoOTA.setHostname(WiFiSettings.hostname.c_str());
+    ArduinoOTA.setHostname(clientId.c_str());
     ArduinoOTA.setPassword(WiFiSettings.password.c_str());
     ArduinoOTA.begin();
+}
+
+void ConnectUpdate(){
+  digitalWrite(LED,!digitalRead(LED));
+  WiFiConnectAnimation();
+}
+
+void WiFiStart(void){
+  WiFiSettings.secure = false;
+  WiFiSettings.onWaitLoop = []() {ConnectUpdate(); return 100; };
+  //WiFiSettings.onSuccess  = []() { WiFiStreanth(3); };
+  //WiFiSettings.onFailure  = []() { WiFiStreanth(0); };
+  WiFiSettings.onPortal = []() {
+    setup_ota();
+  };
+  WiFiSettings.onPortalWaitLoop = []() {
+    ArduinoOTA.handle();
+  };
+  
+  WiFiSettings.connect();
+  
+  Serial.print("Password: ");
+  Serial.println(WiFiSettings.password);
+  setup_ota();  // If you also want the OTA during regular execution
+  Serial.println(WiFi.localIP());
 }
 
 String GetClientId(){
