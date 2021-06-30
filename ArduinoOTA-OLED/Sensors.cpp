@@ -13,7 +13,7 @@ byte present = 0;
 byte type_s;
 byte data[12];
 byte addr[8];
-float celsius, fahrenheit;
+float fahrenheit;
 char SensorSaved = 1;
 
 void InitSensors(void){
@@ -68,24 +68,25 @@ void ReadDS18B20OneWire(void){
   ds.select(addr);
   ds.write(0x44, 1);        // start conversion, with parasite power on at the end
   
-  delay(1000);     // maybe 750ms is enough, maybe not
+  delay(200);     // maybe 750ms is enough, maybe not
   // we might do a ds.depower() here, but the reset will take care of it.
   
   present = ds.reset();
   ds.select(addr);    
   ds.write(0xBE);         // Read Scratchpad
 
-  Serial.print("  Data = ");
-  Serial.print(present, HEX);
-  Serial.print(" ");
+  //Serial.print("  Data = ");
+  //Serial.print(present, HEX);
+  //Serial.print(" ");
   for ( i = 0; i < 9; i++) {           // we need 9 bytes
     data[i] = ds.read();
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
+    //Serial.print(data[i], HEX);
+    //Serial.print(" ");
   }
-  Serial.print(" CRC=");
-  Serial.print(OneWire::crc8(data, 8), HEX);
-  Serial.println();
+  // Serial.print(" CRC=");
+  OneWire::crc8(data, 8);
+  //Serial.print(OneWire::crc8(data, 8), HEX);
+  //Serial.println();
 
   // Convert the data to actual temperature
   // because the result is a 16 bit signed integer, it should
@@ -106,10 +107,11 @@ void ReadDS18B20OneWire(void){
     else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
     //// default is 12 bit resolution, 750 ms conversion time
   }
-  celsius = (float)raw / 16.0;
+  float celsius = (float)raw / 16.0;
   fahrenheit = celsius * 1.8 + 32.0;
-  Serial.print(fahrenheit);
-  Serial.println(" Fahrenheit");
+  //Serial.print("OneWire Temp = ");
+  //Serial.print(fahrenheit);
+  //Serial.println(" F");
 }
 
 
@@ -138,4 +140,8 @@ float getDeviceClimateHumidity(){
 
 float getDeviceClimateTemprature(){
   return DeviceTempratureF;
+}
+
+float getOneWireTemprature(){
+  return fahrenheit;
 }

@@ -2,6 +2,8 @@
 #include "OledBitMaps.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "Sensors.h"
+#include "Functions.h" 
 
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -14,9 +16,15 @@ void DisplayInit(void){
     DisplayOK = 0;
   }
   if(DisplayOK){
+    Serial.println("Display OK");
     display.clearDisplay();
     display.display();
-    delay(100);
+    delay(2);
+    display.setCursor(80, 0);
+    display.println(GetClientId());
+    display.drawBitmap(((display.width()-32)/2),((display.height()-32)/2),Home, 32, 32, 1);
+    display.display();
+    delay(1000);
   }
 }
 
@@ -27,10 +35,12 @@ void MQTTIconSet(char IconMode){
   }
   else{
     Bitmap16xBitMapClear(2);
+    display.drawBitmap(MQTTCX,MQTTCY,NotConnected, 16, 16, 1);
+    display.display();
   } 
 }
 
-void WiFiStreanth(int power){
+void WiFiStreanthDisplay(char power){
   if(DisplayOK == 1){
     Bitmap16xBitMapClear(1);
     if(power == 0){
@@ -55,12 +65,27 @@ void WiFiStreanth(int power){
 int p = 1;
 
 void WiFiConnectAnimation(void){
-  WiFiStreanth(p);
+  WiFiStreanthDisplay(p);
   p++;
   if(p>4){
     p = 1;
   }
 }
+
+void WiFiAP(char Enable){
+  if(Enable == 1){
+    //display.drawBitmap(MQTTCX,MQTTCY,AP, 16, 16, 1);
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(20, 2);
+    display.println("AP");
+    display.display(); 
+  }
+  else{
+    Bitmap16xBitMapClear(2);
+  }
+}
+
 
 void Bitmap16xBitMapClear(char Location){
   char x,y = 0;
@@ -76,4 +101,42 @@ void Bitmap16xBitMapClear(char Location){
     display.drawBitmap(x,y,Clear, 16, 16, 0);
     display.display();
   }
+}
+
+void DisplayTHBar(){
+  display.fillRect(0, 48, display.width(), 64, 0);
+  display.display();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(2, 56);
+  display.println("T: ");
+  display.setCursor(18, 56);
+  display.println(String(getDeviceClimateTemprature(),1));
+  display.setCursor(50, 56);
+  display.println("H: ");
+  display.setCursor(70, 56);
+  display.println(String(getDeviceClimateHumidity(),1));
+  display.display();
+}
+
+void FullDisplayClear(void){
+    display.clearDisplay();
+    display.display();
+}
+
+void DisplayCenterClear(void){
+  display.fillRect(0, 20, display.width(), 48, 0);
+  display.display();
+}
+
+void DisplayCenterChestTemp(void){
+  //DisplayCenterClear();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(30, 20);
+  display.println("Chest Temp: ");
+  display.setCursor(38, 30);
+  display.setTextSize(2);
+  display.println(String(getOneWireTemprature(),1));
+  display.display();
 }
