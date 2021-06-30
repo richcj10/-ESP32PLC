@@ -1,6 +1,7 @@
 #ifndef FUNCTIONS_H
 #define  FUNCTIONS_H
 
+#include "Define.h"
 #include <SPIFFS.h>
 #include <WiFiSettings.h>
 #include <ArduinoOTA.h>
@@ -17,5 +18,8 @@ void SystemStart(void);
 void ClientIdCreation(void);
 void WiFiStart(void);
 void SyncLoop(void);
+char GetWiFiStatus();
+void WiFiFaiure();
+void WiFiCheckRSSI(void);
 
 #endif  /* FUNCTIONS_H */

@@ -4,7 +4,12 @@
 void DisplayInit(void);
 void Bitmap16xBitMapClear(char Location);
 void WiFiConnectAnimation(void);
-void WiFiStreanth(char power);
+void WiFiStreanthDisplay(char power);
 void MQTTIconSet(char IconMode);
+void WiFiAP(char Enable);
+void DisplayTHBar();
+void FullDisplayClear(void);
+void DisplayCenterClear(void);
+void DisplayCenterChestTemp(void);
 
 #endif  /* OLED_H */
