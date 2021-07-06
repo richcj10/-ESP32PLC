@@ -6,5 +6,7 @@ void MQTTreconnect(void);
 void MQTTStart(void);
 void SendChestFreezer(void);
 void SendDeviceEnviroment(void);
+void SendChestPower(char Mode);
+void MQTTMessageInit(void);
 
 #endif  /* OLED_H */

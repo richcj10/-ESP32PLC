@@ -18,9 +18,10 @@ void DisplayInit(void){
   if(DisplayOK){
     Serial.println("Display OK");
     display.clearDisplay();
-    display.display();
-    delay(2);
-    display.setCursor(80, 0);
+    //display.display();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(52, 2);
     display.println(GetClientId());
     display.drawBitmap(((display.width()-32)/2),((display.height()-32)/2),Home, 32, 32, 1);
     display.display();
@@ -30,6 +31,7 @@ void DisplayInit(void){
 
 void MQTTIconSet(char IconMode){
   if(IconMode == 1){
+    Bitmap16xBitMapClear(2);
     display.drawBitmap(MQTTCX,MQTTCY,Connected, 16, 16, 1);
     display.display();
   }
@@ -74,7 +76,6 @@ void WiFiConnectAnimation(void){
 
 void WiFiAP(char Enable){
   if(Enable == 1){
-    //display.drawBitmap(MQTTCX,MQTTCY,AP, 16, 16, 1);
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(20, 2);
@@ -104,19 +105,36 @@ void Bitmap16xBitMapClear(char Location){
 }
 
 void DisplayTHBar(){
-  display.fillRect(0, 48, display.width(), 64, 0);
-  display.display();
+  THBarClear();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(2, 56);
+  display.setCursor(2, BANNERY);
   display.println("T: ");
-  display.setCursor(18, 56);
+  display.setCursor(18, BANNERY);
   display.println(String(getDeviceClimateTemprature(),1));
-  display.setCursor(50, 56);
+  display.setCursor(50, BANNERY);
   display.println("H: ");
-  display.setCursor(70, 56);
+  display.setCursor(70, BANNERY);
   display.println(String(getDeviceClimateHumidity(),1));
   display.display();
+}
+
+void THBarClear(){
+  for(int pixely=BANNERY;pixely<SCREEN_HEIGHT;pixely++)
+  {
+    for(int pixelx=0;pixelx<SCREEN_WIDTH;pixelx++){
+      display.drawPixel(pixelx, pixely, 0);
+    }
+  }
+}
+
+void CenterClear(){
+  for(int pixely=CENTERYTOP;pixely<CENTERYBOT;pixely++)
+  {
+    for(int pixelx=0;pixelx<SCREEN_WIDTH;pixelx++){
+      display.drawPixel(pixelx, pixely, 0);
+    }
+  }
 }
 
 void FullDisplayClear(void){
@@ -130,7 +148,7 @@ void DisplayCenterClear(void){
 }
 
 void DisplayCenterChestTemp(void){
-  //DisplayCenterClear();
+  CenterClear();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(30, 20);

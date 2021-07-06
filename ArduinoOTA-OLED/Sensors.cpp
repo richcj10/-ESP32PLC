@@ -14,7 +14,7 @@ byte type_s;
 byte data[12];
 byte addr[8];
 float fahrenheit;
-char SensorSaved = 1;
+char SensorSaved = 0;
 
 void InitSensors(void){
   sensor.begin();
@@ -22,14 +22,16 @@ void InitSensors(void){
 }
 
 void InitOneWire(void){
-    if ( !ds.search(addr)) {
+for(char k = 0;k<4;k++){
+  char Retry = 0;
+  if ( !ds.search(addr)) {
     Serial.println("No more addresses.");
     Serial.println();
     ds.reset_search();
     delay(250);
-    return;
+    Retry = 1;
   }
-  
+  if(Retry == 0){
   Serial.print("ROM =");
   for( i = 0; i < 8; i++) {
     Serial.write(' ');
@@ -38,7 +40,7 @@ void InitOneWire(void){
 
   if (OneWire::crc8(addr, 7) != addr[7]) {
       Serial.println("CRC is not valid!");
-      return;
+      break;
   }
   Serial.println();
  
@@ -52,6 +54,7 @@ void InitOneWire(void){
       Serial.println("  Chip = DS18B20");
       SensorSaved = 1;
       type_s = 0;
+      return;
       break;
     case 0x22:
       Serial.println("  Chip = DS1822");
@@ -60,15 +63,19 @@ void InitOneWire(void){
     default:
       Serial.println("Device is not a DS18x20 family device.");
       return;
-  } 
+  }
+}
+}
+
 }
 
 void ReadDS18B20OneWire(void){
+  if(SensorSaved == 1){
   ds.reset();
   ds.select(addr);
   ds.write(0x44, 1);        // start conversion, with parasite power on at the end
   
-  delay(200);     // maybe 750ms is enough, maybe not
+  delay(1000);     // maybe 750ms is enough, maybe not
   // we might do a ds.depower() here, but the reset will take care of it.
   
   present = ds.reset();
@@ -83,7 +90,7 @@ void ReadDS18B20OneWire(void){
     //Serial.print(data[i], HEX);
     //Serial.print(" ");
   }
-  // Serial.print(" CRC=");
+  //Serial.print(" CRC=");
   OneWire::crc8(data, 8);
   //Serial.print(OneWire::crc8(data, 8), HEX);
   //Serial.println();
@@ -112,6 +119,7 @@ void ReadDS18B20OneWire(void){
   //Serial.print("OneWire Temp = ");
   //Serial.print(fahrenheit);
   //Serial.println(" F");
+  }
 }
 
 

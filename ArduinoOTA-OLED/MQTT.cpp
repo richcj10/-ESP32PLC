@@ -58,6 +58,7 @@ void MQTTreconnect(void) {
           MQTTActive = 1;
           MQTTIconSet(1);
           Serial.println("MQTT connected!");
+          MQTTMessageInit();
        }
        counter++;
        if(counter > 2){
@@ -68,6 +69,11 @@ void MQTTreconnect(void) {
        }
      }
    }
+}
+
+void MQTTMessageInit(){
+  SendChestFreezer();
+  SendChestPower(!digitalRead(26));
 }
 
 void SendDeviceEnviroment(){
@@ -95,14 +101,23 @@ void SendChestFreezer(){
     if(client.publish("home/garage/cf/temp", temp)){
       Serial.println("Sent CF Temp");
     }
-    if(!digitalRead(MP1INPUT)){
-      String temp = "ON";
-    }
     else{
-      String temp = "OFF";
+      Serial.println("fail CF Temp");
     }
-    if(client.publish("home/garage/cf/power", temp)){
-      Serial.println("Sent Device Power");
-     }
+  }
+}
+
+void SendChestPower(char Mode){
+  if(MQTTActive == 1){
+    if(Mode == 1){
+      if(client.publish("home/garage/cf/power", "ON")){
+        Serial.println("Sent CF Power - ON");
+      }
+    }
+    if(Mode == 0){
+      if(client.publish("home/garage/cf/power", "OFF")){
+        Serial.println("Sent CF Power - OFF");
+      }
+    }
   }
 }

@@ -11,5 +11,7 @@ void DisplayTHBar();
 void FullDisplayClear(void);
 void DisplayCenterClear(void);
 void DisplayCenterChestTemp(void);
+void THBarClear();
+void CenterClear();
 
 #endif  /* OLED_H */
