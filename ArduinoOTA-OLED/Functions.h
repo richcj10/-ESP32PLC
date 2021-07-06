@@ -7,8 +7,6 @@
 #include <ArduinoOTA.h>
 #include <Wire.h>
 
-#define LED 2
-#define MP1INPUT 26
 
 void setup_ota(void);
 String GetClientId(void);
