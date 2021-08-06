@@ -1,6 +1,8 @@
 #ifndef DEFINE_H
 #define  DEFINE_H
 
+#define DISPLAY_SLEEP_EN 1
+
 #define RXD2 16
 #define TXD2 17
 #define DIR 18

@@ -2,6 +2,7 @@
 #include "Oled.h"
 #include "Sensors.h"
 #include "MQTT.h"
+#include "Menu.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastRS485 = 0;
@@ -19,23 +20,23 @@ void SystemStart(){
 }
 
 void GPIOInit(){
-  pinMode(2, OUTPUT);
-  pinMode(26, INPUT);
+  pinMode(USER_SW, INPUT);
+  pinMode(LED, OUTPUT);
+  pinMode(MP1INPUT, INPUT);
   pinMode(DIR, OUTPUT);
   digitalWrite(DIR, HIGH);
 }
 
 void SyncLoop(){
-  //ArduinoOTA.handle();
+  ArduinoOTA.handle();
   unsigned long now = millis();
   if (now - lastUpdate > 700){
     lastUpdate = now;
     digitalWrite(LED,!digitalRead(LED));
-    WiFiCheckRSSI();
     ReadDS18B20OneWire();
     readDeviceClimate();
-    DisplayCenterChestTemp();
-    char PinValue = digitalRead(26);
+    DisplayManager();
+    char PinValue = digitalRead(MP1INPUT);
     if(PinValue != PinLastVal){
       if(PinValue == LOW){
         SendChestPower(1);
@@ -55,36 +56,11 @@ void SyncLoop(){
     lastMsg = now;
     SendDeviceEnviroment();
     SendChestFreezer();
-    DisplayTHBar();
   }
   if (now - lastRS485 > 1000){
     lastRS485 = now;
     Serial1.print(0xAA,HEX);
     Serial1.print(0xFF,HEX);
-  }
-}
-
-char LastWiFiSig = 0;
-
-void WiFiCheckRSSI(){
-  long Rssi = WiFi.RSSI()*-1;
-  if(Rssi > HIGHRSSI){
-    if(LastWiFiSig != 1){
-      WiFiStreanthDisplay(1);
-      LastWiFiSig = 1;
-    }
-  }
-  else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
-    if(LastWiFiSig != 2){
-      WiFiStreanthDisplay(2);
-      LastWiFiSig = 2;
-    }
-  }
-  else if(Rssi < LOWRSSI){
-    if(LastWiFiSig != 3){
-      WiFiStreanthDisplay(3);
-      LastWiFiSig = 3;
-    }
   }
 }
 
