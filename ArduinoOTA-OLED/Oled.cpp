@@ -18,15 +18,20 @@ void DisplayInit(void){
   if(DisplayOK){
     Serial.println("Display OK");
     display.clearDisplay();
-    //display.display();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(52, 2);
-    display.println(GetClientId());
+    DeviceIDDisplay();
     display.drawBitmap(((display.width()-32)/2),((display.height()-32)/2),Home, 32, 32, 1);
     display.display();
     delay(1000);
   }
+}
+
+
+void DeviceIDDisplay(){
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(52, 2);
+  display.println(GetClientId());
+  display.display();
 }
 
 void MQTTIconSet(char IconMode){
@@ -156,5 +161,45 @@ void DisplayCenterChestTemp(void){
   display.setCursor(38, 30);
   display.setTextSize(2);
   display.println(String(getOneWireTemprature(),1));
+  display.display();
+}
+
+void DisplayCenterInput(void){
+  CenterClear();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(30, 20);
+  display.println(" Input: ");
+  display.drawCircle(18, 30, 8, SSD1306_WHITE);
+  display.drawCircle(28, 30, 8, SSD1306_WHITE);
+  display.drawCircle(40, 30, 8, SSD1306_WHITE);
+  display.drawCircle(70, 30, 8, SSD1306_WHITE);
+  display.display();
+}
+
+void DisplayCenterOutput(void){
+  CenterClear();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(30, 20);
+  display.println(" Output: ");
+  display.drawCircle(18, 30, 8, SSD1306_WHITE);
+  display.drawCircle(28, 30, 8, SSD1306_WHITE);
+  display.drawCircle(40, 30, 8, SSD1306_WHITE);
+  display.drawCircle(70, 30, 8, SSD1306_WHITE);
+  display.drawCircle(90, 30, 8, SSD1306_WHITE);
+  display.drawCircle(110, 30, 8, SSD1306_WHITE);
+  display.display();
+}
+
+void DisplayCenterOutputRS485(void){
+  CenterClear();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(30, 20);
+  display.println(" RS485: ");
+  display.setCursor(38, 30);
+  display.setTextSize(1);
+  display.println("No Slave Connected");
   display.display();
 }

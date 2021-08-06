@@ -13,5 +13,9 @@ void DisplayCenterClear(void);
 void DisplayCenterChestTemp(void);
 void THBarClear();
 void CenterClear();
+void DeviceIDDisplay();
+void DisplayCenterOutput(void);
+void DisplayCenterInput(void);
+void DisplayCenterOutputRS485(void);
 
 #endif  /* OLED_H */

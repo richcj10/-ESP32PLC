@@ -8,5 +8,6 @@ void SendChestFreezer(void);
 void SendDeviceEnviroment(void);
 void SendChestPower(char Mode);
 void MQTTMessageInit(void);
+char GetMQTTStatus(void);
 
 #endif  /* OLED_H */

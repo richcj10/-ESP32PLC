@@ -18,6 +18,5 @@ void WiFiStart(void);
 void SyncLoop(void);
 char GetWiFiStatus();
 void WiFiFaiure();
-void WiFiCheckRSSI(void);
 
 #endif  /* FUNCTIONS_H */

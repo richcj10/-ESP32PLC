@@ -121,3 +121,8 @@ void SendChestPower(char Mode){
     }
   }
 }
+
+
+char GetMQTTStatus(void){
+  return MQTTActive;
+}
