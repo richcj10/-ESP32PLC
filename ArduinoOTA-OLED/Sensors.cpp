@@ -22,51 +22,50 @@ void InitSensors(void){
 }
 
 void InitOneWire(void){
-for(char k = 0;k<4;k++){
-  char Retry = 0;
-  if ( !ds.search(addr)) {
-    Serial.println("No more addresses.");
-    Serial.println();
-    ds.reset_search();
-    delay(250);
-    Retry = 1;
+  for(char k = 0;k<4;k++){
+    char Retry = 0;
+    if ( !ds.search(addr)) {
+      Serial.println("No more addresses.");
+      Serial.println();
+      ds.reset_search();
+      delay(250);
+      Retry = 1;
+    }
+    if(Retry == 0){
+      Serial.print("ROM =");
+      for( i = 0; i < 8; i++) {
+        Serial.write(' ');
+        Serial.print(addr[i], HEX);
+      }
+    
+      if (OneWire::crc8(addr, 7) != addr[7]) {
+          Serial.println("CRC is not valid!");
+          break;
+      }
+      Serial.println();
+     
+      // the first ROM byte indicates which chip
+      switch (addr[0]) {
+        case 0x10:
+          Serial.println("  Chip = DS18S20");  // or old DS1820
+          type_s = 1;
+          break;
+        case 0x28:
+          Serial.println("  Chip = DS18B20");
+          SensorSaved = 1;
+          type_s = 0;
+          return;
+          break;
+        case 0x22:
+          Serial.println("  Chip = DS1822");
+          type_s = 0;
+          break;
+        default:
+          Serial.println("Device is not a DS18x20 family device.");
+          return;
+      }
+    }
   }
-  if(Retry == 0){
-  Serial.print("ROM =");
-  for( i = 0; i < 8; i++) {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
-  }
-
-  if (OneWire::crc8(addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
-      break;
-  }
-  Serial.println();
- 
-  // the first ROM byte indicates which chip
-  switch (addr[0]) {
-    case 0x10:
-      Serial.println("  Chip = DS18S20");  // or old DS1820
-      type_s = 1;
-      break;
-    case 0x28:
-      Serial.println("  Chip = DS18B20");
-      SensorSaved = 1;
-      type_s = 0;
-      return;
-      break;
-    case 0x22:
-      Serial.println("  Chip = DS1822");
-      type_s = 0;
-      break;
-    default:
-      Serial.println("Device is not a DS18x20 family device.");
-      return;
-  }
-}
-}
-
 }
 
 void ReadDS18B20OneWire(void){

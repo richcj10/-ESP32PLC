@@ -2,11 +2,10 @@
 #define  MENU_H
 
 void DislaySaver();
-void MenuStart();
+void DisplayTimeoutReset();
 void DisplayManager();
-void WiFiCheckRSSI();
 void ButtonHandeler();
-void CheckMQTTCon();
 void DisplaySwitchCase();
+void DispalySleepControl(char value);
 
 #endif

@@ -3,6 +3,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "Sensors.h"
+#include "MQTT.h"
 #include "Functions.h" 
 
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
@@ -34,6 +35,23 @@ void DeviceIDDisplay(){
   display.display();
 }
 
+char LastMQTT = 0;
+
+void CheckMQTTCon(char overide){
+  if(GetMQTTStatus() == 1){
+    if((LastMQTT != 1) || (overide == 1)){
+      MQTTIconSet(1);
+      LastMQTT = 1;
+    }
+  }
+  else{
+    if((LastMQTT != 2) || (overide == 1)){
+      MQTTIconSet(0);
+      LastMQTT = 2;
+    }
+  }
+}
+
 void MQTTIconSet(char IconMode){
   if(IconMode == 1){
     Bitmap16xBitMapClear(2);
@@ -45,6 +63,30 @@ void MQTTIconSet(char IconMode){
     display.drawBitmap(MQTTCX,MQTTCY,NotConnected, 16, 16, 1);
     display.display();
   } 
+}
+
+char LastWiFiSig = 0;
+
+void WiFiCheckRSSI(char overide){
+  long Rssi = WiFi.RSSI()*-1;
+  if(Rssi > HIGHRSSI){
+    if((LastWiFiSig != 1) || (overide == 1)){
+      WiFiStreanthDisplay(1);
+      LastWiFiSig = 1;
+    }
+  }
+  else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
+    if((LastWiFiSig != 2) || (overide == 1)){
+      WiFiStreanthDisplay(2);
+      LastWiFiSig = 2;
+    }
+  }
+  else if(Rssi < LOWRSSI){
+    if((LastWiFiSig != 3)  || (overide == 1)){
+      WiFiStreanthDisplay(3);
+      LastWiFiSig = 3;
+    }
+  }
 }
 
 void WiFiStreanthDisplay(char power){
