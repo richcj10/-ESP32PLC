@@ -13,12 +13,12 @@ void setup() {
   ClientIdCreation();
   DisplayInit();
   WiFiStart();
-  MQTTStart();
+  //MQTTStart();
   WebStart();
   Serial.println("Setup Done!");
   DisplayCenterClear();
   Serial.println(WiFi.getHostname());
-  MenuStart();
+  DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
 }
 
 void loop() {

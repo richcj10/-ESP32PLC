@@ -2,21 +2,20 @@
 #include <WiFi.h>
 #include "Oled.h"
 #include "Define.h"
-#include "MQTT.h"
 
 char DisplayMode = 1;
-char LastMQTT = 0;
 char ScreenShow = 0;
 unsigned long TimeReading = 0;
 unsigned long LastTimeReading = 0;
+char DisplaySleepEn = 1;
 
 
-void MenuStart(){
+void DisplayTimeoutReset(){
   LastTimeReading = millis();
 }
 
 void DislaySaver(){
-  if(DISPLAY_SLEEP_EN == 1){
+  if(DisplaySleepEn == 1){
     if(DisplayMode == 1){
       unsigned long TimeReading = millis();
       if (TimeReading - LastTimeReading > 10000){
@@ -30,8 +29,8 @@ void DisplayManager(){
   if(DisplayMode == 1){
     DeviceIDDisplay();
     DisplayTHBar();
-    WiFiCheckRSSI();
-    CheckMQTTCon();
+    WiFiCheckRSSI(0);  //Don't force the RSSI to be updated.....
+    CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
   }
   else{
     FullDisplayClear();
@@ -41,10 +40,12 @@ void DisplayManager(){
 
 void ButtonHandeler(){
   if(digitalRead(USER_SW) == 0){
+    DisplayTimeoutReset();
     if(DisplayMode == 0){
-      LastTimeReading = millis();
-      LastMQTT = 0;
-      LastMQTT = 0;
+      DeviceIDDisplay();
+      DisplayTHBar();
+      WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
+      CheckMQTTCon(1);
       DisplayMode = 1;
     }
     DisplaySwitchCase();
@@ -71,49 +72,13 @@ void DisplaySwitchCase(){
       break;
     default:
       //This is a catch for errors
-      ScreenShow = 0;
+      ScreenShow = 0; //This allows for a circular buffer on display items. 
       break;
   }
   Serial.print("Screen = ");
   Serial.println(int(ScreenShow));
 }
 
-void CheckMQTTCon(){
-  if(GetMQTTStatus() == 1){
-    if(LastMQTT != 1){
-      MQTTIconSet(1);
-      LastMQTT = 1;
-    }
-  }
-  else{
-    if(LastMQTT != 2){
-      MQTTIconSet(0);
-      LastMQTT = 2;
-    }
-  }
-}
-
-
-char LastWiFiSig = 0;
-
-void WiFiCheckRSSI(){
-  long Rssi = WiFi.RSSI()*-1;
-  if(Rssi > HIGHRSSI){
-    if(LastWiFiSig != 1){
-      WiFiStreanthDisplay(1);
-      LastWiFiSig = 1;
-    }
-  }
-  else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
-    if(LastWiFiSig != 2){
-      WiFiStreanthDisplay(2);
-      LastWiFiSig = 2;
-    }
-  }
-  else if(Rssi < LOWRSSI){
-    if(LastWiFiSig != 3){
-      WiFiStreanthDisplay(3);
-      LastWiFiSig = 3;
-    }
-  }
+void DispalySleepControl(char value){
+  DisplaySleepEn = value;
 }
