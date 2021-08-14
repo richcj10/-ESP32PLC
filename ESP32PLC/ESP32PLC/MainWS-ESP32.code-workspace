@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "ESP32PLC"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.tcc": "cpp"
+		}
+	}
+}
