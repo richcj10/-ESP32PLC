@@ -2,7 +2,6 @@
 #define  FUNCTIONS_H
 
 #include "Define.h"
-#include <SPIFFS.h>
 #include <WiFiSettings.h>
 #include <ArduinoOTA.h>
 #include <Wire.h>

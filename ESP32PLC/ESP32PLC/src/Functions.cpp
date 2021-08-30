@@ -4,6 +4,7 @@
 #include "Sensors.h"
 #include "MQTT.h"
 #include "Menu.h"
+#include "HAL/Digital/Digital.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastRS485 = 0;
@@ -20,16 +21,7 @@ void print_reset_reason(RESET_REASON reason);
 void SystemStart(){
   Serial.begin(115200);
   Serial1.begin(115200,SERIAL_8N1,RXD2,TXD2);
-  SPIFFS.begin(true);  // Will format on the first run after failing to mount
   Wire.begin(21, 22);   // sda= GPIO_21 /scl= GPIO_22 
-}
-
-void GPIOInit(){
-  pinMode(USER_SW, INPUT);
-  pinMode(LED, OUTPUT);
-  pinMode(MP1INPUT, INPUT);
-  pinMode(DIR, OUTPUT);
-  digitalWrite(DIR, HIGH);
 }
 
 void SyncLoop(){
@@ -37,7 +29,7 @@ void SyncLoop(){
   unsigned long now = millis();
   if (now - lastUpdate > 700){
     lastUpdate = now;
-    digitalWrite(LED,!digitalRead(LED));
+    ToggletUserLED();
     ReadDS18B20OneWire();
     readDeviceClimate();
     DisplayManager();

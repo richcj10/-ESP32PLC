@@ -2,28 +2,14 @@
 #include <WiFi.h>
 #include "Oled.h"
 #include "Define.h"
+#include "HAL/Digital/Digital.h"
 
 char DisplayMode = 1;
 char ScreenShow = 0;
 unsigned long TimeReading = 0;
 unsigned long LastTimeReading = 0;
+unsigned long LastDisplayUpdate = 0;
 char DisplaySleepEn = 1;
-
-
-void DisplayTimeoutReset(){
-  LastTimeReading = millis();
-}
-
-void DislaySaver(){
-  if(DisplaySleepEn == 1){
-    if(DisplayMode == 1){
-      unsigned long TimeReading = millis();
-      if (TimeReading - LastTimeReading > SREENTIMEOUT){
-        DisplayMode = 0;
-      }
-    }
-  }
-}
 
 void DisplayManager(){
   if(DisplayMode == 1){
@@ -31,15 +17,28 @@ void DisplayManager(){
     DisplayTHBar();
     WiFiCheckRSSI(0);  //Don't force the RSSI to be updated.....
     CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
+    DislaySaver();
   }
   else{
     FullDisplayClear();
   }
-  ButtonHandeler();
+  if ((millis() - LastDisplayUpdate) > 500){
+    DisplayUserHandeler();
+    LastDisplayUpdate = millis();
+  }
 }
 
-void ButtonHandeler(){
-  if(digitalRead(USER_SW) == 0){
+void DislaySaver(){
+  if(DisplaySleepEn == 1){
+    if ((millis() - LastTimeReading) > SREENTIMEOUT){
+      DisplayMode = 0;
+      FullDisplayClear();
+    }
+  }
+}
+
+void DisplayUserHandeler(void){
+  if(GetUserSWValue()){
     DisplayTimeoutReset();
     if(DisplayMode == 0){
       DeviceIDDisplay();
@@ -77,6 +76,10 @@ void DisplaySwitchCase(){
   }
   Serial.print("Screen = ");
   Serial.println(int(ScreenShow));
+}
+
+void DisplayTimeoutReset(){
+  LastTimeReading = millis();
 }
 
 void DispalySleepControl(char value){

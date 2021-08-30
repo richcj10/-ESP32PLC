@@ -4,7 +4,7 @@
 void DislaySaver();
 void DisplayTimeoutReset();
 void DisplayManager();
-void ButtonHandeler();
+void DisplayUserHandeler(void);
 void DisplaySwitchCase();
 void DispalySleepControl(char value);
 
