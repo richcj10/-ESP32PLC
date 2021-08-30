@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "Com/RS485.h"
 #include "Com/I2C.h"
+#include "Digital/Digital.h"
 
 int DeviceType = 0;
 String TypeName = "";
@@ -17,12 +18,13 @@ void SetDeviceType(int value){
 
 char QueryLocalDevice(){
   //Find the local device using board ID, this will most likly be one wire device. 
-  DeviceType = 1; //Place holder till code is done. 
+  DeviceType = 1; //Place holder till code/device is done. 
 
   return 1;
 }
 
 char GPIOStart(){
+  DigitalStart(); // Thgis is I/O user on "Board B" And is stadic on ALL devices....WILL NOT CHANGE
   int Type = GetDeviceType() - 1;
   unsigned int IOCount = 0;
   if(Type < HOW_MANY_IO_TYPES){
@@ -59,52 +61,53 @@ char GPIOStart(){
 void SetIOType(char IOValue, unsigned int IOLocation){
   switch (IOValue){
   case UNUSED:
-    LOG("Unused IO\n");
+    LOG("Unused IO");
     /* code */
     break;
   case IOINPUT:
-    LOG("Input IO\n");
+    LOG("Input IO");
     //LOG("%s",IOArray[IOLocation]);
     pinMode(IOArray[IOLocation], INPUT);
+    ScanArrayAdd(IOArray[IOLocation]);
     /* code */
     break;
   case IOOUTPUT:
-    LOG("Output IO\n");
+    LOG("Output IO");
     //LOG("%s",IOArray[IOLocation]);
     pinMode(IOArray[IOLocation], OUTPUT);
     /* code */
     break;
   case UART1TX:
-    LOG("UART TX IO\n");
+    LOG("UART TX IO");
     //LOG("%s",IOArray[IOLocation]);
     SetUARTWires(TX, IOArray[IOLocation]);
     /* code */
     break;
   case UART1RX:
-    LOG("UART TX IO\n");
+    LOG("UART TX IO");
     //LOG("%s",IOArray[IOLocation]);
     SetUARTWires(RX, IOArray[IOLocation]);
     break;
   case IOSCL:
-    LOG("I2C SCL IO\n");
+    LOG("I2C SCL IO");
     //LOG("%s",IOArray[IOLocation]);
     SetI2CWires(SCLPIN, IOArray[IOLocation]);
     break;
   case IOSDA:
-    LOG("I2C SDA IO\n");
+    LOG("I2C SDA IO");
     //LOG("%s",IOArray[IOLocation]);
     SetI2CWires(SDAPIN, IOArray[IOLocation]);
     break;
   case NEOPIXEL:
-    LOG("Neopixel IO\n");
+    LOG("Neopixel IO");
     //LOG("%s",IOArray[IOLocation]);
     break;
   case ONEWIRE:
-    LOG("OneWore IO\n");
+    LOG("OneWore IO");
     //LOG("%s",IOArray[IOLocation]);
     break;
   default:
-    LOG("Bad IO Config\n");
+    LOG("Bad IO Config");
     break;
   }
 
