@@ -1,11 +1,10 @@
 #ifndef FUNCTIONS_H
 #define  FUNCTIONS_H
 
+#include <Arduino.h>
 #include "Define.h"
-#include <WiFiSettings.h>
 #include <ArduinoOTA.h>
 #include <Wire.h>
-
 
 void setup_ota(void);
 String GetClientId(void);

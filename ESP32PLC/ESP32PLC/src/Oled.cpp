@@ -204,8 +204,10 @@ void FullDisplayClear(void){
 }
 
 void DisplayCenterClear(void){
-  display.fillRect(0, 20, display.width(), 48, 0);
-  display.display();
+  if(DisplayOK){
+    display.fillRect(0, 20, display.width(), 48, 0);
+    display.display();
+  }
 }
 
 void DisplayCenterChestTemp(void){

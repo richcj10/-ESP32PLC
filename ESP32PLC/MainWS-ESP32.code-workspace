@@ -2,11 +2,16 @@
 	"folders": [
 		{
 			"path": "ESP32PLC"
+		},
+		{
+			"name": "WifiTest",
+			"path": "..\\..\\Users\\richc\\Documents\\PlatformIO\\Projects\\WifiTest"
 		}
 	],
 	"settings": {
 		"files.associations": {
-			"*.tcc": "cpp"
+			"*.tcc": "cpp",
+			"fstream": "cpp"
 		}
 	}
 }

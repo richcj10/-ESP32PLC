@@ -5,6 +5,7 @@
 #include "MQTT.h"
 #include "Menu.h"
 #include "HAL/Digital/Digital.h"
+#include <WiFi.h>
 
 unsigned long lastMsg = 0;
 unsigned long lastRS485 = 0;
@@ -63,7 +64,7 @@ void SyncLoop(){
 
 void setup_ota() {
   ArduinoOTA.setHostname(GetClientId().c_str());
-  ArduinoOTA.setPassword(WiFiSettings.password.c_str());
+  //ArduinoOTA.setPassword(WiFiSettings.password.c_str());
   ArduinoOTA.begin();
 }
 
@@ -80,45 +81,45 @@ void WiFiFaiure(){
 unsigned long Countdown = 0;
 
 void WiFiStart(void){
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.setHostname(clientId.c_str());
-  //WiFiSettings.hostname(clientId);
-  WiFiSettings.secure = false;
-  WiFiSettings.onWaitLoop = []() {ConnectUpdate(); return 100; };
-  //WiFiSettings.onSuccess  = []() {  };
-  WiFiSettings.onFailure  = []() { WiFiFaiure(); };
-  WiFiSettings.onPortal = []() {
-    setup_ota();
-    WiFiStreanthDisplay(3);
-    WiFiAP(1);
-    Countdown = millis();
-    Countdown+=20000;
-  };
+  // WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  // WiFi.setHostname(clientId.c_str());
+  // //WiFiSettings.hostname(clientId);
+  // WiFiSettings.secure = false;
+  // WiFiSettings.onWaitLoop = []() {ConnectUpdate(); return 100; };
+  // //WiFiSettings.onSuccess  = []() {  };
+  // WiFiSettings.onFailure  = []() { WiFiFaiure(); };
+  // WiFiSettings.onPortal = []() {
+  //   setup_ota();
+  //   WiFiStreanthDisplay(3);
+  //   WiFiAP(1);
+  //   Countdown = millis();
+  //   Countdown+=20000;
+  // };
 
-  WiFiSettings.onPortalView = [](){
-    Serial.println("User in Portal...reset Timer!!!!!!");
-    Countdown = millis();
-    Countdown+=200000;
-  };
+  // WiFiSettings.onPortalView = [](){
+  //   Serial.println("User in Portal...reset Timer!!!!!!");
+  //   Countdown = millis();
+  //   Countdown+=200000;
+  // };
 
-  WiFiSettings.onPortalWaitLoop = []() {
+  // WiFiSettings.onPortalWaitLoop = []() {
 
-    ArduinoOTA.handle();
-    long TimeToReset =  (Countdown - millis());
-    DisplayTimeToReset(TimeToReset/1000);
-    if(TimeToReset <= 0){
-      Serial.println("Rebooting - No WiFi Config!");
-      delay(1000);
-      ESP.restart(); 
-    }
-    delay(10);
-  };
+  //   ArduinoOTA.handle();
+  //   long TimeToReset =  (Countdown - millis());
+  //   DisplayTimeToReset(TimeToReset/1000);
+  //   if(TimeToReset <= 0){
+  //     Serial.println("Rebooting - No WiFi Config!");
+  //     delay(1000);
+  //     ESP.restart(); 
+  //   }
+  //   delay(10);
+  // };
   
-  WiFiSettings.connect();
+  // WiFiSettings.connect();
   
-  Serial.print("Password: ");
-  Serial.println(WiFiSettings.password);
-  WiFiStreanthDisplay(3);
+  // Serial.print("Password: ");
+  // Serial.println(WiFiSettings.password);
+  // WiFiStreanthDisplay(3);
   WiFiConnected = 1;
   setup_ota();  // If you also want the OTA during regular execution
   Serial.println(WiFi.localIP());
