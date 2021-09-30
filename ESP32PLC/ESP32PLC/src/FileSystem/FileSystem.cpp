@@ -3,36 +3,15 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include "Define.h"
-
-struct WiFiConfig {
-  char SSID[40] = "L.C.A";
-  char Passcode[40] = "Hi";
-  char Host[40] ="ESP32PLC-1234";
-  char DHCP = 1;
-  char IP[22] = "192.168.5.10";
-  char DefultGateway[22] = "000.000.000.000";
-  char SubMask[22] = "000.000.000.000";
-};
-
-struct MQTTConfig {
-  char MQTTEnabble = 1;
-  char MQTTIP[22] = "000.000.000.000";;
-  char MQTTPassword[40] = "Stuff";
-};
+#include "Functions.h"
 
 const char *WiFifilename = "/WiFiconfig.json";  // <- SD library uses 8.3 filenames
 const char *MQTTfilename = "/MQTTconfig.json";  // <- SD library uses 8.3 filenames
 const char *MQTTTopicsfilename = "/MQTTcTopics.json";  // <- SD library uses 8.3 filenames
 
-WiFiConfig wfconfig;                         // <- global configuration object
-MQTTConfig mqconfig;                         // <- global configuration object
-
 void listFilesInDir(File dir, int numTabs);
-void WifiComfig();
-void MqttComfig();
-void PrintMqttConfigStruct();
 
-void StartFileSystem(void){
+char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){
   if(SPIFFS.begin(true)){
     File dir = SPIFFS.open("/");
     listFilesInDir(dir, 1);
@@ -40,60 +19,67 @@ void StartFileSystem(void){
     //SPIFFS.format();
     LOG(" Config Check \r"); 
     // Serial.println(F(" Config Check   ")); 
-    WifiComfig();
-    MqttComfig();
+    WifiComfig(WFC);
+    MqttComfig(MQC);
+    PrintWiFiConfigStruct(WFC);
+    return 1;
   }
   else{
-    LOG("File Sytem Failed to mount!!!!!! \r");
+    LOG("File Sytem Failed to mount!!!!!! Reformat!\r");
     SPIFFS.format();
-    LOG("File Sytem Failed to mount ----Reboot \r");
-    ESP.restart();
+    return 0;
   }
 }
 
-void WifiComfig(){
+void WifiComfig(struct WiFiConfig* WFC){
   if(!SPIFFS.exists(WiFifilename)){
     //Config Doc dson't exist, wite one!
     LOG("No Wifi Config! Save One!....");
-    WifisaveConfiguration();
+    WifisaveConfiguration(WFC);
     LOG("Now Load Config! \r");            
-    WifiloadConfiguration();
+    WifiloadConfiguration(WFC);
+    delay(100);
+    PrintWiFiConfigStruct(WFC);
+    delay(100);
   }
   else{
     LOG("Found File.....Load Config!\r");
-    WifiloadConfiguration();
+    WifiloadConfiguration(WFC);
     delay(100);
-    PrintWiFiConfigStruct();
+    PrintWiFiConfigStruct(WFC);
     delay(100);
   }
 }
 
-void MqttComfig(){
+void MqttComfig(struct MQTTConfig* MQC){
   if(!SPIFFS.exists(MQTTfilename)){
     //Config Doc dson't exist, wite one!
     LOG("No MQTT Config! Save One!....");
-    MqttsaveConfiguration();
+    MqttsaveConfiguration(MQC);
     LOG("Now Load Config! \r");            
-    MqttloadConfiguration();
+    MqttloadConfiguration(MQC);
+    delay(100);
+    PrintMqttConfigStruct(MQC);
+    delay(100);
   }
   else{
     LOG("Found File.....Load Config!\r");
-    MqttloadConfiguration();
+    MqttloadConfiguration(MQC);
     delay(100);
-    PrintMqttConfigStruct();
+    PrintMqttConfigStruct(MQC);
     delay(100);
   }
 }
 
 // Loads the configuration from a file
-void WifiloadConfiguration() {
+void WifiloadConfiguration(struct WiFiConfig* WFC) {
   // Open file for reading
   File file = SPIFFS.open(WiFifilename);
 
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
   // Use arduinojson.org/v6/assistant to compute the capacity.
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<512> doc;
 
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
@@ -101,18 +87,23 @@ void WifiloadConfiguration() {
     Serial.println(F("Failed to read file, using default configuration"));
   }
   // Copy values from the JsonDocument to the Config
-  strlcpy(wfconfig.SSID,doc["SSID"],sizeof(wfconfig.SSID));
-  strlcpy(wfconfig.Passcode,doc["Passcode"],sizeof(wfconfig.Passcode));
-  strlcpy(wfconfig.Host,doc["Host"],sizeof(wfconfig.Host));
-  strlcpy(wfconfig.IP,doc["IP"],sizeof(wfconfig.IP));
-  strlcpy(wfconfig.DefultGateway,doc["DefultGateway"],sizeof(wfconfig.DefultGateway));
-  strlcpy(wfconfig.SubMask,doc["SubMask"],sizeof(wfconfig.SubMask));
+  strlcpy(WFC->SSID,doc["SSID"],sizeof(WFC->SSID));
+  strlcpy(WFC->Passcode,doc["Passcode"],sizeof(WFC->Passcode));
+  strlcpy(WFC->Host,doc["Host"],sizeof(WFC->Host));
+  strlcpy(WFC->IP,doc["IP"],sizeof(WFC->IP));
+  strlcpy(WFC->DefultGateway,doc["DefultGateway"],sizeof(WFC->DefultGateway));
+  strlcpy(WFC->SubMask,doc["SubMask"],sizeof(WFC->SubMask));
+
+  WFC->SSIDLN = doc["SSIDLN"];
+  WFC->PswdLN = doc["PswdLN"];
+  WFC->HoastLN = doc["HoastLN"];
+  WFC->DHCP = doc["DHCP"];
   // Close the file (Curiously, File's destructor doesn't close the file)
   //SPIFFS.close();
   file.close();
 }
 
-void MqttloadConfiguration() {
+void MqttloadConfiguration(struct MQTTConfig* MQC) {
   // Open file for reading
   File file = SPIFFS.open(MQTTfilename);
 
@@ -127,16 +118,16 @@ void MqttloadConfiguration() {
     Serial.println(F("Failed to read file, using default configuration"));
   }
   // Copy values from the JsonDocument to the Config
-  ///strlcpy(mqconfig.MQTTEnabble,doc["MQTTEnabble"],sizeof(wfconfig.AccsessPoint));  
-  strlcpy(mqconfig.MQTTIP,doc["MQTTIP"],sizeof(mqconfig.MQTTIP));
-  strlcpy(mqconfig.MQTTPassword,doc["MQTTPassword"],sizeof(mqconfig.MQTTPassword));
+  strlcpy(MQC->MQTTIP,doc["MQTTIP"],sizeof(MQC->MQTTIP));
+  strlcpy(MQC->MQTTPassword,doc["MQTTPassword"],sizeof(MQC->MQTTPassword));
+  MQC->MQTTEnabble = doc["MQTTEnabble"];
+  MQC->MQTTPasswordLN = doc["MQTTPasswordLN"];
   // Close the file (Curiously, File's destructor doesn't close the file)
-  //SPIFFS.close();
   file.close();
 }
 
 // Saves the configuration to a file
-void WifisaveConfiguration() {
+void WifisaveConfiguration(struct WiFiConfig* WFC) {
   // Delete existing file, otherwise the configuration is appended to the file
   SPIFFS.remove(WiFifilename);
 
@@ -147,17 +138,24 @@ void WifisaveConfiguration() {
     // Allocate a temporary JsonDocument
     // Don't forget to change the capacity to match your requirements.
     // Use arduinojson.org/assistant to compute the capacity.
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<512> doc;
+
+    strlcpy(WFC->Host,GetClientId().c_str(),strlen(GetClientId().c_str()));
+    WFC->HoastLN = strlen(GetClientId().c_str());
 
     // Set the values in the document
-    doc["SSID"] = wfconfig.SSID;
-    doc["Passcode"] = wfconfig.Passcode;
-    doc["Host"] = wfconfig.Host;
-    doc["IP"] = wfconfig.IP;
-    doc["DefultGateway"] = wfconfig.DefultGateway;
-    doc["SubMask"] = wfconfig.SubMask;
+    doc["SSID"] = WFC->SSID;
+    doc["SSIDLN"] =  WFC->SSIDLN;
+    doc["Passcode"] =  WFC->Passcode;
+    doc["PswdLN"] =  WFC->PswdLN;
+    doc["Host"] =  WFC->Host;
+    doc["HoastLN"] =  WFC->HoastLN;
+    doc["DHCP"] =  WFC->DHCP;
+    doc["IP"] =  WFC->IP;
+    doc["DefultGateway"] =  WFC->DefultGateway;
+    doc["SubMask"] =  WFC->SubMask;
     // Serialize JSON to file
-    serializeJsonPretty(doc, Serial);
+    //serializeJsonPretty(doc, Serial);
     if (serializeJson(doc, file) == 0) {
       Serial.println(F("Failed to write to file"));
     }
@@ -168,7 +166,7 @@ void WifisaveConfiguration() {
   }
 }
 
-void MqttsaveConfiguration() {
+void MqttsaveConfiguration(struct MQTTConfig* MQC) {
   // Delete existing file, otherwise the configuration is appended to the file
   SPIFFS.remove(MQTTfilename);
 
@@ -181,11 +179,13 @@ void MqttsaveConfiguration() {
     // Use arduinojson.org/assistant to compute the capacity.
     StaticJsonDocument<256> doc;
 
+    doc["MQTTEnabble"] = MQC->MQTTEnabble;
     // Set the values in the document
-    doc["MQTTIP"] = mqconfig.MQTTIP;
-    doc["MQTTPassword"] = mqconfig.MQTTPassword;
+    doc["MQTTIP"] = MQC->MQTTIP;
+    doc["MQTTPassword"] = MQC->MQTTPassword;
+    doc["MQTTPasswordLN"] = MQC->MQTTPasswordLN;
     // Serialize JSON to file
-    serializeJsonPretty(doc, Serial);
+    //serializeJsonPretty(doc, Serial);
     if (serializeJson(doc, file) == 0) {
       Serial.println(F("Failed to write MQTT file"));
     }
@@ -196,52 +196,52 @@ void MqttsaveConfiguration() {
   }
 }
 
-void PrintWiFiConfigStruct(){
+void PrintWiFiConfigStruct(struct WiFiConfig* WFC){
   Serial.print("AccsessPoint: ");
   volatile unsigned char i = 0;
-  for(i = 0; i < 30; i++){
-    Serial.print(wfconfig.SSID[i]);
+  for(i = 0; i < WFC->SSIDLN; i++){
+    Serial.print(WFC->SSID[i]);
   }
   Serial.println();
   Serial.print("Passcode: ");
-  for(i = 0; i < sizeof(wfconfig.Passcode); i++){
-    Serial.print(wfconfig.Passcode[i]);
+  for(i = 0; i < WFC->PswdLN; i++){
+    Serial.print(WFC->Passcode[i]);
   }
   Serial.println();
   Serial.print("Host: ");
-  for(i = 0; i < 40; i++){
-    Serial.print(wfconfig.Host[i]);
+  for(i = 0; i < WFC->HoastLN; i++){
+    Serial.print(WFC->Host[i]);
   }
   Serial.println();
-  Serial.print("DHCP : "); Serial.println(wfconfig.DHCP);
+  Serial.print("DHCP : "); Serial.println(WFC->DHCP);
   Serial.print("IP: ");
-  for(i = 0; i < 22; i++){
-    Serial.print(wfconfig.IP[i]);
+  for(i = 0; i < 16; i++){
+    Serial.print(WFC->IP[i]);
   }
   Serial.println();
   Serial.print("DefultGateway: ");
-  for(i = 0; i < 22; i++){
-    Serial.print(wfconfig.DefultGateway[i]);
+  for(i = 0; i < 16; i++){
+    Serial.print(WFC->DefultGateway[i]);
   }
   Serial.println();
   Serial.print("SubMask: ");
-  for(i = 0; i < 22; i++){
-    Serial.print(wfconfig.SubMask[i]);
+  for(i = 0; i < 16; i++){
+    Serial.print(WFC->SubMask[i]);
   }
   Serial.println();
   Serial.println();
 }
 
-void PrintMqttConfigStruct(){
+void PrintMqttConfigStruct(struct MQTTConfig* MQC){
   Serial.print("Mqtt IP: ");
   volatile unsigned char i = 0;
-  for(i = 0; i < 30; i++){
-    Serial.print(mqconfig.MQTTIP[i]);
+  for(i = 0; i < 16; i++){
+    Serial.print(MQC->MQTTIP[i]);
   }
   Serial.println();
   Serial.print(" MQtt Passcode: ");
-  for(i = 0; i < sizeof(mqconfig.MQTTPassword); i++){
-    Serial.print(mqconfig.MQTTPassword[i]);
+  for(i = 0; i < MQC->MQTTPasswordLN; i++){
+    Serial.print(MQC->MQTTPassword[i]);
   }
   Serial.println();
   Serial.println();
