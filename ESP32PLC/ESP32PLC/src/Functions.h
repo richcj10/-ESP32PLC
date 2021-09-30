@@ -20,4 +20,5 @@ void SaveResetReason(void);
 char GetResetReason(char cpucore);
 void PrintResetReason(void);
 
+
 #endif  /* FUNCTIONS_H */

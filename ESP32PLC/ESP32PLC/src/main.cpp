@@ -5,21 +5,20 @@
 #include "Webportal.h"
 #include "Menu.h"
 #include "HAL/DeviceConfig.h"
-#include "FileSystem/FileSystem.h"
+#include "FileSystem/FSInterface.h"
 #include "WifiControl/WifiConfig.h"
-
-
-
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
 void setup() {
+  //esp_log_level_set("*", ESP_LOG_VERBOSE);
   SystemStart();
   ClientIdCreation();
   SaveResetReason();
-  StartFileSystem();
+  FileStstemStart();
   QueryLocalDevice();
   GPIOStart();
+  setupMode();
   SetupWiFi();
   //SystemStart();
   //InitSensors();
