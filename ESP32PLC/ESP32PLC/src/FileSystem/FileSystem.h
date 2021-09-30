@@ -13,11 +13,12 @@ void MqttComfig(struct MQTTConfig* MQC);
 void SaveHostName(struct WiFiConfig* WFC);
 
 struct WiFiConfig {
+  unsigned char WIFIMode = 2;
   char SSID[32] = "Lights.Camera.Action";
   unsigned char SSIDLN = 20;
   char Passcode[40] = "RR58fa!8";
   unsigned char PswdLN = 8;
-  char Host[40] ="ESP32PLC-1234";
+  char Host[40] ="ESP32PLC-xxxx";
   unsigned char HoastLN = 13;
   unsigned char DHCP = 1;
   char IP[16] = "192.168.5.10";

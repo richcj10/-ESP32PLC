@@ -13,6 +13,10 @@ char FileStstemStart(){
     return 0;
 }
 
+unsigned char GetWiFiMode(){
+    return wfconfig.WIFIMode;
+}
+
 String GetSSID(){
     char ReturnArray[wfconfig.SSIDLN];
     for(unsigned char i = 0;i<=wfconfig.SSIDLN;i++){
