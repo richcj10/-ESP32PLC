@@ -1,3 +1,5 @@
+
+    <!--
 <!DOCTYPE html>
 <html>
 
@@ -89,9 +91,10 @@
     <div class="container">
       <div class="row justify-content-md-center">
         <div class="col-md-6 text-center">
-          <h1><i class="fas fa-cog"></i> ESP32PLC Control Pannel</h1>
+          <h1>ESP32PLC Control Pannel</h1>
         </div>
       </div>
+      <p align="right">Right align content</p>
     </div>
   </header>
 
@@ -102,30 +105,16 @@
           <div class="card bg-light m-2" style="min-height: 15rem;">
             <div class="card-header">Device Info</div>
             <div class="card-body">
-              <h5 class="card-title">IP Info</h5>
-              <!--
-              <p class="card-text">
-                A counter value is updated every 1s by ESP32.
-              </p>
-              -->
+              <h4 class="card-title">IP Info</h4>
+
               <h5 class="card-title">Hostname:</h5>
-              <p id="hostname" class="font-weight-bold">
-                0
-              </p>
+              <p id="hostname" class="font-weight-bold">ESP32PLC-xxxx</p>
               <h5 class="card-title">IP Address:</h5>
-              <p id="ipAddr" class="font-weight-bold">
-                0
-              </p>
+              <p id="ipAddr" class="font-weight-bold">192.168.5.000</p>
+              <h5 class="card-title">RSSI:</h5>
+              <p id="rssi" class="font-weight-bold">-90</p>
             </div>
-            <h5 class="card-title">RSSI:</h5>
-            <!-- Write your comments here 
-            <p class="card-text">
-              A counter value is updated every 1s by ESP32.
-            </p>
-            -->
-            <p id="rssi" class="font-weight-bold">
-              0
-            </p>
+            
           </div>
           </div>
         </div>
@@ -134,12 +123,8 @@
             <div class="card-header">Inputs</div>
             <div class="card-body">
               <h5 class="card-title">Input 1</h5>
-              <!--
-              <p class="card-text">
-                Press the push button on ESP32 board to change a color of the
-                dot below.
-              </p>
-            -->
+          
+            
               <i id="Input1" class="fas fa-circle fa-2x" style="color:red;"></i>
               <h5 class="card-title">Input 2</h5>
               <i id="Input2" class="fas fa-circle fa-2x" style="color:red;"></i>
@@ -172,4 +157,72 @@
   </section>
 </body>
 
+</html>
+--->
+
+<!DOCTYPE html>
+<html>
+<title>ESP32PLC Web Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="ESP32PLC.css">
+<body>
+
+<div class="w3-sidebar w3-bar-block w3-card w3-animate-left" style="display:none" id="mySidebar">
+  <button class="w3-bar-item w3-button w3-large"
+  onclick="w3_close()">Close &times;</button>
+  <a href="#" class="w3-bar-item w3-button">WiFi Configuration</a>
+  <a href="#" class="w3-bar-item w3-button">Link 2</a>
+  <a href="#" class="w3-bar-item w3-button">Link 3</a>
+</div>
+
+<div id="main">
+
+<div class="w3-blue">
+  <button id="openNav" class="w3-button w3-blue w3-xlarge" onclick="w3_open()">&#9776;</button>
+  <div class="w3-container">
+    <h1>ESP32PLC </h1>
+  </div>
+</div>
+
+<div class="card-Div">
+  <div class="card" >
+    <div class="card-header">Device Info</div>
+        <div class="card-body">
+            <h5 class="card-title">Hostname:</h5>
+            <p id="hostname" class="font-weight-bold">ESP32PLC-xxxx</p>
+            <h5 class="card-title">IP Address:</h5>
+            <p id="ipAddr" class="font-weight-bold">192.168.5.000</p>
+            <h5 class="card-title">RSSI:</h5>
+            <p id="rssi" class="font-weight-bold">-90</p>
+        </div>
+      </div>
+  <div class="card" >
+    <div class="card-header">Device Info</div>
+        <div class="card-body">
+            <h5 class="card-title">Hostname:</h5>
+            <p id="hostname" class="font-weight-bold">ESP32PLC-xxxx</p>
+            <h5 class="card-title">IP Address:</h5>
+            <p id="ipAddr" class="font-weight-bold">192.168.5.000</p>
+            <h5 class="card-title">RSSI:</h5>
+            <p id="rssi" class="font-weight-bold">-90</p>
+        </div>
+      </div>
+    </div>
+ </div>
+
+<script>
+function w3_open() {
+  document.getElementById("main").style.marginLeft = "25%";
+  document.getElementById("mySidebar").style.width = "25%";
+  document.getElementById("mySidebar").style.display = "block";
+  document.getElementById("openNav").style.display = 'none';
+}
+function w3_close() {
+  document.getElementById("main").style.marginLeft = "0%";
+  document.getElementById("mySidebar").style.display = "none";
+  document.getElementById("openNav").style.display = "inline-block";
+}
+</script>
+
+</body>
 </html>
