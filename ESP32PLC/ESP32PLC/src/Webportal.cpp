@@ -2,10 +2,12 @@
 #include <SPIFFS.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <WiFi.h>
+#include "FileSystem/FSInterface.h"
+#include "WifiControl/WifiConfig.h"
+#include "Sensors.h"
 #include "Define.h"
 
-#define HTTP_PORT 8000
+#define HTTP_PORT 80
 
 AsyncWebServer server(HTTP_PORT);
 AsyncWebSocket ws("/ws");
@@ -76,27 +78,43 @@ void WebStart(){
   /* Start web server and web socket server */
   lastButtonState = digitalRead(USER_SW);
   /* Start web server and web socket server */
+  LOG("Web Service Start!\r");
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-    //request->send(200, "text/html", html);
+    Serial.print("Root Page");
+    //request->send(200, "text/html", "OK");
     request->send(SPIFFS, "/Main.html", "text/html");
   });
-  server.onNotFound(notFound);
+  server.serveStatic("/", SPIFFS, "/");
+  server.onNotFound([](AsyncWebServerRequest *request){
+    Serial.print("got unhandled request for ");
+    Serial.println(request->url());
+    request->send(404);
+  });
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
   server.begin();
 }
 
 void WebHandel(){
-    if((millis() - LastTime) > 100){
+    if((millis() - LastTime) > 1000){
       LastTime = millis();
-      if ((lastButtonState != digitalRead(USER_SW))) {
         lastButtonState = digitalRead(USER_SW);
         jsonDocTx.clear();
-        jsonDocTx["counter"] = cnt;
+        jsonDocTx["SSID"] = GetSSID().c_str();
+        jsonDocTx["IP"] = GetIPStr();
+        jsonDocTx["HN"] = GetHostName().c_str();
+        jsonDocTx["RSSI"] = GetRSSIStr();
+        jsonDocTx["Temp"] = String(getDeviceClimateTemprature());
+        jsonDocTx["Humid"] = String(getDeviceClimateHumidity());
         jsonDocTx["button"] = lastButtonState;
         jsonDocTx["Input1"] = lastButtonState;
         jsonDocTx["Input2"] = lastButtonState;
         jsonDocTx["Input3"] = lastButtonState;
+        jsonDocTx["Input4"] = lastButtonState;
+        jsonDocTx["Output1"] = lastButtonState;
+        jsonDocTx["Output2"] = lastButtonState;
+        jsonDocTx["Output3"] = lastButtonState;
+        jsonDocTx["Output4"] = lastButtonState;
 
         serializeJson(jsonDocTx, output, 200);
 

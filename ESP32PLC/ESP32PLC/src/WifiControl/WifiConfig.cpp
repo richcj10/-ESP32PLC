@@ -5,6 +5,8 @@
 #include "Define.h"
 #include "Functions.h"
 
+String IpAddress2String(const IPAddress& ipAddress);
+
 char SetupWiFi(void){
     if(setupMode() == 1){
         Serial.printf("WiFi STA mode!\n");
@@ -23,6 +25,7 @@ char SetupWiFi(void){
 
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
+        GetIPStr();
         return 1;
     }
     else if(setupMode() == 2){
@@ -45,6 +48,23 @@ char SetupWiFi(void){
     return 2;
 }
 
+String IpAddress2String(const IPAddress& ipAddress)
+{
+  return String(ipAddress[0]) + String(".") +\
+  String(ipAddress[1]) + String(".") +\
+  String(ipAddress[2]) + String(".") +\
+  String(ipAddress[3])  ; 
+}
+
+
 char setupMode(void){
     return 1;
+}
+
+String GetIPStr(){
+    return IpAddress2String(WiFi.localIP());
+}
+
+String GetRSSIStr(){
+    return String(WiFi.RSSI());
 }

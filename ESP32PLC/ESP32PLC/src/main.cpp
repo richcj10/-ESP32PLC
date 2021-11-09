@@ -20,26 +20,26 @@ void setup() {
   GPIOStart();
   setupMode();
   SetupWiFi();
-  //SystemStart();
+  SystemStart();
   //InitSensors();
   
-  //DisplayInit();
-  //WiFiStart();
+  DisplayInit();
+  WiFiStart();
   //MQTTStart();
-  //WebStart();
+  WebStart();
   Serial.println("Setup Done!");
-  //DisplayCenterClear();
+  DisplayCenterClear();
   Serial.println(WiFi.getHostname());
-  //DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
+  DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
   //QueryLocalDevice();
   //GPIOStart();
 }
 
 void loop() {
   //MqttLoop();
-  //DisplayManager();
-  //SyncLoop();
-  //WebHandel();
+  DisplayManager();
+  SyncLoop();
+  WebHandel();
 }
 
 
