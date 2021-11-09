@@ -1,228 +1,150 @@
 
-    <!--
-<!DOCTYPE html>
-<html>
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css"
-    integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp" crossorigin="anonymous" />
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
-    integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous" />
-  <title>ESP32PLC Homepage</title>
-
-  <script type="text/javascript">
-    var ws;
-
-    window.addEventListener('beforeunload', (event) => {
-      ws.close();
-      // Cancel the event as stated by the standard.
-      event.preventDefault();
-      // Older browsers supported custom message
-      event.returnValue = '';
-    });
-
-    function mouseDown() {
-      ws.send('{"led" : 1}');
-    }
-
-    function mouseUp() {
-      ws.send('{"led" : 0}');
-    }
-
-    function WebSocketBegin() {
-      if ("WebSocket" in window) {
-        // Let us open a web socket
-        ws = new WebSocket(
-          location.hostname.match(/\.husarnetusers\.com$/) ? "wss://" + location.hostname + "/__port_8000/ws" : "ws://" + location.hostname + ":8000/ws"
-        );
-        // ws = new WebSocket(
-        //   "wss://fc9434c5513c3543753124468f76fa507-8000.husarnetusers.com/ws"
-        // );
-        // ws = new WebSocket(
-        //   "ws://esp32websocket:8000/ws"
-        // );
-
-        ws.onopen = function () {
-          // Web Socket is connected
-        };
-
-        ws.onmessage = function (evt) {
-          //create a JSON object
-          var jsonObject = JSON.parse(evt.data);
-          var cnt = jsonObject.counter;
-          var btn = jsonObject.button;
-
-          document.getElementById("cnt").innerText = cnt;
-          if (btn == 1) {
-            document.getElementById("btn").style.color = "green";
-          } else {
-            document.getElementById("btn").style.color = "red";
-          }
-        };
-
-        ws.onclose = function (evt) {
-          if (evt.wasClean) {
-            alert(`[close] Connection closed cleanly, code=${evt.code} reason=${evt.reason}`);
-          } else {
-            // e.g. server process killed or network down
-            // event.code is usually 1006 in this case
-            alert('[close] Connection died');
-          }
-        };
-
-        ws.onerror = function (error) {
-          alert(`[error] ${error.message}`);
-        }
-
-
-      } else {
-        // The browser doesn't support WebSocket
-        alert("WebSocket NOT supported by your Browser!");
-      }
-    }
-  </script>
-</head>
-
-<body onLoad="javascript:WebSocketBegin()">
-  <header id="main-header" class="py-2 bg-success text-white">
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-6 text-center">
-          <h1>ESP32PLC Control Pannel</h1>
-        </div>
-      </div>
-      <p align="right">Right align content</p>
-    </div>
-  </header>
-
-  <section class="py-5 bg-white">
-    <div class="container">
-      <div class="row">
-        <div class="col">
-          <div class="card bg-light m-2" style="min-height: 15rem;">
-            <div class="card-header">Device Info</div>
-            <div class="card-body">
-              <h4 class="card-title">IP Info</h4>
-
-              <h5 class="card-title">Hostname:</h5>
-              <p id="hostname" class="font-weight-bold">ESP32PLC-xxxx</p>
-              <h5 class="card-title">IP Address:</h5>
-              <p id="ipAddr" class="font-weight-bold">192.168.5.000</p>
-              <h5 class="card-title">RSSI:</h5>
-              <p id="rssi" class="font-weight-bold">-90</p>
-            </div>
-            
-          </div>
-          </div>
-        </div>
-        <div class="col">
-          <div class="card bg-light m-2" style="min-height: 15rem;">
-            <div class="card-header">Inputs</div>
-            <div class="card-body">
-              <h5 class="card-title">Input 1</h5>
-          
-            
-              <i id="Input1" class="fas fa-circle fa-2x" style="color:red;"></i>
-              <h5 class="card-title">Input 2</h5>
-              <i id="Input2" class="fas fa-circle fa-2x" style="color:red;"></i>
-              <h5 class="card-title">Input 3</h5>
-              <i id="Input3" class="fas fa-circle fa-2x" style="color:red;"></i>
-              <h5 class="card-title">Input 4</h5>
-              <i id="Input4" class="fas fa-circle fa-2x" style="color:red;"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <div class="card bg-light m-2">
-            <div class="card-header">Output</div>
-            <div class="card-body">
-              <h5 class="card-title">LED</h5>
-              <p class="card-text">
-                Press the button to turn LED on. Release to turn LED off.
-              </p>
-              <button type="button" class="btn btn-lg btn-warning btn-block" onmousedown="mouseDown()"
-                onmouseup="mouseUp()" ontouchstart="mouseDown()" ontouchend="mouseUp()">
-                click
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-</body>
-
-</html>
---->
 
 <!DOCTYPE html>
 <html>
 <title>ESP32PLC Web Portal</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="ESP32PLC.css">
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
 <body>
-
-<div class="w3-sidebar w3-bar-block w3-card w3-animate-left" style="display:none" id="mySidebar">
-  <button class="w3-bar-item w3-button w3-large"
-  onclick="w3_close()">Close &times;</button>
-  <a href="#" class="w3-bar-item w3-button">WiFi Configuration</a>
-  <a href="#" class="w3-bar-item w3-button">Link 2</a>
-  <a href="#" class="w3-bar-item w3-button">Link 3</a>
-</div>
-
-<div id="main">
-
-<div class="w3-blue">
-  <button id="openNav" class="w3-button w3-blue w3-xlarge" onclick="w3_open()">&#9776;</button>
-  <div class="w3-container">
-    <h1>ESP32PLC </h1>
-  </div>
-</div>
-
-<div class="card-Div">
-  <div class="card" >
-    <div class="card-header">Device Info</div>
-        <div class="card-body">
-            <h5 class="card-title">Hostname:</h5>
-            <p id="hostname" class="font-weight-bold">ESP32PLC-xxxx</p>
-            <h5 class="card-title">IP Address:</h5>
-            <p id="ipAddr" class="font-weight-bold">192.168.5.000</p>
-            <h5 class="card-title">RSSI:</h5>
-            <p id="rssi" class="font-weight-bold">-90</p>
+    <div class="container">
+        <div class="SelectBox">
+            <nav>
+                <a onclick="tabs(0)"
+                   class="tab active">
+                    <img class="svg-icon" src="/svgs/House.svg">
+                </a>
+                <a onclick="tabs(1)"
+                   class="tab">
+                    <img class="svg-icon" src="/svgs/wifi.svg">
+                </a>
+                <a onclick="tabs(2)"
+                   class="tab">
+                    <img class="svg-icon" src="/svgs/server.svg">
+                </a>
+                <a onclick="tabs(3)"
+                   class="tab">
+                    <img class="svg-icon" src="/svgs/cogs.svg">
+                </a>
+            </nav>
         </div>
-      </div>
-  <div class="card" >
-    <div class="card-header">Device Info</div>
-        <div class="card-body">
-            <h5 class="card-title">Hostname:</h5>
-            <p id="hostname" class="font-weight-bold">ESP32PLC-xxxx</p>
-            <h5 class="card-title">IP Address:</h5>
-            <p id="ipAddr" class="font-weight-bold">192.168.5.000</p>
-            <h5 class="card-title">RSSI:</h5>
-            <p id="rssi" class="font-weight-bold">-90</p>
+        <div class="rightbox">
+            <div class = "home tabShow">
+                <h1>Home</h1>
+                <fieldset>
+                    <legend>Device Connections:</legend>
+                    <p class='Same'>Device Mode: </p>
+                    <p class='Same' id="dCon">AP</p>
+                    <p class='Same'>&emsp;SSID: </p>
+                    <p class='Same' id="dssid">Test</p>
+                    <br>
+                    <p class='Same'>IP: </p>
+                    <p class='Same' id="dIP">192.168.100.100</p>
+                    <p class='Same'>&emsp;RSSI: </p>
+                    <p class='Same' id="dRSSI">90</p>
+                    <br>
+                    <p class='Same'>MAC: </p>
+                    <p class='Same' id="dMAC">xx:xx:xx:xx</p>
+                </fieldset>
+                <fieldset>
+                    <legend>Device Enviromental:</legend>
+                    <p class='Same'>Device Temp: </p>
+                    <p class='Same' id="dTemp">0.0</p>
+                    <p class='Same'>&deg;C</p>
+                    <p class='Same'>&emsp;Humidity: </p>
+                    <p class='Same' id="dHumid">0.0</p>
+                    <p class='Same'>%</p>
+                </fieldset>
+                <fieldset>
+                    <legend>Device I/O:</legend>
+                    <div class='Same' style="padding-right: 10px;">
+                        <p style="margin: 5px;">Inputs: (1-4) </p>
+                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In1"></span>
+                    </div>
+                    <div class='Same' style="padding-left:  10px;">
+                        <p style="margin: 5px;">Outputs: (1-4) </p>
+                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In1"></span>
+                    </div>
+                </fieldset>
+            </div>
+            <div class = "wificonfig tabShow">
+                <h1>WiFi Info</h1>
+                <fieldset>
+                    <legend>WiFi Config:</legend>
+                    <p class='Same'>SSID: </p>
+                    <input type="text" id="SSIDIn" name="ssid">
+                    <br>
+                    <p class='Same'>Password: </p>
+                    <input type="text" id="PWDin" name="pswd">
+                    <br>
+                    <button type="button" onclick="alert('Hello world!')">Save</button>
+                    <br>
+                </fieldset>
+                <fieldset>
+                    <legend>IP Config:</legend>
+                    <p class='Same'>DHCP: </p>
+                    <input type="checkbox" id="DHCPEn" name="dhcpctl">
+                    <p class='Same'> Static IP: </p>
+                    <input type="text" id="SIPIn" name="sIP">
+                    <br>
+                    <p class='Same'>Gateway: </p>
+                    <input type="text" id="GWIn" name="dGW">
+                    <br>
+                    <p class='Same'>Subnet Mask: </p>
+                    <input type="text" id="SNIn" name="dSN">
+                    <br>
+                    <button type="button" onclick="alert('Hello world!')">Save</button>
+                    <br>
+                </fieldset>
+            </div>
+            <div class = "mqttcontrol tabShow">
+                <h1>MQTT Info</h1>
+            </div>
+            <div class = "io tabShow">
+                <h1>I/O Info</h1>
+            </div>
         </div>
-      </div>
     </div>
- </div>
+    <script>
+        const tabBtn = document.querySelectorAll(".tab");    
+        const tab = document.querySelectorAll(".tabShow");   
+        
+        function tabs(pannelIndex) {
+            console.log(pannelIndex);
+            tab.forEach(function(node) {
+                node.style.display = "none";
+            });
+            console.log(tab[pannelIndex]);
+            tab[pannelIndex].style.display = "block";
+        }
+        tabs(0);
+    </script>
+    <script>
+        $(".tab").click(function() {
+            $(this).addClass("active").siblings().removeClass("active");
+        })
+    </script>
+    <script type = "text/javascript">
+        const socket = new WebSocket('ws://192.168.5.209:80/ws'); 
+        socket.addEventListener('open', function (event) { 
+          socket.send('CNT'); 
+        }); 
 
-<script>
-function w3_open() {
-  document.getElementById("main").style.marginLeft = "25%";
-  document.getElementById("mySidebar").style.width = "25%";
-  document.getElementById("mySidebar").style.display = "block";
-  document.getElementById("openNav").style.display = 'none';
-}
-function w3_close() {
-  document.getElementById("main").style.marginLeft = "0%";
-  document.getElementById("mySidebar").style.display = "none";
-  document.getElementById("openNav").style.display = "inline-block";
-}
-</script>
+        socket.addEventListener('message', function (event) { 
+          console.log('Message from server ', event.data); 
+        });
 
+        socket.addEventListener('close', function (event) { 
+          console.log('The connection has been closed'); 
+        });
+    </script>
 </body>
 </html>

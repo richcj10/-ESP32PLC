@@ -3,5 +3,7 @@
 
 char SetupWiFi(void);
 char setupMode(void);
+String GetIPStr();
+String GetRSSIStr();
 
 #endif
