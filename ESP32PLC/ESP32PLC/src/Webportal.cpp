@@ -17,7 +17,7 @@ StaticJsonDocument<100> jsonDocRx;
 
 bool wsconnected = false;
 bool lastButtonState = 0;
-static char output[200];
+static char output[512];
 
 unsigned long cnt = 0;
 unsigned long LastTime = 0;
@@ -96,35 +96,38 @@ void WebStart(){
 }
 
 void WebHandel(){
-    if((millis() - LastTime) > 1000){
-      LastTime = millis();
-        lastButtonState = digitalRead(USER_SW);
-        jsonDocTx.clear();
-        jsonDocTx["SSID"] = GetSSID().c_str();
-        jsonDocTx["IP"] = GetIPStr();
-        jsonDocTx["HN"] = GetHostName().c_str();
-        jsonDocTx["RSSI"] = GetRSSIStr();
-        jsonDocTx["Temp"] = String(getDeviceClimateTemprature());
-        jsonDocTx["Humid"] = String(getDeviceClimateHumidity());
-        jsonDocTx["button"] = lastButtonState;
-        jsonDocTx["Input1"] = lastButtonState;
-        jsonDocTx["Input2"] = lastButtonState;
-        jsonDocTx["Input3"] = lastButtonState;
-        jsonDocTx["Input4"] = lastButtonState;
-        jsonDocTx["Output1"] = lastButtonState;
-        jsonDocTx["Output2"] = lastButtonState;
-        jsonDocTx["Output3"] = lastButtonState;
-        jsonDocTx["Output4"] = lastButtonState;
+  if((millis() - LastTime) > 2000){
+    LastTime = millis();
+    if(wsconnected == true){
+      lastButtonState = digitalRead(USER_SW);
+      jsonDocTx.clear();
+      jsonDocTx["SSID"] = GetSSID();
+      jsonDocTx["IP"] = GetIPStr();
+      jsonDocTx["HN"] = GetHostName();
+      jsonDocTx["RSSI"] = GetRSSIStr();
+      jsonDocTx["MAC"] = GetMACStr();
+      jsonDocTx["Temp"] = String(getDeviceClimateTemprature());
+      jsonDocTx["Humid"] = String(getDeviceClimateHumidity());
+      jsonDocTx["button"] = lastButtonState;
+      jsonDocTx["Input1"] = lastButtonState;
+      jsonDocTx["Input2"] = lastButtonState;
+      jsonDocTx["Input3"] = lastButtonState;
+      jsonDocTx["Input4"] = lastButtonState;
+      jsonDocTx["Output1"] = lastButtonState;
+      jsonDocTx["Output2"] = lastButtonState;
+      jsonDocTx["Output3"] = lastButtonState;
+      jsonDocTx["Output4"] = lastButtonState;
 
-        serializeJson(jsonDocTx, output, 200);
+      serializeJson(jsonDocTx, output, 512);
 
-        Serial.printf("Sending: %s", output);
-        if (ws.availableForWriteAll()) {
-          ws.textAll(output);
-          Serial.printf("...done\r\n");
-        } else {
-          Serial.printf("...queue is full\r\n");
-        }
+      Serial.printf("Sending: %s", output);
+      if (ws.availableForWriteAll()) {
+        ws.textAll(output);
+        Serial.printf("...done\r\n");
+      } 
+      else {
+        Serial.printf("...queue is full\r\n");
       }
     }
+  }
 }
