@@ -56,7 +56,6 @@ String IpAddress2String(const IPAddress& ipAddress)
   String(ipAddress[3])  ; 
 }
 
-
 char setupMode(void){
     return 1;
 }
@@ -67,4 +66,10 @@ String GetIPStr(){
 
 String GetRSSIStr(){
     return String(WiFi.RSSI());
+}
+
+String GetMACStr(){
+    byte mac[6];
+    WiFi.macAddress(mac);
+    return String(mac[5]) +":"+ String(mac[4]) +":"+ String(mac[3]) +":"+ String(mac[2]) +":"+ String(mac[1]) +":"+ String(mac[0]);
 }

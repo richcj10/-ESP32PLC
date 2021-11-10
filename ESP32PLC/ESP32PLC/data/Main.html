@@ -62,16 +62,16 @@
                     <div class='Same' style="padding-right: 10px;">
                         <p style="margin: 5px;">Inputs: (1-4) </p>
                         <span class="dot" id="In1"></span>
-                        <span class="dot" id="In1"></span>
-                        <span class="dot" id="In1"></span>
-                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="In2"></span>
+                        <span class="dot" id="In3"></span>
+                        <span class="dot" id="In4"></span>
                     </div>
                     <div class='Same' style="padding-left:  10px;">
                         <p style="margin: 5px;">Outputs: (1-4) </p>
-                        <span class="dot" id="In1"></span>
-                        <span class="dot" id="In1"></span>
-                        <span class="dot" id="In1"></span>
-                        <span class="dot" id="In1"></span>
+                        <span class="dot" id="Out1"></span>
+                        <span class="dot" id="Out2"></span>
+                        <span class="dot" id="Out3"></span>
+                        <span class="dot" id="Out4"></span>
                     </div>
                 </fieldset>
             </div>
@@ -126,6 +126,11 @@
             tab[pannelIndex].style.display = "block";
         }
         tabs(0);
+        
+        function message(msg){
+            var notification = new Notification("Alert", {body: msg});
+            setTimeout(function() {notification.close()}, 1000);
+        }
     </script>
     <script>
         $(".tab").click(function() {
@@ -133,18 +138,42 @@
         })
     </script>
     <script type = "text/javascript">
-        const socket = new WebSocket('ws://192.168.5.209:80/ws'); 
+        var socket = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/ws");
+        //const socket = new WebSocket('ws://localhost:80/ws'); 
         socket.addEventListener('open', function (event) { 
-          socket.send('CNT'); 
+            socket.send('CNT'); 
+            message("Connected");
         }); 
 
         socket.addEventListener('message', function (event) { 
-          console.log('Message from server ', event.data); 
+            console.log('Message from server ', event.data);
+            const obj = JSON.parse(event.data);
+            document.getElementById("dRSSI").innerHTML = obj.RSSI;
+            document.getElementById("dssid").innerHTML = obj.SSID;
+            document.getElementById("dTemp").innerHTML = obj.Temp;
+            document.getElementById("dHumid").innerHTML = obj.Humid;
+            document.getElementById("dMAC").innerHTML = obj.MAC;
+            document.getElementById("dIP").innerHTML = obj.IP;
+            IODisplay(obj.Input1,obj.Input2,obj.Input3,obj.Input4,obj.Output1,obj.Output2,obj.Output3,obj.Output4);
         });
 
         socket.addEventListener('close', function (event) { 
-          console.log('The connection has been closed'); 
+            console.log('The connection has been closed');
+            message("Server Disconnected");
         });
+        socket.addEventListener('onerror', function (event) { 
+            console.log('The connection has been lost');
+            message("Server connection lost");
+        });
+        
+        function IODisplay(I1,I2,I3,I4,O1,O2,O3,O4){
+            if(I1 == true){
+                document.getElementById("In1").style.backgroundColor  = 'Green';
+            }
+            else{
+                document.getElementById("In1").style.backgroundColor  = 'Red';
+            }
+        }
     </script>
 </body>
 </html>
