@@ -47,7 +47,7 @@ void DisplayUserHandeler(void){
       CheckMQTTCon(1);
       DisplayMode = 1;
     }
-    //DisplaySwitchCase();
+    DisplaySwitchCase();
   }
 }
 
