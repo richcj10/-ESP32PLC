@@ -18,7 +18,7 @@ char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){
     File dir = SPIFFS.open("/");
     listFilesInDir(dir, 1);
 
-    //SPIFFS.format();
+    SPIFFS.format();
     LOG(" Config Check \r"); 
     // Serial.println(F(" Config Check   ")); 
     WifiComfig(WFC);

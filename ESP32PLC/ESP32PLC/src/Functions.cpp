@@ -33,7 +33,6 @@ void SyncLoop(){
     ToggletUserLED();
     ReadDS18B20OneWire();
     readDeviceClimate();
-    DisplayManager();
     char PinValue = digitalRead(MP1INPUT);
     if(PinValue != PinLastVal){
       if(PinValue == LOW){

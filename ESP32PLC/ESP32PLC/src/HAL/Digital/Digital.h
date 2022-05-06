@@ -6,5 +6,6 @@ void DigitalStart(void);
 void SetUserLED(bool Value);
 bool GetUserSWValue(void);
 void ToggletUserLED(void);
+void ScanUserInput(void);
 
 #endif
