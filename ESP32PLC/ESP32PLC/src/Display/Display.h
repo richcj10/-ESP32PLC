@@ -7,5 +7,6 @@ void DisplayManager();
 void DisplayUserHandeler(void);
 void DisplaySwitchCase();
 void DispalySleepControl(char value);
+void DisplaySetup(char Type);
 
 #endif

@@ -1,9 +1,9 @@
 #include "Functions.h"
-#include "Oled.h"
+#include "Display/Oled.h"
 #include "MQTT.h"
 #include "Sensors.h"
 #include "Webportal.h"
-#include "Menu.h"
+#include "Display/Display.h"
 #include "HAL/DeviceConfig.h"
 #include "FileSystem/FSInterface.h"
 #include "WifiControl/WifiConfig.h"
@@ -24,10 +24,9 @@ void setup() {
   SystemStart();
   InitSensors();
   
-  DisplayInit();
   WiFiStart();
-  MQTTStart();
-  WebStart();
+  //MQTTStart();
+  //WebStart();
   Serial.println("Setup Done!");
   DisplayCenterClear();
   Serial.println(WiFi.getHostname());
@@ -39,7 +38,7 @@ void setup() {
 
 void loop() {
   MqttLoop();
-  DisplayManager();
+  //DisplayManager();
   ScanUserInput();
   SyncLoop();
   WebHandel();

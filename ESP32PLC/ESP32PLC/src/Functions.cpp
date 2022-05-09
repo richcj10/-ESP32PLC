@@ -1,9 +1,9 @@
 #include "Functions.h"
 #include <rom/rtc.h>
-#include "Oled.h"
+#include "Display/Oled.h"
 #include "Sensors.h"
 #include "MQTT.h"
-#include "Menu.h"
+#include "Display/Display.h"
 #include "HAL/Digital/Digital.h"
 #include <WiFi.h>
 

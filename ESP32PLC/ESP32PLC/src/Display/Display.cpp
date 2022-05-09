@@ -1,8 +1,12 @@
-#include "Menu.h"
+#include "Display.h"
 #include <WiFi.h>
 #include "Oled.h"
+#include "TFT.h"
 #include "Define.h"
 #include "HAL/Digital/Digital.h"
+
+#define TFT 1
+#define OLED 2
 
 char DisplayMode = 1;
 char ScreenShow = 0;
@@ -10,6 +14,18 @@ unsigned long TimeReading = 0;
 unsigned long LastTimeReading = 0;
 unsigned long LastDisplayUpdate = 0;
 char DisplaySleepEn = 1;
+
+void DisplaySetup(char Type){
+  if(Type == TFT){
+    TFTInit();
+  }
+  if(Type == OLED){
+    Serial.println("OLED Config");
+  }
+  else{
+    Serial.println("No Display Config");
+  }
+}
 
 void DisplayManager(){
   if(DisplayMode == 1){
