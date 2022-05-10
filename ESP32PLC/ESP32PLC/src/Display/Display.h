@@ -1,6 +1,9 @@
 #ifndef MENU_H
 #define  MENU_H
 
+#define TFT 1
+#define OLED 2
+
 void DislaySaver();
 void DisplayTimeoutReset();
 void DisplayManager();

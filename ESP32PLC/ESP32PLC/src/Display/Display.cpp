@@ -5,8 +5,6 @@
 #include "Define.h"
 #include "HAL/Digital/Digital.h"
 
-#define TFT 1
-#define OLED 2
 
 char DisplayMode = 1;
 char ScreenShow = 0;
@@ -69,25 +67,24 @@ void DisplayUserHandeler(void){
 
 void DisplaySwitchCase(){
   switch (ScreenShow) {
-    case 0:    // your hand is on the sensor
+    case 0:
       DisplayCenterChestTemp();
       ScreenShow++;
       break;
-    case 1:    // your hand is close to the sensor
+    case 1:
       DisplayCenterInput();
       ScreenShow++;
       break;
-    case 2:    // your hand is close to the sensor
+    case 2:
        DisplayCenterOutput();
        ScreenShow++;
       break;
-    case 3:    // your hand is close to the sensor
+    case 3:
        DisplayCenterOutput();
        ScreenShow++;
       break;
     default:
-      //This is a catch for errors
-      ScreenShow = 0; //This allows for a circular buffer on display items. 
+      ScreenShow = 0;
       break;
   }
   Serial.print("Screen = ");

@@ -18,12 +18,12 @@ void setup() {
   SaveResetReason();
   FileStstemStart();
   QueryLocalDevice();
+  DisplaySetup(TFT);
   //GPIOStart();
   setupMode();
   SetupWiFi();
   SystemStart();
   InitSensors();
-  
   WiFiStart();
   //MQTTStart();
   //WebStart();
@@ -31,7 +31,6 @@ void setup() {
   DisplayCenterClear();
   Serial.println(WiFi.getHostname());
   DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
-  //QueryLocalDevice();
   //GPIOStart();
   pinMode(MP1INPUT, INPUT);
 }
