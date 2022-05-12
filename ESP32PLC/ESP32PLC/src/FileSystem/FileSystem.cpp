@@ -1,24 +1,30 @@
 #include "FileSystem.h"
 #include <Arduino.h>
-#include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include "Define.h"
 #include "Functions.h"
+#include "FS.h"
+#include <LittleFS.h>
+#include <time.h>
+
+#define FORMAT_LITTLEFS_IF_FAILED true
 
 const char *WiFifilename = "/WiFiconfig.json";  // <- SD library uses 8.3 filenames
 const char *MQTTfilename = "/MQTTconfig.json";  // <- SD library uses 8.3 filenames
 const char *MQTTTopicsfilename = "/MQTTcTopics.json";  // <- SD library uses 8.3 filenames
 
-void listFilesInDir(File dir, int numTabs);
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
+void writeFile(fs::FS &fs, const char * path, const char * message);
 
 bool DefaultsLoaded = 0;
 
-char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){
-  if(SPIFFS.begin(true)){
-    File dir = SPIFFS.open("/");
-    listFilesInDir(dir, 1);
-
-    SPIFFS.format();
+char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){\
+  if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)){
+    Serial.println("LittleFS Mount Failed");
+    return 0;
+  }
+  else{
+    listDir(LittleFS, "/", 0);
     LOG(" Config Check \r"); 
     // Serial.println(F(" Config Check   ")); 
     WifiComfig(WFC);
@@ -26,16 +32,17 @@ char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){
     PrintWiFiConfigStruct(WFC);
     return 1;
   }
-  else{
-    LOG("File Sytem Failed to mount!!!!!! Reformat!\r");
-    SPIFFS.format();
-    return 0;
-  }
 }
 
 void WifiComfig(struct WiFiConfig* WFC){
-  if(!SPIFFS.exists(WiFifilename)){
-    //Config Doc dson't exist, wite one!
+  if(LittleFS.exists(WiFifilename)){
+    LOG("Found File.....Load Config!\r");
+    WifiloadConfiguration(WFC);
+    delay(100);
+    PrintWiFiConfigStruct(WFC);
+    delay(100);
+  }
+  else{
     LOG("No Wifi Config! Save One!....");
     WifisaveConfiguration(WFC);
     LOG("Now Load Config! \r");            
@@ -44,28 +51,21 @@ void WifiComfig(struct WiFiConfig* WFC){
     PrintWiFiConfigStruct(WFC);
     delay(100);
   }
-  else{
-    LOG("Found File.....Load Config!\r");
-    WifiloadConfiguration(WFC);
-    delay(100);
-    PrintWiFiConfigStruct(WFC);
-    delay(100);
-  }
 }
 
 void MqttComfig(struct MQTTConfig* MQC){
-  if(!SPIFFS.exists(MQTTfilename)){
-    //Config Doc dson't exist, wite one!
-    LOG("No MQTT Config! Save One!....");
-    MqttsaveConfiguration(MQC);
-    LOG("Now Load Config! \r");            
+  if(LittleFS.exists(MQTTfilename)){
+    LOG("Found File.....Load Config!\r");
     MqttloadConfiguration(MQC);
     delay(100);
     PrintMqttConfigStruct(MQC);
     delay(100);
   }
   else{
-    LOG("Found File.....Load Config!\r");
+    //Config Doc dson't exist, wite one!
+    LOG("No MQTT Config! Save One!....");
+    MqttsaveConfiguration(MQC);
+    LOG("Now Load Config! \r");            
     MqttloadConfiguration(MQC);
     delay(100);
     PrintMqttConfigStruct(MQC);
@@ -76,7 +76,7 @@ void MqttComfig(struct MQTTConfig* MQC){
 // Loads the configuration from a file
 void WifiloadConfiguration(struct WiFiConfig* WFC) {
   // Open file for reading
-  File file = SPIFFS.open(WiFifilename);
+  File file = LittleFS.open(WiFifilename);
 
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
@@ -87,7 +87,7 @@ void WifiloadConfiguration(struct WiFiConfig* WFC) {
   DeserializationError error = deserializeJson(doc, file);
   if (error){
     LOG("WiFi - File Read Error, Rebuilding file from defults ****Rebooting****\r");
-    SPIFFS.remove(WiFifilename);
+    LittleFS.remove(WiFifilename);
     delay(1000);
     ESP.restart(); //Reboot the device and load defaults. 
   }
@@ -114,10 +114,10 @@ void WifiloadConfiguration(struct WiFiConfig* WFC) {
 // Saves the configuration to a file
 void WifisaveConfiguration(struct WiFiConfig* WFC) {
   // Delete old file for updating.
-  SPIFFS.remove(WiFifilename);
+  LittleFS.remove(WiFifilename);
   DefaultsLoaded = 1;
   // Open file for writing
-  File file = SPIFFS.open(WiFifilename, "w");
+  File file = LittleFS.open(WiFifilename, "w");
   if (file) {
     LOG("Opened File! \r");
 
@@ -157,7 +157,7 @@ void WifisaveConfiguration(struct WiFiConfig* WFC) {
 
 void MqttloadConfiguration(struct MQTTConfig* MQC) {
   // Open file for reading
-  File file = SPIFFS.open(MQTTfilename);
+  File file = LittleFS.open(MQTTfilename);
 
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
@@ -168,7 +168,7 @@ void MqttloadConfiguration(struct MQTTConfig* MQC) {
   DeserializationError error = deserializeJson(doc, file);
   if (error){
     LOG("MQTT - File Read Error, Rebuilding file from defults ****Rebooting****\r");
-    SPIFFS.remove(MQTTfilename);
+    LittleFS.remove(MQTTfilename);
     delay(1000);
     ESP.restart(); //Reboot the device and load defaults. 
   }
@@ -185,10 +185,10 @@ void MqttloadConfiguration(struct MQTTConfig* MQC) {
 
 void MqttsaveConfiguration(struct MQTTConfig* MQC) {
   // Delete existing file, otherwise the configuration is appended to the file
-  SPIFFS.remove(MQTTfilename);
+  LittleFS.remove(MQTTfilename);
 
   // Open file for writing
-  File file = SPIFFS.open(MQTTfilename, "w");
+  File file = LittleFS.open(MQTTfilename, "w");
   if (file) {
     LOG("Opened MQTT File! \r");
     // Allocate a temporary JsonDocument
@@ -264,27 +264,42 @@ void PrintMqttConfigStruct(struct MQTTConfig* MQC){
   Serial.println();
 }
 
-void listFilesInDir(File dir, int numTabs) {
-  Serial.println("\r Files: \r");
-  while (true) {
-    File entry =  dir.openNextFile();
-    if (! entry) {
-      // no more files in the folder
-      break;
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
+    Serial.printf("Listing directory: %s\r\n", dirname);
+
+    File root = fs.open(dirname);
+    if(!root){
+        Serial.println("- failed to open directory");
+        return;
     }
-    for (uint8_t i = 0; i < numTabs; i++) {
-      Serial.print('\t');
+    if(!root.isDirectory()){
+        Serial.println(" - not a directory");
+        return;
     }
-    Serial.print(entry.name());
-    if (entry.isDirectory()) {
-      Serial.println("/");
-      listFilesInDir(entry, numTabs + 1);
-    } else {
-      // display size for file, nothing for directory
-      Serial.print("\t\t");
-      Serial.println(entry.size(), DEC);
+
+    File file = root.openNextFile();
+    while(file){
+        if(file.isDirectory()){
+            Serial.print("  DIR : ");
+
+            Serial.println(file.name());
+            //time_t t= file.getLastWrite();
+            //struct tm * tmstruct = localtime(&t);
+            //Serial.printf("  LAST WRITE: %d-%02d-%02d %02d:%02d:%02d\n",(tmstruct->tm_year)+1900,( tmstruct->tm_mon)+1, tmstruct->tm_mday,tmstruct->tm_hour , tmstruct->tm_min, tmstruct->tm_sec);
+
+            if(levels){
+                listDir(fs, file.name(), levels -1);
+            }
+        } else {
+            Serial.print("  FILE: ");
+            Serial.print(file.name());
+            Serial.print("  SIZE: ");
+
+            Serial.println(file.size());
+            //time_t t= file.getLastWrite();
+            //struct tm * tmstruct = localtime(&t);
+            //Serial.printf("  LAST WRITE: %d-%02d-%02d %02d:%02d:%02d\n",(tmstruct->tm_year)+1900,( tmstruct->tm_mon)+1, tmstruct->tm_mday,tmstruct->tm_hour , tmstruct->tm_min, tmstruct->tm_sec);
+        }
+        file = root.openNextFile();
     }
-    entry.close();
-  }
-  Serial.println("\r");
 }

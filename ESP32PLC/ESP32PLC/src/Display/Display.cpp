@@ -17,7 +17,7 @@ void DisplaySetup(char Type){
   if(Type == TFT){
     TFTInit();
   }
-  if(Type == OLED){
+  else if(Type == OLED){
     Serial.println("OLED Config");
   }
   else{
