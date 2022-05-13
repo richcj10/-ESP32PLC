@@ -10,6 +10,10 @@ void DisplayManager();
 void DisplayUserHandeler(void);
 void DisplaySwitchCase();
 void DispalySleepControl(char value);
-void DisplaySetup(char Type);
+void DisplaySetup();
+void DispalyConfigSet(char value);
+void DisplayWiFiSignal();
+void DisplayLogo();
+
 
 #endif

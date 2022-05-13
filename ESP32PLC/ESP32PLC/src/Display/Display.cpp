@@ -7,21 +7,24 @@
 
 
 char DisplayMode = 1;
+char Displaytype = 0;
 char ScreenShow = 0;
 unsigned long TimeReading = 0;
 unsigned long LastTimeReading = 0;
 unsigned long LastDisplayUpdate = 0;
 char DisplaySleepEn = 1;
 
-void DisplaySetup(char Type){
-  if(Type == TFT){
+void DisplaySetup(){
+  switch (Displaytype){
+  case TFT:
     TFTInit();
-  }
-  else if(Type == OLED){
+    break;
+  case OLED:
     Serial.println("OLED Config");
-  }
-  else{
+    break;
+  default:
     Serial.println("No Display Config");
+    break;
   }
 }
 
@@ -91,10 +94,49 @@ void DisplaySwitchCase(){
   Serial.println(int(ScreenShow));
 }
 
+char k =0;
+
+void DisplayWiFiSignal(){
+  switch (Displaytype){
+  case TFT:
+    TFTWiFiSignal(k);
+    k++;
+    if(k>4){
+      k = 0;
+    }
+    //TFTWiFiSignal();
+    break;
+  case OLED:
+    Serial.println("OLED Config");
+    break;
+  default:
+    Serial.println("No Display Config");
+    break;
+  }
+}
+
 void DisplayTimeoutReset(){
   LastTimeReading = millis();
 }
 
 void DispalySleepControl(char value){
   DisplaySleepEn = value;
+}
+
+void DispalyConfigSet(char value){
+  Displaytype = value;
+}
+
+void DisplayLogo(){
+  switch (Displaytype){
+  case TFT:
+    //TFTLogoDisplay();
+    break;
+  case OLED:
+    Serial.println("OLED Config");
+    break;
+  default:
+    Serial.println("No Display Config");
+    break;
+  }
 }
