@@ -18,6 +18,8 @@ void DisplaySetup(){
   switch (Displaytype){
   case TFT:
     TFTInit();
+    ledcSetup(0, LEDC_BASE_FREQ, 12);
+    ledcAttachPin(LED_PIN, 0);
     break;
   case OLED:
     Serial.println("OLED Config");
@@ -138,5 +140,21 @@ void DisplayLogo(){
   default:
     Serial.println("No Display Config");
     break;
+  }
+}
+
+void DisplayBrightnes(char Brightness){
+  switch (Displaytype){
+    case TFT:
+      // calculate duty, 4095 from 2 ^ 12 - 1
+      //uint32_t duty = (4095 / 255) *Brightness;
+      ledcWrite(0, ((4095 / 255) *Brightness));
+      break;
+    case OLED:
+      Serial.println("OLED Config");
+      break;
+    default:
+      Serial.println("No Display Config");
+      break;
   }
 }

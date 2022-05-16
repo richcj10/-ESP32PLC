@@ -7,5 +7,6 @@
 void SetI2CWires(char Type, char Input);
 void I2CStart();
 void I2CRun();
+void I2CScan();
 
 #endif 

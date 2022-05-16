@@ -8,12 +8,7 @@
 #include "FileSystem/FSInterface.h"
 #include "WifiControl/WifiConfig.h"
 #include "HAL/Digital/Digital.h"
-
-
-
-
-
-
+#include "HAL/Com/I2C.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
@@ -27,6 +22,7 @@ void setup() {
   QueryLocalDevice();
   DispalyConfigSet(TFT);
   DisplaySetup();
+  DisplayBrightnes(50);
   DisplayLogo();
   //GPIOStart();
   setupMode();
@@ -40,7 +36,10 @@ void setup() {
   //DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
   //GPIOStart();
   //pinMode(MP1INPUT, INPUT);
+  I2CScan();
 }
+
+int l =0;
 
 void loop() {
   //MqttLoop();
@@ -49,9 +48,6 @@ void loop() {
   //SyncLoop();
   //WebHandel();
   DisplayWiFiSignal();
-  delay(1000);
-  digitalWrite(2,HIGH);
-  delay(1000);
-  digitalWrite(2,LOW);
+  delay(100);
 }
 
