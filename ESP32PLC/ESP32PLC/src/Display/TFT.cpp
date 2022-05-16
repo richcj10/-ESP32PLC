@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include "OledBitMaps.h"
+#include "Functions.h"
 //#include <PNGdec.h>
 #include <LittleFS.h>
 #include <FS.h>
@@ -29,10 +30,10 @@ void TFTInit(){
     // large block of text
     tft.fillScreen(TFT_BLACK);
     //testdrawtext("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere. ", TFT_WHITE);
-    tft.setCursor(40, 40);
+    tft.setCursor(65, 12);
     tft.setTextColor(TFT_WHITE);
     tft.setTextWrap(true);
-    //tft.print(GetClientId().c_str());
+    tft.print(GetClientId().c_str());
     //delay(1000);
     //tft.drawXBitmap(80, 70, Sig, 16, 16, TFT_WHITE);
 }

@@ -6,6 +6,7 @@
 #include "Display/Display.h"
 #include "HAL/Digital/Digital.h"
 #include <WiFi.h>
+#include "HAL/Com/I2C.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastRS485 = 0;
@@ -22,7 +23,7 @@ void print_reset_reason(RESET_REASON reason);
 void SystemStart(){
   Serial.begin(115200);
   Serial1.begin(115200,SERIAL_8N1,RXD2,TXD2);
-  Wire.begin(21, 22);   // sda= GPIO_21 /scl= GPIO_22 
+  I2CStart();
 }
 
 void SyncLoop(){

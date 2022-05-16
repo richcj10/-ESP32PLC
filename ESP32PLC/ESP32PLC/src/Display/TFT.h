@@ -1,8 +1,8 @@
 #ifndef TFT_H
 #define  TFT_H
 
-#define TFTWIFIBITMAPX 60
-#define TFTWIFIBITMAPY 60
+#define TFTWIFIBITMAPX 40
+#define TFTWIFIBITMAPY 8
 
 void TFTInit();
 void TFTWiFiSignal(char overide);
