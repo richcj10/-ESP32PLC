@@ -9,6 +9,8 @@
 
 
 void EEPROMStart();
-void EEPROMGetConfig();
+void EEPROMGetBoardConfig();
+void EEPROMGetPCBConfig();
+void EEPROMGetPCBDOMFG();
 
 #endif 

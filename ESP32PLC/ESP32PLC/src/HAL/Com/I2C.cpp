@@ -23,6 +23,60 @@ void I2CRun(){
 
 }
 
+void I2CwriteReg(char Address, char Reg){
+  // Write to user register on ADDRESS
+  Wire.beginTransmission(Address);
+  Wire.write(Reg);
+  Wire.endTransmission();
+}
+
+void I2CwriteValue(char Address, char Reg, char value){
+  // Write to user register on ADDRESS
+  Wire.beginTransmission(Address);
+  Wire.write(Reg);
+  Wire.write(value);
+  Wire.endTransmission();
+}
+
+char I2CreadReg(char Address, char Reg){
+  // Read from user register on ADDRESS
+  Wire.beginTransmission(Address);
+  Wire.write(Reg);
+  Wire.endTransmission();
+  Wire.requestFrom(Address,1);
+  uint8_t regVal = Wire.read();
+  return regVal;
+}
+
+char I2Cread(char Address, char ByteCount, char returnData[]){
+  // Read from user register on ADDRESS
+  char i = 0;
+  Wire.requestFrom(Address,ByteCount);
+  if(Wire.available() != ByteCount)
+    return -1;
+  for(i = 0; i < ByteCount; ++i){
+    returnData[i] = Wire.read();
+  }
+  return 1;
+}
+
+char I2CReadWrite(char Address, char SendCount, char sendData[], char ByteCount, char returnData[]){
+  // Read from user register on ADDRESS
+  char i = 0;
+  Wire.beginTransmission(Address);
+  for(i = 0; i < SendCount; ++i){
+    Wire.write(sendData[i]);
+  }
+  Wire.endTransmission();
+  Wire.requestFrom(Address,ByteCount);
+  if(Wire.available() != ByteCount)
+    return -1;
+  for(i = 0; i < ByteCount; ++i){
+    returnData[i] = Wire.read();
+  }
+  return 1;
+}
+
 void I2CScan(){
   byte error, address;
   int nDevices;
