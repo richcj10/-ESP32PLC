@@ -24,6 +24,8 @@ void DispalyConfigSet(char value);
 void DisplayWiFiSignal();
 void DisplayLogo();
 void DisplayBrightnes(char Brightness);
+void DisplayWiFiConnect();
+void DisplayLog(const char *Text);
 
 
 #endif

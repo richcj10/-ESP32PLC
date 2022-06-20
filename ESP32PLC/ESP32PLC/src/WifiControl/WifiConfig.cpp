@@ -4,23 +4,33 @@
 #include "FileSystem/FSInterface.h"
 #include "Define.h"
 #include "Functions.h"
+#include "Devices/StatusLED.h"
+#include "Display/Display.h"
 
 String IpAddress2String(const IPAddress& ipAddress);
+
+const char* ssid     = "Lights.Camera.Action";
+const char* password = "RR58fa!8";
 
 char SetupWiFi(void){
     if(setupMode() == 1){
         Serial.printf("WiFi STA mode!\n");
-        WiFi.disconnect();
-        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-        WiFi.setHostname(GetHostName().c_str());
-        delay(250);
-        WiFi.mode(WIFI_AP);
-        delay(250);
+        //WiFi.disconnect();
+        //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        //WiFi.setHostname(GetHostName().c_str());
         Serial.println(GetSSID().c_str());
-        WiFi.begin(GetSSID().c_str(), GetSSIDPassword().c_str());
+        SetLEDStatus(WIFI_CONNECTING,250);
+        //WiFi.begin(GetSSID().c_str(), GetSSIDPassword().c_str());
+        WiFi.begin(ssid, password);
+        int counter = 0;
         while (WiFi.status() != WL_CONNECTED) {
-            Serial.print('.');
-            delay(1000);
+            LEDUpdate();
+            DisplayWiFiConnect();
+            counter++;
+            delay(100);
+            if(counter > 70){
+                ESP.restart();
+            }
         }
 
         Serial.print("IP Address: ");
