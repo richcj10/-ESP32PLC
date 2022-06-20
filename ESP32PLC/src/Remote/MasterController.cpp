@@ -1,4 +1,5 @@
 #include "MasterController.h"
+#include "RemoteDeviceType.h"
 #include <Arduino.h>
 
 #include <ArduinoRS485.h> // ArduinoModbus depends on the ArduinoRS485 library
