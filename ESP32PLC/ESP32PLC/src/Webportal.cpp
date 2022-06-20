@@ -1,5 +1,5 @@
 #include <ArduinoJson.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "FileSystem/FSInterface.h"
@@ -76,15 +76,15 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
 
 void WebStart(){
   /* Start web server and web socket server */
-  lastButtonState = digitalRead(USER_SW);
+  //lastButtonState = digitalRead(USER_SW);
   /* Start web server and web socket server */
   LOG("Web Service Start!\r");
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     Serial.print("Root Page");
     //request->send(200, "text/html", "OK");
-    request->send(SPIFFS, "/Main.html", "text/html");
+    request->send(LittleFS, "/Main.html", "text/html");
   });
-  server.serveStatic("/", SPIFFS, "/");
+  server.serveStatic("/", LittleFS, "/");
   server.onNotFound([](AsyncWebServerRequest *request){
     Serial.print("got unhandled request for ");
     Serial.println(request->url());

@@ -11,32 +11,46 @@
 #include "HAL/Com/I2C.h"
 #include "Devices/StatusLED.h"
 #include "Devices/JoyStick.h"
+#include "Remote/MasterController.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
 void setup() {
   pinMode(2, OUTPUT);
+  pinMode(16,INPUT);
   StatusLEDStart();
-  
+  LEDBoot();
+  DispalyConfigSet(TFT);
+  DisplaySetup();
+  DisplayBrightnes(50);
+  delay(1000);
   //esp_log_level_set("*", ESP_LOG_VERBOSE);
   SystemStart();
   ClientIdCreation();
   SaveResetReason();
-  FileStstemStart();
+  if(FileStstemStart()){
+    DisplayLog(" FS OK ");
+    delay(1000);
+  }
+  else{
+    DisplayLog(" FS ERROR ");
+    delay(1000);
+  }
   QueryLocalDevice();
-  DispalyConfigSet(TFT);
-  DisplaySetup();
-  DisplayBrightnes(50);
-  DisplayLogo();
+
+
   //GPIOStart();
   setupMode();
   //Serial.print("SiSensor = ");
   //Serial.println(Si7021checkID());
-  //SetupWiFi();
+  DisplayLog(" Connecting to WiFi...");
+  SetupWiFi();
+  DisplayLog(GetIPStr().c_str());
+  delay(1000);
   //InitSensors();
   //WiFiStart();
   //MQTTStart();
-  //WebStart();
+  WebStart();
   Serial.println("Setup Done!");
   //DisplayCenterClear();
   //DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
@@ -44,13 +58,16 @@ void setup() {
   //pinMode(MP1INPUT, INPUT);
   //I2CScan();
   JoyStickStart();
+  MasterStart();
+  SetLEDStatus(NORMAL,250);
 }
 
 int l =0;
 
 void loop() {
   JoyStickUpdate();
-  SetStatus();
+  //SetStatus();
+  LEDUpdate();
   //UpdateSensors();
   //Serial.print("Joystick = ");
   //Serial.println(GetJoyStickPos());
@@ -58,8 +75,16 @@ void loop() {
   //DisplayManager();
   //ScanUserInput();
   //SyncLoop();
-  //WebHandel();
+  WebHandel();
   //DisplayWiFiSignal();
-  delay(100);
+  //SetOcupyLED(0x11,200,0,0);
+  //SetOcupyLED(0x10,0,0,0);
+  //delay(1000);
+  //SetOcupyLED(0x11,0,200,0);
+  //SetOcupyLED(0x10,0,0,200);
+  delay(1000);
+  //Serial.println(readDeviceVIN(0x10));
+  //Serial.println(readDeviceVIN(0x11));
+  //Serial.println(readDeviceVIN(0x20));
 }
 

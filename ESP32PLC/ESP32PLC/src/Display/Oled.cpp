@@ -151,7 +151,7 @@ void Bitmap16xBitMapClear(char Location){
   }
 }
 
-void DisplayTHBar(){
+void OLEDTHBar(){
   THBarClear();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);

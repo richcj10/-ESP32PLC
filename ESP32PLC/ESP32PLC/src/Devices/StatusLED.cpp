@@ -3,10 +3,15 @@
 #include <algorithm>
 #include <Adafruit_NeoPixel.h>
 
-#define PIN        3 // On Trinket or Gemma, suggest changing this to 1
-
-// How many NeoPixels are attached to the Arduino?
+#define PIN 3 
 #define NUMPIXELS 1
+
+char Mode = 0;
+char LEDAnaimation = 0;
+
+long LEDRefreshRate = 0;
+long LEDUpdateInterval = 1000;
+unsigned long LEDcurrentMillis = 0;
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -16,14 +21,111 @@ void StatusLEDStart(){
   pixels.show(); // Initialize all pixels to 'off'
 }
 
-void SetStatus(){
+void LEDBoot(){
     //strip.SetPixelColor(0, green);
-    pixels.setPixelColor(0, pixels.Color(0, 150, 150));
+    pixels.setPixelColor(0, pixels.Color(50, 0, 0));
     pixels.show();
+    delay(200);
+    pixels.setPixelColor(0, pixels.Color(0, 50, 0));
+    pixels.show();
+    delay(200);
+    pixels.setPixelColor(0, pixels.Color(0, 0, 50));
+    pixels.show();
+}
+
+void SetLEDStatus(char type, char rate){
+  Mode = type;
+  LEDUpdateInterval = rate;
+}
+
+
+
+void LEDUpdate(){
+  LEDcurrentMillis = millis();
+  if (LEDcurrentMillis - LEDRefreshRate >= LEDUpdateInterval) {
+    // save the last time you blinked the LED
+    LEDRefreshRate = LEDcurrentMillis;
+    switch (Mode){
+      case WIFI_CONNECTING:
+        WiFiFcn();
+        break;
+      case MQTT_CONNECTING:
+        WiFiFcn();
+        break;
+      case NORMAL:
+        NormalFcn();
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 char GetStatus(){
     return 0;
+}
+
+
+void WiFiFcn(){
+  switch (LEDAnaimation){
+  case 0:
+    pixels.setPixelColor(0, pixels.Color(0, 0, 10));
+    break;
+  case 1:
+    pixels.setPixelColor(0, pixels.Color(0, 0, 20));
+    break;
+  case 2:
+    pixels.setPixelColor(0, pixels.Color(0, 0, 30));
+    break;
+  case 3:
+    pixels.setPixelColor(0, pixels.Color(0, 0, 40));
+    break;
+  }
+  LEDAnaimation++;
+  if(LEDAnaimation > 4){
+    LEDAnaimation = 0;
+  }
+  pixels.show();
+}
+
+void NormalFcn(){
+  switch (LEDAnaimation){
+    case 0:
+      pixels.setPixelColor(0, pixels.Color(0, 10, 0));
+      break;
+    case 1:
+      pixels.setPixelColor(0, pixels.Color(0, 0, 0));
+      break;
+    default:
+      break;
+  }
+  LEDAnaimation++;
+  if(LEDAnaimation > 1){
+    LEDAnaimation = 0;
+  }
+  pixels.show();
+}
+
+void MQTTFcn(){
+  switch (LEDAnaimation){
+  case 0:
+    pixels.setPixelColor(0, pixels.Color(0, 10, 10));
+    break;
+  case 1:
+    pixels.setPixelColor(0, pixels.Color(0, 0, 10));
+    break;
+  case 2:
+    pixels.setPixelColor(0, pixels.Color(0, 10, 10));
+    break;
+  case 3:
+    pixels.setPixelColor(0, pixels.Color(10, 0, 0));
+    break;
+  }
+  LEDAnaimation++;
+  if(LEDAnaimation > 4){
+    LEDAnaimation = 0;
+  }
+  pixels.show();
 }
 
 
