@@ -16,10 +16,12 @@ struct RemoteDevice {
 
 struct LeakSensor {
   unsigned char SensorCode = 0x10;
-  unsigned char NumberOfCoils = 2;
+  const char NumberOfCoils = 2;
   unsigned char NumberOfInputRegisters = 2;
   unsigned char NumberOfHoldingRegisters = 2;
-  RemoteSensorChannel SENSOR_RELAY = {1,1,'Relay'};
+  struct RemoteSensorChannel Coil[2];
+  struct RemoteSensorChannel InputRegisters[2];
+  struct RemoteSensorChannel HoldingRegisters[2];
 };
 
 
