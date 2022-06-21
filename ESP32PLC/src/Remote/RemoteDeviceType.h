@@ -14,16 +14,18 @@ struct RemoteDevice {
   unsigned char DeviceTypeDefined[7] = {0x10,0x20,0x30,0x40,0x41,0x42,0x50};
 };
 
-struct LeakSensor {
-  unsigned char SensorCode = 0x10;
-  const char NumberOfCoils = 2;
-  unsigned char NumberOfInputRegisters = 2;
-  unsigned char NumberOfHoldingRegisters = 2;
-  struct RemoteSensorChannel Coil[2];
-  struct RemoteSensorChannel InputRegisters[2];
-  struct RemoteSensorChannel HoldingRegisters[2];
+enum LeakSensorDefine {
+  SensorCode = 0x10,
+  LSCoil = 4,
+  LSInputRegisters = 6,
+  LSHoldingRegisters = 3
 };
 
-
+struct LeakSensor {
+  unsigned char LeakSensorAddress = 0;
+  struct RemoteSensorChannel Coil[LeakSensorDefine::LSCoil];
+  struct RemoteSensorChannel InputRegisters[LeakSensorDefine::LSInputRegisters];
+  struct RemoteSensorChannel HoldingRegisters[LeakSensorDefine::LSHoldingRegisters];
+};
 
 #endif
