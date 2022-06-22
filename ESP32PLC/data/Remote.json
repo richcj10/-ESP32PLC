@@ -1,0 +1,50 @@
+//http://www.objgen.com/json?demo=true
+{
+    "rev": "1.0",
+    "LeakSensor": [
+      {
+        "MBAddress": "0x10",
+        "Coil": [
+          {
+            "Address": "1",
+            "Name": "SensorScan"
+          },
+          {
+            "Address": "2",
+            "Name": "RelayControl"
+          }
+        ],
+        "Input": [
+          {
+            "Address": "1",
+            "Name": "ReadVIN"
+          },
+          {
+            "Address": "1",
+            "Name": "ReadCH1"
+          },
+          {
+            "Address": "1",
+            "Name": "ReadCH2"
+          },
+          {
+            "Address": "1",
+            "Name": "ReadCH3"
+          }
+        ]
+      },
+      {
+        "MBAddress": "0x11",
+        "Coil": [
+          {
+            "Address": "1",
+            "Name": "SensorScan"
+          },
+          {
+            "Address": "2",
+            "Name": "RelayControl"
+          }
+        ]
+      }
+    ]
+  }
