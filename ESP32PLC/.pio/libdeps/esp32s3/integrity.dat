@@ -1,0 +1,12 @@
+adafruit/Adafruit GFX Library@^1.10.10
+https://github.com/husarnet/AsyncTCP.git
+bitbank2/PNGdec@^1.0.1
+arduino-libraries/ArduinoModbus@^1.0.6
+adafruit/Adafruit BusIO@^1.8.3
+bodmer/TFT_eSPI@^2.4.61
+bblanchon/ArduinoJson @ 6.17
+adafruit/Adafruit NeoPixel@^1.10.4
+adafruit/Adafruit SSD1306@^2.4.6
+knolleary/PubSubClient@^2.8.0
+https://github.com/me-no-dev/ESPAsyncWebServer.git
+arduino-libraries/ArduinoRS485@^1.0.2
