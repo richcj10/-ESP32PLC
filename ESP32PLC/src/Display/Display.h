@@ -26,6 +26,10 @@ void DisplayLogo();
 void DisplayBrightnes(char Brightness);
 void DisplayWiFiConnect();
 void DisplayLog(const char *Text);
+void DisplayClear();
+void WiFiCheckRSSI(char updateDisp);
+void DisplayMQTT(char Mode);
+void DisplayTHBar();
 
 
 #endif

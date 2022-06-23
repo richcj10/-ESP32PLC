@@ -1,16 +1,18 @@
 #include "JoyStick.h"
 #include <Arduino.h>
 
-int DataWindow[6] = {0,0,0,0,0,0};
+int DataWindow[3] = {0,0,0};
 int Average = 0;
-
+char ButtonSel = 0;
+char ButtonSelStatus = 0;
 
 long JoystickRefreshRate = 0;
 unsigned long JoystickcurrentMillis = 0;
+unsigned long lastTimeButtonSel = 0;
 
 void JoyStickStart(){
     pinMode(1,INPUT);
-    analogReadResolution(12);
+    //analogReadResolution(12);
     for(int i = 0;i<6;i++){
         DataWindow[i] = analogRead(1);
         //Serial.println(DataWindow[i]);
@@ -18,8 +20,8 @@ void JoyStickStart(){
 }
 
 char GetJoyStickPos(){
-    //Serial.print("JoyStick = ");
-    //Serial.println(Avarge);
+    Serial.print("JoyStick = ");
+    Serial.println(Average);
     char JoystickState = 0;
     switch (Average){
         case 3800 ... 4095:
@@ -45,24 +47,28 @@ char GetJoyStickPos(){
 }
 
 void JoyStickUpdate(){
-  JoystickcurrentMillis = millis();
-  if (JoystickcurrentMillis - JoystickRefreshRate >= 100) {
-      JoystickRefreshRate = JoystickcurrentMillis;
-/*     long AvargeCalc = 0;
-    for(int i = 0;i<4;i++){
-        DataWindow[i] = DataWindow[i+1];
-        //Serial.println(DataWindow[i]);
+    JoystickcurrentMillis = millis();
+    char readingButtonSel = digitalRead(0);
+    if (readingButtonSel != ButtonSel) {
+        lastTimeButtonSel = JoystickcurrentMillis;
     }
-    DataWindow[5] = analogRead(1); */
-     Average = analogRead(1);
-/*     for(int i = 0;i<5;i++){
-        AvargeCalc = DataWindow[i] + AvargeCalc;
+    if((millis() - lastTimeButtonSel) > 50){
+        if (readingButtonSel != ButtonSelStatus) {
+            ButtonSelStatus = readingButtonSel;
+        }
     }
-    Avarge = AvargeCalc/6; */
-    //Serial.println(Avarge);
-  }
+    if (JoystickcurrentMillis - JoystickRefreshRate >= 20) {
+        JoystickRefreshRate = JoystickcurrentMillis;
+        long AvargeCalc = 0;
+        DataWindow[0] = DataWindow[1];
+        DataWindow[1] = DataWindow[2];
+        DataWindow[2] = analogRead(1);
+        AvargeCalc = DataWindow[0] + DataWindow[1] + DataWindow[2];
+        Average = AvargeCalc/3;
+    }
 }
 
 char GetJoyStickSelect(){
-    return 0;
+    //return ButtonSelStatus;
+    return !digitalRead(0);
 }

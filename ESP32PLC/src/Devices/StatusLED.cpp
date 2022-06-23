@@ -10,7 +10,7 @@ char Mode = 0;
 char LEDAnaimation = 0;
 
 long LEDRefreshRate = 0;
-long LEDUpdateInterval = 1000;
+long LEDUpdateInterval = 100;
 unsigned long LEDcurrentMillis = 0;
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);

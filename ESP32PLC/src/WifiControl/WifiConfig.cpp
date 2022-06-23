@@ -27,8 +27,8 @@ char SetupWiFi(void){
             LEDUpdate();
             DisplayWiFiConnect();
             counter++;
-            delay(100);
-            if(counter > 70){
+            delay(50);
+            if(counter > 140){
                 ESP.restart();
             }
         }
