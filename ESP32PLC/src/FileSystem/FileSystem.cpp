@@ -75,7 +75,7 @@ void MqttComfig(struct MQTTConfig* MQC){
 }
 
 void RemoteComfig(){
-  if(LittleFS.exists(MQTTfilename)){
+/*   if(LittleFS.exists(MQTTfilename)){
     LOG("Found File.....Load Config!\r");
     MqttloadConfiguration(MQC);
     delay(100);
@@ -91,7 +91,7 @@ void RemoteComfig(){
     delay(100);
     PrintMqttConfigStruct(MQC);
     delay(100);
-  }
+  } */
 }
 
 // Loads the configuration from a file

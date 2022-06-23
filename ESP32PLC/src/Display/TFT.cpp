@@ -76,10 +76,9 @@ void TFTWiFiSignal(char overide){
 
 void TFTTHBar(){
   TFTBarClear();
-  tft.setCursor(200, 20);
-  tft.setTextSize(1);
+  tft.setTextSize(2);
   tft.setTextColor(TFT_WHITE);
-  tft.setCursor(2, TFTBANNERY);
+  tft.setCursor(15, TFTBANNERY);
   tft.println("T: ");
   tft.setCursor(18, TFTBANNERY);
   tft.println(String(getDeviceClimateTemprature(),1));
@@ -102,7 +101,7 @@ void TFTMQTTIconSet(char IconMode){
 
 
 void TFTBarClear(){
-  //tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
+  tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
 }
 
  void TFTWiFiConnect(char Position){

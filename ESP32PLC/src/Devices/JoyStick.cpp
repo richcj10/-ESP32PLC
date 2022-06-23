@@ -12,11 +12,11 @@ unsigned long lastTimeButtonSel = 0;
 
 void JoyStickStart(){
     pinMode(1,INPUT);
+    pinMode(0,INPUT);
     //analogReadResolution(12);
-    for(int i = 0;i<6;i++){
-        DataWindow[i] = analogRead(1);
-        //Serial.println(DataWindow[i]);
-    }
+    DataWindow[0] = analogRead(1);
+    DataWindow[1] = analogRead(1);
+    DataWindow[2] = analogRead(1);
 }
 
 char GetJoyStickPos(){
