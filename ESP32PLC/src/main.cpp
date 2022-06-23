@@ -16,16 +16,18 @@
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
 void setup() {
+  SystemStart();
   pinMode(2, OUTPUT);
   pinMode(16,INPUT);
+  pinMode(0,INPUT);
   StatusLEDStart();
   LEDBoot();
   DispalyConfigSet(TFT);
   DisplaySetup();
-  DisplayBrightnes(50);
-  delay(1000);
+  DisplayBrightnes(75);
+  
   //esp_log_level_set("*", ESP_LOG_VERBOSE);
-  SystemStart();
+
   ClientIdCreation();
   SaveResetReason();
   if(FileStstemStart()){
@@ -43,7 +45,7 @@ void setup() {
   setupMode();
   //Serial.print("SiSensor = ");
   //Serial.println(Si7021checkID());
-  DisplayLog(" Connecting to WiFi...");
+  //DisplayLog(" Connecting to WiFi...");
   SetupWiFi();
   DisplayLog(GetIPStr().c_str());
   delay(1000);
@@ -72,7 +74,7 @@ void loop() {
   //Serial.print("Joystick = ");
   //Serial.println(GetJoyStickPos());
   //MqttLoop();
-  //DisplayManager();
+  DisplayManager();
   //ScanUserInput();
   //SyncLoop();
   WebHandel();
@@ -82,7 +84,7 @@ void loop() {
   //delay(1000);
   //SetOcupyLED(0x11,0,200,0);
   //SetOcupyLED(0x10,0,0,200);
-  delay(1000);
+  delay(1);
   //Serial.println(readDeviceVIN(0x10));
   //Serial.println(readDeviceVIN(0x11));
   //Serial.println(readDeviceVIN(0x20));

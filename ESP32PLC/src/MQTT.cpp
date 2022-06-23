@@ -51,19 +51,16 @@ void MQTTreconnect(void) {
   // Loop until we're reconnected
   char counter = 0;
     if(GetWiFiStatus() == 1){
-      MQTTIconSet(0);
       while (!client.connected()) {
         Serial.print("Attempting MQTT connection...");
         if(client.connect(GetClientId().c_str())) {
           MQTTActive = 1;
-          MQTTIconSet(1);
           Serial.println("MQTT connected!");
           MQTTMessageInit();
        }
        counter++;
        if(counter > 2){
          Serial.println("MQTT ISSUE");
-         MQTTIconSet(0);
          MQTTLockout = 1;
          break;
        }

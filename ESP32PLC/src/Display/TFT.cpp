@@ -35,7 +35,7 @@ void TFTInit(){
     // large block of text
     tft.fillScreen(TFT_BLACK);
     //testdrawtext("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere. ", TFT_WHITE);
-    tft.setCursor(65, 12);
+    tft.setCursor(100, 200);
     tft.setTextColor(TFT_WHITE);
     tft.setTextWrap(true);
     tft.print(GetClientId().c_str());
@@ -76,6 +76,7 @@ void TFTWiFiSignal(char overide){
 
 void TFTTHBar(){
   TFTBarClear();
+  tft.setCursor(200, 20);
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE);
   tft.setCursor(2, TFTBANNERY);
@@ -88,8 +89,20 @@ void TFTTHBar(){
   tft.println(String(getDeviceClimateHumidity(),1));
 }
 
+void TFTMQTTIconSet(char IconMode){
+  if(IconMode == 1){
+    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Clear, 16, 16, TFT_BLACK);
+    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Connected, 16, 16, 1);
+  }
+  else{
+    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Clear, 16, 16, TFT_BLACK);
+    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,NotConnected, 16, 16, 1);
+  } 
+}
+
+
 void TFTBarClear(){
-  tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
+  //tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
 }
 
  void TFTWiFiConnect(char Position){
@@ -133,11 +146,15 @@ void pngDraw(PNGDRAW *pDraw){
 }
 
 void TFTLog(const char *Comment){
-  tft.fillRect(INFOX, INFOY, 200, 20, TFT_BLACK);
-  tft.setCursor(INFOX, INFOY);
+  //tft.fillRect(INFOX, INFOY, 200, 20, TFT_BLACK);
+  tft.setCursor(100, 200);
   tft.setTextColor(TFT_WHITE);
   tft.setTextWrap(true);
   tft.print(Comment);
+}
+
+void TFTDisplayClear(){
+  tft.fillScreen(TFT_BLACK);
 }
 
 // void Bitmap16xBitMapClear(char Location){

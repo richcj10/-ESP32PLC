@@ -3,7 +3,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "Sensors.h"
-#include "MQTT.h"
 #include "Functions.h" 
 
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
@@ -11,7 +10,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 char DisplayOK = 1;
 
-void DisplayInit(void){
+void OLEDInit(void){
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
     DisplayOK = 0;
@@ -19,7 +18,7 @@ void DisplayInit(void){
   if(DisplayOK){
     Serial.println("Display OK");
     display.clearDisplay();
-    DeviceIDDisplay();
+    OLEDIDDisplay();
     display.drawBitmap(((display.width()-32)/2),((display.height()-32)/2),Home, 32, 32, 1);
     display.display();
     delay(1000);
@@ -27,7 +26,7 @@ void DisplayInit(void){
 }
 
 
-void DeviceIDDisplay(){
+void OLEDIDDisplay(){
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(52, 2);
@@ -35,24 +34,7 @@ void DeviceIDDisplay(){
   display.display();
 }
 
-char LastMQTT = 0;
-
-void CheckMQTTCon(char overide){
-  if(GetMQTTStatus() == 1){
-    if((LastMQTT != 1) || (overide == 1)){
-      MQTTIconSet(1);
-      LastMQTT = 1;
-    }
-  }
-  else{
-    if((LastMQTT != 2) || (overide == 1)){
-      MQTTIconSet(0);
-      LastMQTT = 2;
-    }
-  }
-}
-
-void MQTTIconSet(char IconMode){
+void OLEDMQTTIconSet(char IconMode){
   if(IconMode == 1){
     Bitmap16xBitMapClear(2);
     display.drawBitmap(MQTTCX,MQTTCY,Connected, 16, 16, 1);
@@ -63,30 +45,6 @@ void MQTTIconSet(char IconMode){
     display.drawBitmap(MQTTCX,MQTTCY,NotConnected, 16, 16, 1);
     display.display();
   } 
-}
-
-char LastWiFiSig = 0;
-
-void WiFiCheckRSSI(char overide){
-  long Rssi = WiFi.RSSI()*-1;
-  if(Rssi > HIGHRSSI){
-    if((LastWiFiSig != 1) || (overide == 1)){
-      WiFiStreanthDisplay(1);
-      LastWiFiSig = 1;
-    }
-  }
-  else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
-    if((LastWiFiSig != 2) || (overide == 1)){
-      WiFiStreanthDisplay(2);
-      LastWiFiSig = 2;
-    }
-  }
-  else if(Rssi < LOWRSSI){
-    if((LastWiFiSig != 3)  || (overide == 1)){
-      WiFiStreanthDisplay(3);
-      LastWiFiSig = 3;
-    }
-  }
 }
 
 void WiFiStreanthDisplay(char power){
@@ -198,7 +156,7 @@ void CenterClear(){
   }
 }
 
-void FullDisplayClear(void){
+void OledDisplayClear(void){
     display.clearDisplay();
     display.display();
 }
