@@ -12,6 +12,7 @@
 const char *WiFifilename = "/WiFiconfig.json";  // <- SD library uses 8.3 filenames
 const char *MQTTfilename = "/MQTTconfig.json";  // <- SD library uses 8.3 filenames
 const char *MQTTTopicsfilename = "/MQTTcTopics.json";  // <- SD library uses 8.3 filenames
+const char *Remotefilename = "/Remote.json";  // <- SD library uses 8.3 filenames
 
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 void writeFile(fs::FS &fs, const char * path, const char * message);
@@ -54,6 +55,26 @@ void WifiComfig(struct WiFiConfig* WFC){
 }
 
 void MqttComfig(struct MQTTConfig* MQC){
+  if(LittleFS.exists(MQTTfilename)){
+    LOG("Found File.....Load Config!\r");
+    MqttloadConfiguration(MQC);
+    delay(100);
+    PrintMqttConfigStruct(MQC);
+    delay(100);
+  }
+  else{
+    //Config Doc dson't exist, wite one!
+    LOG("No MQTT Config! Save One!....");
+    MqttsaveConfiguration(MQC);
+    LOG("Now Load Config! \r");            
+    MqttloadConfiguration(MQC);
+    delay(100);
+    PrintMqttConfigStruct(MQC);
+    delay(100);
+  }
+}
+
+void RemoteComfig(){
   if(LittleFS.exists(MQTTfilename)){
     LOG("Found File.....Load Config!\r");
     MqttloadConfiguration(MQC);
