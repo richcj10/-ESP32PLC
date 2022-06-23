@@ -14,25 +14,24 @@ char MasterStart(){
   return 1;
 }
 
-void ReadDeviceType(int Address) {
+int ReadDeviceType(int Address) {
+  int DeviceType = 0;
   Serial.print("Reading Discrete Input values ... ");
-
   // read 10 Discrete Input values from (slave) id 42, address 0x00
   if (!ModbusRTUClient.requestFrom(Address, INPUT_REGISTERS, 0x01, 1)) {
     Serial.print("failed! ");
     Serial.println(ModbusRTUClient.lastError());
-  } else {
+  } 
+  else {
     Serial.println("success");
-
     while (ModbusRTUClient.available()) {
+      DeviceType = ModbusRTUClient.read();
       Serial.print(ModbusRTUClient.read());
       Serial.print(' ');
     }
     Serial.println();
   }
-
-  // Alternatively, to read a single Discrete Input value use:
-  // ModbusRTUClient.discreteInputRead(...)
+  return DeviceType;
 }
 
 float readDeviceVIN(int Address){
@@ -43,6 +42,7 @@ float readDeviceVIN(int Address){
       return (float)ModbusRTUClient.read()/100.00;
     }
   }
+  return -1;
 }
 
 char SetOcupyLED(int Address,unsigned char R,unsigned char G, unsigned char B) {

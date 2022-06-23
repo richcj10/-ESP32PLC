@@ -19,6 +19,7 @@ void WiFiFaiure(void);
 void SaveResetReason(void);
 char GetResetReason(char cpucore);
 void PrintResetReason(void);
-
+void UIUpdateLoop();
+void SensorUpdateLoop();
 
 #endif  /* FUNCTIONS_H */

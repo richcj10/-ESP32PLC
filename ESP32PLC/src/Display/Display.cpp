@@ -193,7 +193,7 @@ void DisplayWiFiConnect(){
         break;
     }
   }
-}\
+}
 
 char LastWiFiSig = 0;
 
