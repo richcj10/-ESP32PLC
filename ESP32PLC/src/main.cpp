@@ -10,7 +10,7 @@
 #include "HAL/Digital/Digital.h"
 #include "HAL/Com/I2C.h"
 #include "Devices/StatusLED.h"
-
+#include "Webportal.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
@@ -42,6 +42,7 @@ void setup() {
   //InitSensors();
   //WiFiStart();
   //MQTTStart();
+  WebStart();
   
   Serial.println("Setup Done!");
   //DisplayCenterClear();
@@ -49,7 +50,7 @@ void setup() {
   //GPIOStart();
   //pinMode(MP1INPUT, INPUT);
   //I2CScan();
-  SetLEDStatus(NORMAL,250);
+  SetLEDStatus(NORMAL,1000);
 }
 
 int l =0;

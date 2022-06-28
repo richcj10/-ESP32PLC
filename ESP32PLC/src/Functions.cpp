@@ -33,7 +33,6 @@ void SystemStart(){
   DisplayBrightnes(75);
   MasterStart();
   I2CStart();
-  WebStart();
   JoyStickStart();
 }
 

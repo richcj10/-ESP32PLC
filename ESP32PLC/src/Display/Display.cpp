@@ -66,19 +66,32 @@ void CheckMQTTCon(char overide){
 }
 
 void DisplayManager(){
-  if(DisplayMode == 1){
-    //DeviceIDDisplay();
-    DisplayTHBar();
-    DisplayWiFiRSSI();
-    CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
-    DislaySaver();
+  if(DisplayMode == 0){  //If Display is off,
+      if(GetJoyStickSelect()){ //And then we get a Joystic Select, (TODO: Make this a "movment")
+        DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
+        if(Displaytype == TFT){  //If we have the TFT, I need to enable the back light 
+          DisplayBrightnes(25);
+        }
+        DisplayTHBar();
+        WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
+        CheckMQTTCon(1);
+        DisplayMode = 1; //The Display is now "on", handel user selections
+      //DeviceIDDisplay();
+    }
   }
   else{
-    DisplayClear();
-  }
-  if ((millis() - LastDisplayUpdate) > 500){
-    DisplayUserHandeler();
-    LastDisplayUpdate = millis();
+    DisplaySaver();
+    if ((millis() - LastDisplayUpdate) > 500){
+      LastDisplayUpdate = millis();
+      //DeviceIDDisplay();
+      DisplayTHBar();
+      DisplayWiFiRSSI();
+      CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
+    }
+    if(GetJoyStickSelect()){
+      //Change UI
+      Serial.println("Update UI");
+    }
   }
 }
 
@@ -104,7 +117,7 @@ void DisplayMQTT(char Mode){
   }
 }
 
-void DislaySaver(){
+void DisplaySaver(){
   if(DisplaySleepEn == 1){
     if ((millis() - LastTimeReading) > SREENTIMEOUT){
       DisplayMode = 0;
@@ -124,23 +137,6 @@ void DisplayClear(){
     case OLED:
       OledDisplayClear();
       break;
-  }
-}
-
-void DisplayUserHandeler(void){
-  if(GetJoyStickSelect()){
-    DisplayTimeoutReset();
-    if(DisplayMode == 0){
-      if(Displaytype == TFT){
-        DisplayBrightnes(25);
-      }
-      //DeviceIDDisplay();
-      DisplayTHBar();
-      WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
-      CheckMQTTCon(1);
-      DisplayMode = 1;
-    }
-    //DisplaySwitchCase();
   }
 }
 
@@ -176,17 +172,16 @@ void DisplayWiFiConnect(){
   DisplaycurrentMillis = millis();
   if (DisplaycurrentMillis - DisplayRefreshRate >= 250) {
     DisplayRefreshRate = DisplaycurrentMillis;
+    k++;
+    if(k>3){
+      k = 0;
+    }
     switch (Displaytype){
       case TFT:
         TFTWiFiConnect(k);
-        k++;
-        if(k>3){
-          k = 0;
-        }
-        //TFTWiFiSignal();
         break;
       case OLED:
-        Serial.println("OLED Config");
+        WiFiStreanthDisplay(k);
         break;
       default:
         Serial.println("No Display Config");
@@ -201,19 +196,49 @@ void WiFiCheckRSSI(char overide){
   long Rssi = WiFi.RSSI()*-1;
   if(Rssi > HIGHRSSI){
     if((LastWiFiSig != 1) || (overide == 1)){
-      WiFiStreanthDisplay(1);
+      switch (Displaytype){
+        case TFT:
+          TFTWiFiConnect(1);
+          break;
+        case OLED:
+          WiFiStreanthDisplay(1);
+          break;
+        default:
+          Serial.println("No Display Config");
+          break;
+      }
       LastWiFiSig = 1;
     }
   }
   else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
     if((LastWiFiSig != 2) || (overide == 1)){
-      WiFiStreanthDisplay(2);
+      switch (Displaytype){
+        case TFT:
+          TFTWiFiConnect(2);
+          break;
+        case OLED:
+          WiFiStreanthDisplay(2);
+          break;
+        default:
+          Serial.println("No Display Config");
+          break;
+      }
       LastWiFiSig = 2;
     }
   }
   else if(Rssi < LOWRSSI){
     if((LastWiFiSig != 3)  || (overide == 1)){
-      WiFiStreanthDisplay(3);
+      switch (Displaytype){
+        case TFT:
+          TFTWiFiConnect(3);
+          break;
+        case OLED:
+          WiFiStreanthDisplay(3);
+          break;
+        default:
+          Serial.println("No Display Config");
+          break;
+      }
       LastWiFiSig = 3;
     }
   }

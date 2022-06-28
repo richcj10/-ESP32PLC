@@ -89,7 +89,7 @@
 //#include <User_Setups/Setup70c_ESP32_C3_ILI9341.h>    // Setup file for ESP32 C3 with SPI ILI9341
 //#include <User_Setups/Setup70d_ILI9488_S3_Parallel.h> // Setup file for ESP32 S3 with SPI ILI9488
 
-//#include <User_Setups/Setup71_ESP32_S2_ST7789.h>       // Setup file for ESP32 S2 with ST7789
+#include <User_Setups/Setup71_ESP32_S2_ST7789.h>       // Setup file for ESP32 S2 with ST7789
 //#include <User_Setups/Setup72_ESP32_ST7789_172x320.h>  // Setup file for ESP32 with ST7789 1.47" 172x320
 
 //#include <User_Setups/Setup100_RP2040_ILI9488_parallel.h> // Setup file for Pico/RP2040 with 8 bit parallel ILI9488

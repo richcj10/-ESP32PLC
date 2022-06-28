@@ -78,13 +78,13 @@ void TFTTHBar(){
   TFTBarClear();
   tft.setTextSize(2);
   tft.setTextColor(TFT_WHITE);
-  tft.setCursor(15, TFTBANNERY);
+  tft.setCursor(25, TFTBANNERY);
   tft.println("T: ");
-  tft.setCursor(18, TFTBANNERY);
+  tft.setCursor(55, TFTBANNERY);
   tft.println(String(getDeviceClimateTemprature(),1));
-  tft.setCursor(50, TFTBANNERY);
+  tft.setCursor(110, TFTBANNERY);
   tft.println("H: ");
-  tft.setCursor(70, TFTBANNERY);
+  tft.setCursor(140, TFTBANNERY);
   tft.println(String(getDeviceClimateHumidity(),1));
 }
 
@@ -132,10 +132,9 @@ void TFTLogo(){
     tft.endWrite();
     // png.close(); // not needed for memory->memory decode
   }
-  //tft.drawBitmap(30,90,Logo, 180, 108, TFT_GREEN);
 }
 
-int16_t xpos = 60;
+int16_t xpos = 40;
 int16_t ypos = 60;
 
 void pngDraw(PNGDRAW *pDraw){
@@ -145,8 +144,8 @@ void pngDraw(PNGDRAW *pDraw){
 }
 
 void TFTLog(const char *Comment){
-  //tft.fillRect(INFOX, INFOY, 200, 20, TFT_BLACK);
-  tft.setCursor(100, 200);
+  tft.fillRect(INFOX, INFOY, 200, 15, TFT_BLACK);
+  tft.setCursor(INFOX+5, INFOY);
   tft.setTextColor(TFT_WHITE);
   tft.setTextWrap(true);
   tft.print(Comment);
