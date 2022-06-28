@@ -13,10 +13,9 @@
 // fade LED PIN (replace with LED_BUILTIN constant for built-in LED)
 #define LED_PIN            9
 
-void DislaySaver();
+void DisplaySaver();
 void DisplayTimeoutReset();
 void DisplayManager();
-void DisplayUserHandeler(void);
 void DisplaySwitchCase();
 void DispalySleepControl(char value);
 void DisplaySetup();

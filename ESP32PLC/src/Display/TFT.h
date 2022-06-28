@@ -12,10 +12,10 @@
 
 #define CENTERYTOP 20
 #define CENTERYBOT 55
-#define TFTBANNERY 160
+#define TFTBANNERY 200
 
-#define INFOY 175
-#define INFOX 90
+#define INFOY 165
+#define INFOX 80
 
 void TFTInit();
 void TFTWiFiSignal(char overide);
