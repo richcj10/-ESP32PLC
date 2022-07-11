@@ -20,14 +20,14 @@ void setup() {
   SystemStart();
   pinMode(2, OUTPUT);
   pinMode(16,INPUT);
-  if(FileStstemStart()){
-    DisplayLog(" FS OK ");
-    delay(1000);
-  }
-  else{
-    DisplayLog(" FS ERROR ");
-    delay(1000);
-  }
+  //if(FileStstemStart()){
+  //  DisplayLog(" FS OK ");
+  //  delay(1000);
+  //}
+  //else{
+  //  DisplayLog(" FS ERROR ");
+  //  delay(1000);
+  //}
   QueryLocalDevice();
 
 
@@ -36,21 +36,20 @@ void setup() {
   //Serial.print("SiSensor = ");
   //Serial.println(Si7021checkID());
   DisplayLog(" Connecting to WiFi...");
-  SetupWiFi();
+  //SetupWiFi();
   DisplayLog(GetIPStr().c_str());
   delay(1000);
-  //InitSensors();
+  InitSensors();
   //WiFiStart();
   //MQTTStart();
-  WebStart();
-  
-  Serial.println("Setup Done!");
+  //WebStart();
   //DisplayCenterClear();
-  DisplayTimeoutReset(); //This allows the display to be shown for 10 seconds afer reboot. 
   //GPIOStart();
   //pinMode(MP1INPUT, INPUT);
   //I2CScan();
   SetLEDStatus(NORMAL,1000);
+  Serial.println("Setup Done!");
+  DisplayTimeoutReset();//This allows the display to be shown for 10 seconds afer reboot. 
 }
 
 int l =0;

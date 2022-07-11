@@ -16,7 +16,7 @@ void THBarClear();
 void CenterClear();
 void OLEDIDDisplay();
 void DisplayCenterOutput(void);
-void DisplayCenterInput(void);
+void OledCenterInput(void);
 void DisplayCenterOutputRS485(void);
 void DisplayTimeToReset(long Time);
 #endif  /* OLED_H */

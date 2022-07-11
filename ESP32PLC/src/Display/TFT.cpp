@@ -32,14 +32,7 @@ void TFTInit(){
     tft.init();   // initialize a ST7735S chip
     Serial.println("TFT-Config");
     tft.invertDisplay(1);
-    // large block of text
     tft.fillScreen(TFT_BLACK);
-    //testdrawtext("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere. ", TFT_WHITE);
-    tft.setCursor(100, 200);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextWrap(true);
-    tft.print(GetClientId().c_str());
-    //delay(1000);
     TFTLog("Init.....");
 }
 
@@ -51,28 +44,6 @@ void testdrawtext(char *text, uint16_t color) {
 }
 
 char TFTLastWiFiSig = 0;
-
-void TFTWiFiSignal(char overide){
-  long Rssi = WiFi.RSSI()*-1;
-  if(Rssi > HIGHRSSI){
-    if((TFTLastWiFiSig != 1) || (overide == 1)){
-      tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,SignalSmall, 16, 16, TFT_RED);
-      TFTLastWiFiSig = 1;
-    }
-  }
-  else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
-    if((TFTLastWiFiSig != 2) || (overide == 1)){
-      tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,SignalMed, 16, 16, TFT_YELLOW);
-      TFTLastWiFiSig = 2;
-    }
-  }
-  else if(Rssi < LOWRSSI){
-    if((TFTLastWiFiSig != 3)  || (overide == 1)){
-      tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Sig, 16, 16, TFT_GREEN);
-      TFTLastWiFiSig = 3;
-    }
-  }
-}
 
 void TFTTHBar(){
   TFTBarClear();
@@ -88,23 +59,25 @@ void TFTTHBar(){
   tft.println(String(getDeviceClimateHumidity(),1));
 }
 
+void TFTIDSet(){
+  tft.setTextSize(1);
+  tft.setCursor(100, 8);
+  tft.setTextColor(TFT_WHITE);
+  tft.print(GetClientId().c_str());
+}
+
 void TFTMQTTIconSet(char IconMode){
   if(IconMode == 1){
     tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Connected, 16, 16, 1);
+    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Connected, 16, 16, TFT_WHITE);
   }
   else{
     tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,NotConnected, 16, 16, 1);
+    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,NotConnected, 16, 16, TFT_WHITE);
   } 
 }
 
-
-void TFTBarClear(){
-  tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
-}
-
- void TFTWiFiConnect(char Position){
+void TFTWiFiConnect(char Position){
   if(Position == 1){
     tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Clear, 16, 16, TFT_BLACK);
     tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,SignalSmall, 16, 16, TFT_RED);
@@ -117,6 +90,46 @@ void TFTBarClear(){
     tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Clear, 16, 16, TFT_BLACK);
     tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Sig, 16, 16, TFT_GREEN);
   }
+}
+
+void TFTDisplayInputs(void){
+  TFTCenterClear();
+  tft.setTextSize(2);
+  tft.setCursor(30, 20);
+  tft.print("Inputs:");
+  tft.drawCircle(30, 60, 4, TFT_WHITE);
+  tft.drawCircle(50, 60, 4, TFT_WHITE);
+  tft.drawCircle(70, 60, 4, TFT_WHITE);
+  tft.drawCircle(90, 60, 4, TFT_WHITE);
+}
+
+void TFTDisplayOutputs(void){
+  TFTCenterClear();
+  tft.setTextSize(2);
+  tft.setCursor(30, 20);
+  tft.print("Outputs:");
+  tft.drawCircle(30, 60, 4, TFT_WHITE);
+  tft.drawCircle(50, 60, 4, TFT_WHITE);
+  tft.drawCircle(70, 60, 4, TFT_WHITE);
+  tft.drawCircle(90, 60, 4, TFT_WHITE);
+}
+
+void TFTDisplayRemote(void){
+  TFTCenterClear();
+  tft.setTextSize(2);
+  tft.setCursor(60, 50);
+  tft.setTextColor(TFT_WHITE);
+  tft.print("Remote:");
+}
+
+void TFTDisplayIP(){
+  TFTCenterClear();
+  tft.setTextSize(2);
+  tft.setCursor(60, 50);
+  tft.setTextColor(TFT_WHITE);
+  tft.print("IP: 0.0.0.0");
+  tft.setCursor(60, 70);
+  tft.print("MQTT: 0.0.0.0");
 }
 
 void TFTLogo(){
@@ -154,6 +167,15 @@ void TFTLog(const char *Comment){
 void TFTDisplayClear(){
   tft.fillScreen(TFT_BLACK);
 }
+
+void TFTBarClear(){
+  tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
+}
+
+void TFTCenterClear(){
+  tft.fillRect(0, 20, 200, 120, TFT_BLACK);
+}
+
 
 // void Bitmap16xBitMapClear(char Location){
 //   char x,y = 0;

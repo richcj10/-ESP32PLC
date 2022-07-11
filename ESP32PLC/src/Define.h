@@ -26,7 +26,7 @@
 #define MP5OUT 36
 #define MP6OUT 35
 
-#define HIGHRSSI 60
-#define LOWRSSI 40
+#define HIGHRSSI 56
+#define LOWRSSI 80
 
 #endif  /* DEFINE_H */

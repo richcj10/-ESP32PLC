@@ -180,7 +180,7 @@ void DisplayCenterChestTemp(void){
   display.display();
 }
 
-void DisplayCenterInput(void){
+void OledCenterInput(void){
   CenterClear();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -193,7 +193,7 @@ void DisplayCenterInput(void){
   display.display();
 }
 
-void DisplayCenterOutput(void){
+void OledCenterOutput(void){
   CenterClear();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -208,7 +208,7 @@ void DisplayCenterOutput(void){
   display.display();
 }
 
-void DisplayCenterOutputRS485(void){
+void OledCenterOutputRS485(void){
   CenterClear();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);

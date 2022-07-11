@@ -16,7 +16,7 @@ float DeviceTempratureF = 0;
 float DeviceHumidity = 0;
 
 void InitSensors(void){
-  InitOneWire();
+  //InitOneWire();
 }
 
 void UpdateSensors(void){
