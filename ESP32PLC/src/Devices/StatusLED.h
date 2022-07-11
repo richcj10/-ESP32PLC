@@ -11,7 +11,7 @@
 #define NORMAL 5
 
 void StatusLEDStart();
-void SetLEDStatus(char mode, char rate);
+void SetLEDStatus(char mode, int rate);
 char GetStatus();
 void LEDBoot();
 void LEDUpdate();

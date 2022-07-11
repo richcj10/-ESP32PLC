@@ -33,7 +33,7 @@ void LEDBoot(){
     pixels.show();
 }
 
-void SetLEDStatus(char type, char rate){
+void SetLEDStatus(char type, int rate){
   Mode = type;
   LEDUpdateInterval = rate;
 }

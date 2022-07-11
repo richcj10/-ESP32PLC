@@ -4,7 +4,7 @@
 #define TFTWIFIBITMAPX 40
 #define TFTWIFIBITMAPY 8
 
-#define TFTMQTTCX 65
+#define TFTMQTTCX 70
 #define TFTMQTTCY 8
 
 #define TFTSCREEN_WIDTH 256 // OLED display width, in pixels
@@ -24,11 +24,14 @@ void TFTWiFiConnect(char Position);
 void TFTTHBar();
 void TFTLog(const char *Comment);
 void TFTDisplayClear();
-
 void TFTMQTTIconSet(char IconMode);
-
 void TFTBarClear();
 void TFTLogo();
-
+void TFTDisplayInputs();
+void TFTDisplayOutputs();
+void TFTDisplayIP();
+void TFTIDSet();
+void TFTDisplayRemote();
+void TFTCenterClear();
 
 #endif

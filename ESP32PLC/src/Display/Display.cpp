@@ -8,10 +8,11 @@
 #include "Devices/Joystick.h"
 
 char DisplayMode = 1;
+char ModeActive = 1;
 char Displaytype = 0;
 char ScreenShow = 0;
 unsigned long TimeReading = 0;
-unsigned long LastTimeReading = 0;
+unsigned long DisplayOnTime = 0;
 unsigned long LastDisplayUpdate = 0;
 char DisplaySleepEn = 1;
 
@@ -30,9 +31,6 @@ void DisplaySetup(){
   case OLED:
     Serial.println("OLED Config");
     OLEDInit();
-    break;
-  default:
-    Serial.println("No Display Config");
     break;
   }
 }
@@ -75,23 +73,29 @@ void DisplayManager(){
         DisplayTHBar();
         WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
         CheckMQTTCon(1);
+        DisplayID();
         DisplayMode = 1; //The Display is now "on", handel user selections
       //DeviceIDDisplay();
     }
   }
   else{
-    DisplaySaver();
-    if ((millis() - LastDisplayUpdate) > 500){
+    if ((millis() - LastDisplayUpdate) > 1500){
       LastDisplayUpdate = millis();
       //DeviceIDDisplay();
       DisplayTHBar();
-      DisplayWiFiRSSI();
+      WiFiCheckRSSI(0);
       CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
+      LastDisplayUpdate = millis();
+      ModeActive = 1;
     }
-    if(GetJoyStickSelect()){
+    if(GetJoyStickSelect() && ModeActive){
       //Change UI
-      Serial.println("Update UI");
+      DisplayTimeoutReset();
+      ModeActive = 0;
+      LastDisplayUpdate = millis();
+      DisplaySwitchCase();
     }
+    DisplaySaver();
   }
 }
 
@@ -102,6 +106,17 @@ void DisplayTHBar(){
       break;
     case OLED:
       OLEDTHBar();
+      break;
+  }
+}
+
+void DisplayID(){
+  switch (Displaytype){
+    case TFT:
+      TFTIDSet();
+      break;
+    case OLED:
+
       break;
   }
 }
@@ -119,7 +134,7 @@ void DisplayMQTT(char Mode){
 
 void DisplaySaver(){
   if(DisplaySleepEn == 1){
-    if ((millis() - LastTimeReading) > SREENTIMEOUT){
+    if ((millis() - DisplayOnTime) > SREENTIMEOUT){
       DisplayMode = 0;
       DisplayClear();
       if(Displaytype == TFT){
@@ -143,19 +158,15 @@ void DisplayClear(){
 void DisplaySwitchCase(){
   switch (ScreenShow) {
     case 0:
-      DisplayCenterChestTemp();
-      ScreenShow++;
-      break;
-    case 1:
       DisplayCenterInput();
       ScreenShow++;
       break;
-    case 2:
+    case 1:
        DisplayCenterOutput();
        ScreenShow++;
       break;
-    case 3:
-       DisplayCenterOutput();
+    case 2:
+       DisplayCenterIPInfo();
        ScreenShow++;
       break;
     default:
@@ -165,6 +176,51 @@ void DisplaySwitchCase(){
   Serial.print("Screen = ");
   Serial.println(int(ScreenShow));
 }
+
+void DisplayCenterInput(void){
+  switch (Displaytype){
+    case TFT:
+      TFTDisplayInputs();
+      break;
+    case OLED:
+      //OledDisplayInputs();
+      break;
+  }
+}
+
+void DisplayCenterOutput(void){
+  switch (Displaytype){
+    case TFT:
+      TFTDisplayOutputs();
+      break;
+    case OLED:
+      //OledDisplayOutputs();
+      break;
+  }
+}
+
+void DisplayCenterIPInfo(void){
+  switch (Displaytype){
+    case TFT:
+      TFTDisplayIP();
+      break;
+    case OLED:
+      //OledDisplayIP();
+      break;
+  }
+}
+
+void DisplayCenterRemoteInfo(void){
+  switch (Displaytype){
+    case TFT:
+      TFTDisplayRemote();
+      break;
+    case OLED:
+      //OledDisplayClear();
+      break;
+  }
+}
+
 
 char k =0;
 
@@ -194,7 +250,7 @@ char LastWiFiSig = 0;
 
 void WiFiCheckRSSI(char overide){
   long Rssi = WiFi.RSSI()*-1;
-  if(Rssi > HIGHRSSI){
+  if(Rssi < HIGHRSSI){
     if((LastWiFiSig != 1) || (overide == 1)){
       switch (Displaytype){
         case TFT:
@@ -203,14 +259,11 @@ void WiFiCheckRSSI(char overide){
         case OLED:
           WiFiStreanthDisplay(1);
           break;
-        default:
-          Serial.println("No Display Config");
-          break;
       }
       LastWiFiSig = 1;
     }
   }
-  else if((Rssi < HIGHRSSI) && (Rssi > LOWRSSI)){
+  else if((Rssi > HIGHRSSI) && (Rssi < LOWRSSI)){
     if((LastWiFiSig != 2) || (overide == 1)){
       switch (Displaytype){
         case TFT:
@@ -219,14 +272,11 @@ void WiFiCheckRSSI(char overide){
         case OLED:
           WiFiStreanthDisplay(2);
           break;
-        default:
-          Serial.println("No Display Config");
-          break;
       }
       LastWiFiSig = 2;
     }
   }
-  else if(Rssi < LOWRSSI){
+  else if(Rssi > LOWRSSI){
     if((LastWiFiSig != 3)  || (overide == 1)){
       switch (Displaytype){
         case TFT:
@@ -235,9 +285,6 @@ void WiFiCheckRSSI(char overide){
         case OLED:
           WiFiStreanthDisplay(3);
           break;
-        default:
-          Serial.println("No Display Config");
-          break;
       }
       LastWiFiSig = 3;
     }
@@ -245,7 +292,7 @@ void WiFiCheckRSSI(char overide){
 }
 
 void DisplayTimeoutReset(){
-  LastTimeReading = millis();
+  DisplayOnTime = millis();
 }
 
 void DispalySleepControl(char value){
@@ -263,9 +310,6 @@ void DisplayLogo(){
     break;
   case OLED:
     Serial.println("OLED Config");
-    break;
-  default:
-    Serial.println("No Display Config");
     break;
   }
 }
@@ -290,9 +334,6 @@ void DisplayBrightnes(char Brightness){
       break;
     case OLED:
       Serial.println("OLED Config");
-      break;
-    default:
-      Serial.println("No Display Config");
       break;
   }
 }

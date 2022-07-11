@@ -29,6 +29,10 @@ void DisplayClear();
 void WiFiCheckRSSI(char updateDisp);
 void DisplayMQTT(char Mode);
 void DisplayTHBar();
-
+void DisplayID();
+void DisplayCenterInput(void);
+void DisplayCenterOutput(void);
+void DisplayCenterIPInfo(void);
+void DisplayCenterRemoteInfo(void);
 
 #endif
