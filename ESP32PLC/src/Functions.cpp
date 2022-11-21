@@ -11,6 +11,7 @@
 #include "Devices/JoyStick.h"
 #include "Webportal.h"
 #include "Remote/MasterController.h"
+#include "Devices/Log.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -27,12 +28,17 @@ void print_reset_reason(RESET_REASON reason);
 void SystemStart(){
   StatusLEDStart();
   Serial.begin(115200);
+  Log(DEBUG,"LED Start-");
   LEDBoot();
+  Log(DEBUG,"TFT Start-");
   DispalyConfigSet(TFT);
   DisplaySetup();
   DisplayBrightnes(75);
+  Log(DEBUG,"RS485 Master Start");
   MasterStart();
+  Log(DEBUG,"I2C Master Start");
   I2CStart();
+  Log(DEBUG,"Joystick Start");
   JoyStickStart();
 }
 

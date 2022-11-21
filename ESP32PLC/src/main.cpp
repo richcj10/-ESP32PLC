@@ -10,7 +10,9 @@
 #include "HAL/Digital/Digital.h"
 #include "HAL/Com/I2C.h"
 #include "Devices/StatusLED.h"
+#include "Devices/JoyStick.h"
 #include "Webportal.h"
+#include "Devices/Log.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
@@ -18,8 +20,10 @@ void setup() {
   SaveResetReason();
   ClientIdCreation();
   SystemStart();
+  Log(NOTIFY,"Startup Complete");
   pinMode(2, OUTPUT);
   pinMode(16,INPUT);
+  LEDBoot();
   //if(FileStstemStart()){
   //  DisplayLog(" FS OK ");
   //  delay(1000);
@@ -36,12 +40,11 @@ void setup() {
   //Serial.print("SiSensor = ");
   //Serial.println(Si7021checkID());
   DisplayLog(" Connecting to WiFi...");
-  //SetupWiFi();
+  SetupWiFi();
   DisplayLog(GetIPStr().c_str());
   delay(1000);
   InitSensors();
-  //WiFiStart();
-  //MQTTStart();
+  MQTTStart();
   //WebStart();
   //DisplayCenterClear();
   //GPIOStart();
@@ -60,8 +63,8 @@ void loop() {
   
   //
   //Serial.print("Joystick = ");
-  //Serial.println(GetJoyStickPos());
-  //MqttLoop();
+  //GetJoystickPrint(GetJoyStickPos());
+  MqttLoop();
   
   //ScanUserInput();
   //SyncLoop();
