@@ -7,6 +7,8 @@
 #include "Sensors.h"
 #include "Define.h"
 
+#include "Devices/Log.h"
+
 #define HTTP_PORT 80
 
 AsyncWebServer server(HTTP_PORT);
@@ -22,9 +24,6 @@ static char output[512];
 unsigned long cnt = 0;
 unsigned long LastTime = 0;
 
-#define LOG(f_, ...) \
-  { Serial.printf((f_), ##__VA_ARGS__); }
-
 void notFound(AsyncWebServerRequest* request) {
   request->send(404, "text/plain", "Not found");
 }
@@ -33,41 +32,31 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
                AwsEventType type, void* arg, uint8_t* data, size_t len) {
   if (type == WS_EVT_CONNECT) {
     wsconnected = true;
-    LOG("ws[%s][%u] connect\n", server->url(), client->id());
+    Log(NOTIFY,"ws[%s][%u] connect\r\n", server->url(), client->id());
     // client->printf("Hello Client %u :)", client->id());
     client->ping();
   } else if (type == WS_EVT_DISCONNECT) {
     wsconnected = false;
-    LOG("ws[%s][%u] disconnect\n", server->url(), client->id());
+    Log(NOTIFY,"ws[%s][%u] disconnect\n", server->url(), client->id());
   } else if (type == WS_EVT_ERROR) {
-    LOG("ws[%s][%u] error(%u): %s\n", server->url(), client->id(),
-        *((uint16_t*)arg), (char*)data);
+    Log(ERROR,"WS Error");
   } else if (type == WS_EVT_PONG) {
-    LOG("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len,
-        (len) ? (char*)data : "");
+    Log(NOTIFY,"WS pong");
   } else if (type == WS_EVT_DATA) {
     AwsFrameInfo* info = (AwsFrameInfo*)arg;
     String msg = "";
     if (info->final && info->index == 0 && info->len == len) {
       // the whole message is in a single frame and we got all of it's data
-      LOG("ws[%s][%u] %s-msg[%llu]\r\n", server->url(), client->id(),
+      Log(NOTIFY,"ws[%s][%u] %s-msg[%llu]\r\n", server->url(), client->id(),
           (info->opcode == WS_TEXT) ? "txt" : "bin", info->len);
 
       if (info->opcode == WS_TEXT) {
         for (size_t i = 0; i < info->len; i++) {
           msg += (char)data[i];
         }
-        LOG("%s\r\n\r\n", msg.c_str());
+        Log(NOTIFY,"%s\r\n\r\n", msg.c_str());
 
         deserializeJson(jsonDocRx, msg);
-
-        uint8_t ledState = jsonDocRx["led"];
-        if (ledState == 1) {
-          digitalWrite(LED, HIGH);
-        }
-        if (ledState == 0) {
-          digitalWrite(LED, LOW);
-        }
         jsonDocRx.clear();
       }
     }
@@ -78,16 +67,15 @@ void WebStart(){
   /* Start web server and web socket server */
   //lastButtonState = digitalRead(USER_SW);
   /* Start web server and web socket server */
-  LOG("Web Service Start!\r");
+  Log(DEBUG,"Web Server Start!");
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-    Serial.print("Root Page");
+    Log(DEBUG,"MP server\r\n");
     //request->send(200, "text/html", "OK");
     request->send(LittleFS, "/Main.html", "text/html");
   });
   server.serveStatic("/", LittleFS, "/");
   server.onNotFound([](AsyncWebServerRequest *request){
-    Serial.print("got unhandled request for ");
-    Serial.println(request->url());
+    Log(DEBUG,"Bad Request: %s\r\n",request->url());
     request->send(404);
   });
   ws.onEvent(onWsEvent);
@@ -120,13 +108,13 @@ void WebHandel(){
 
       serializeJson(jsonDocTx, output, 512);
 
-      Serial.printf("Sending: %s", output);
+      Log(DEBUG,"Sending Data\r\n");
       if (ws.availableForWriteAll()) {
         ws.textAll(output);
-        Serial.printf("...done\r\n");
+        Log(DEBUG,"Data Sent\r\n");
       } 
       else {
-        Serial.printf("...queue is full\r\n");
+        Log(DEBUG,"Data que\r\n");
       }
     }
   }

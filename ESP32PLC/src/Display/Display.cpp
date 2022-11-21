@@ -6,6 +6,7 @@
 #include "HAL/Digital/Digital.h"
 #include "MQTT.h"
 #include "Devices/Joystick.h"
+#include "Devices/Log.h"
 
 char DisplayMode = 1;
 char ModeActive = 1;
@@ -23,13 +24,14 @@ unsigned long DisplaycurrentMillis = 0;
 void DisplaySetup(){
   switch (Displaytype){
   case TFT:
+    Log(NOTIFY,"TFT Init");
     TFTInit();
     ledcSetup(0, LEDC_BASE_FREQ, 12);
     ledcAttachPin(LED_PIN, 0);
     TFTLogo();
     break;
   case OLED:
-    Serial.println("OLED Config");
+    Log(NOTIFY,"Oled Init");
     OLEDInit();
     break;
   }
@@ -66,6 +68,7 @@ void CheckMQTTCon(char overide){
 void DisplayManager(){
   if(DisplayMode == 0){  //If Display is off,
       if(GetJoyStickSelect()){ //And then we get a Joystic Select, (TODO: Make this a "movment")
+        Log(NOTIFY,"Display Wakeup");
         DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
         if(Displaytype == TFT){  //If we have the TFT, I need to enable the back light 
           DisplayBrightnes(25);
@@ -82,6 +85,7 @@ void DisplayManager(){
     if ((millis() - LastDisplayUpdate) > 1500){
       LastDisplayUpdate = millis();
       //DeviceIDDisplay();
+      Log(DEBUG,"Display Update");
       DisplayTHBar();
       WiFiCheckRSSI(0);
       CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
