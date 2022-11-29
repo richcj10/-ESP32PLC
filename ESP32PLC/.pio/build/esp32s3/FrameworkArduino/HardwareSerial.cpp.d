@@ -1,6 +1,14 @@
 .pio/build/esp32s3/FrameworkArduino/HardwareSerial.cpp.o: \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/HardwareSerial.cpp \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/adafruit_feather_esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/soc_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/brownout_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/cpu_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/i2c_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/ledc_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/mpu_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/twai_caps.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/uart_caps.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/HardwareSerial.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/Stream.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/Print.h \
@@ -21,14 +29,6 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/hal/include/hal/touch_sensor_types.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/soc.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_common/include/esp_assert.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/soc_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/brownout_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/cpu_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/i2c_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/ledc_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/mpu_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/twai_caps.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/uart_caps.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/hal/include/hal/gpio_types.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/include/soc/gpio_periph.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/io_mux_reg.h \

@@ -35,7 +35,7 @@ void SystemStart(){
   DisplaySetup();
   DisplayBrightnes(75);
   Log(DEBUG,"RS485 Master Start");
-  MasterStart();
+  RemoteStart();
   Log(DEBUG,"I2C Master Start");
   I2CStart();
   Log(DEBUG,"Joystick Start");
@@ -45,7 +45,7 @@ void SystemStart(){
 void UIUpdateLoop(){
   JoyStickUpdate();
   LEDUpdate();
-  DisplayManager();
+  //DisplayManager();
   WebHandel();
 }
 

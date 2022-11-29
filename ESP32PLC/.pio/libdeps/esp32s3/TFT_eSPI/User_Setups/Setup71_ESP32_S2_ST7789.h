@@ -6,13 +6,13 @@
 #define ST7789_DRIVER     // Configure all registers
 
 
-#define TFT_CS   10 //     10 or 34
-#define TFT_MOSI 11 //     11 or 35
-#define TFT_SCLK 12 //     12 or 36
-#define TFT_MISO 13 //     13 or 37
+#define TFT_CS   34 //     10 or 34
+#define TFT_MOSI 35 //     11 or 35
+#define TFT_SCLK 37 //     12 or 36
+#define TFT_MISO 36 //     13 or 37
 
-#define TFT_DC   5
-#define TFT_RST  4
+#define TFT_DC   33
+#define TFT_RST  -1
 
 #define LOAD_GLCD
 #define LOAD_FONT2

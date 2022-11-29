@@ -119,7 +119,7 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/WString.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/pgmspace.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/Printable.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/adafruit_feather_esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/esp32s3/pins_arduino.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_hw_support/include/esp_sleep.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/hal/include/hal/touch_sensor_types.h \

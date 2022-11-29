@@ -88,7 +88,7 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-matrix.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/adafruit_feather_esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/esp32s3/pins_arduino.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-touch.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-dac.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/driver/include/driver/gpio.h \
@@ -105,7 +105,4 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-bt.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-psram.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-rgb-led.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-cpu.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/efuse_reg.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_hw_support/include/soc/esp32s3/spiram.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_rom/include/esp32s3/rom/cache.h
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-cpu.h

@@ -91,7 +91,7 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-matrix.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/adafruit_feather_esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/esp32s3/pins_arduino.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-touch.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-dac.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/driver/include/driver/gpio.h \
@@ -175,15 +175,4 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/spi_flash/include/esp_spi_flash.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/spi_flash/include/esp_spi_flash_counters.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_hw_support/include/soc/esp32/spiram.h \
- .pio/libdeps/esp32s3/ArduinoRS485/src/ArduinoRS485.h \
- .pio/libdeps/esp32s3/ArduinoRS485/src/RS485.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ArduinoModbus.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ModbusRTUClient.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ModbusClient.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/libmodbus/modbus.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/libmodbus/modbus-version.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ModbusRTUServer.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ModbusServer.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ModbusTCPClient.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/Client.h \
- .pio/libdeps/esp32s3/ArduinoModbus/src/ModbusTCPServer.h
+ lib/SimpleModbusMaster/SimpleModbusMaster.h

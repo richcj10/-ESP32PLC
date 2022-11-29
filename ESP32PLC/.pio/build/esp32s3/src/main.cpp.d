@@ -89,7 +89,7 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-matrix.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/adafruit_feather_esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/esp32s3/pins_arduino.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-touch.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-dac.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/driver/include/driver/gpio.h \
@@ -204,4 +204,4 @@
  src/HAL/DeviceConfig.h src/FileSystem/FSInterface.h \
  src/WifiControl/WifiConfig.h src/HAL/Digital/Digital.h src/HAL/Com/I2C.h \
  src/Devices/StatusLED.h src/Devices/JoyStick.h src/Webportal.h \
- src/Devices/Log.h
+ src/Devices/Log.h src/Remote/MasterController.h

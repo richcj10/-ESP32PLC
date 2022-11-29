@@ -1,23 +1,31 @@
 // This header file contains a list of user setup files and defines which one the
 // compiler uses when the IDE performs a Verify/Compile or Upload.
 //
-// Users can create configurations for different Espressif boards and TFT displays.
+// Users can create configurations for different boards and TFT displays.
 // This makes selecting between hardware setups easy by "uncommenting" one line.
 
 // The advantage of this hardware configuration method is that the examples provided
-// with the library should work with different setups immediately without any other
-// changes being needed. It also improves the portability of users sketches to other
-// hardware configurations and compatible libraries.
+// with the library should work with immediately without any other changes being
+// needed. It also improves the portability of users sketches to other hardware
+// configurations and compatible libraries.
 //
 // Create a shortcut to this file on your desktop to permit quick access for editing.
 // Re-compile and upload after making and saving any changes to this file.
 
 // Customised User_Setup files are stored in the "User_Setups" folder.
 
+// It is also possible for the user tft settings to be included with the sketch, see
+// the "Sketch_with_tft_setup" generic example. This may be more convenient for
+// multiple projects.
+
 #ifndef USER_SETUP_LOADED //  Lets PlatformIO users define settings in
                           //  platformio.ini, see notes in "Tools" folder.
 
-// Only ONE line below should be uncommented.  Add extra lines and files as needed.
+///////////////////////////////////////////////////////
+//   User configuration selection lines are below    //
+///////////////////////////////////////////////////////
+
+// Only ONE line below should be uncommented to define your setup.  Add extra lines and files as needed.
 
 #include <User_Setup.h>           // Default setup is root library folder
 
@@ -68,6 +76,7 @@
 
 //#include <User_Setups/Setup36_RPi_touch_ST7796.h>      // Setup file configured for ESP32 and RPi ST7796 TFT with touch
 
+//#include <User_Setups/Setup42_ILI9341_ESP32.h>           // Setup file for ESP32 and SPI ILI9341 240x320
 //#include <User_Setups/Setup43_ST7735.h>            // Setup file for ESP8266 & ESP32 configured for my ST7735S 80x160
 //#include <User_Setups/Setup44_TTGO_CameraPlus.h>   // Setup file for ESP32 and TTGO T-CameraPlus ST7789 SPI bus TFT    240x240
 //#include <User_Setups/Setup45_TTGO_T_Watch.h>      // Setup file for ESP32 and TTGO T-Watch ST7789 SPI bus TFT  240x240
@@ -89,7 +98,7 @@
 //#include <User_Setups/Setup70c_ESP32_C3_ILI9341.h>    // Setup file for ESP32 C3 with SPI ILI9341
 //#include <User_Setups/Setup70d_ILI9488_S3_Parallel.h> // Setup file for ESP32 S3 with SPI ILI9488
 
-#include <User_Setups/Setup71_ESP32_S2_ST7789.h>       // Setup file for ESP32 S2 with ST7789
+//#include <User_Setups/Setup71_ESP32_S2_ST7789.h>       // Setup file for ESP32 S2 with ST7789
 //#include <User_Setups/Setup72_ESP32_ST7789_172x320.h>  // Setup file for ESP32 with ST7789 1.47" 172x320
 
 //#include <User_Setups/Setup100_RP2040_ILI9488_parallel.h> // Setup file for Pico/RP2040 with 8 bit parallel ILI9488
@@ -113,11 +122,13 @@
 
 //#include <User_Setups/Setup202_SSD1351_128.h>      // Setup file for ESP32/ESP8266 based SSD1351 128x128 1.5inch OLED display
 
-//#include <User_Setups/Setup203_ST7789.h>     // Setup file for ESP32/ESP8266 based ST7789 240X280 1.69inch TFT 
+#include <User_Setups/Setup203_ST7789.h>     // Setup file for ESP32/ESP8266 based ST7789 240X280 1.69inch TFT 
 
 //#include <User_Setups/Setup204_ESP32_TouchDown.h>     // Setup file for the ESP32 TouchDown based on ILI9488 480 x 320 TFT 
 
 //#include <User_Setups/Setup205_ESP32_TouchDown_S3.h>     // Setup file for the ESP32 TouchDown S3 based on ILI9488 480 x 320 TFT 
+
+//#include <User_Setups/Setup301_BW16_ST7735.h>            // Setup file for Bw16-based boards with ST7735 160 x 80 TFT
 
 //#include <User_Setups/SetupX_Template.h>     // Template file for a setup
 

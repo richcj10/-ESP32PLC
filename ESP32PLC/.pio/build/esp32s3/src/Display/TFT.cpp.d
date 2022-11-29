@@ -90,7 +90,7 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-matrix.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
- C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/adafruit_feather_esp32s3/pins_arduino.h \
+ C:/Users/richc/.platformio/packages/framework-arduinoespressif32/variants/esp32s3/pins_arduino.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-touch.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-dac.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/driver/include/driver/gpio.h \
@@ -179,7 +179,7 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-spi.h \
  .pio/libdeps/esp32s3/TFT_eSPI/User_Setup_Select.h \
  .pio/libdeps/esp32s3/TFT_eSPI/User_Setup.h \
- .pio/libdeps/esp32s3/TFT_eSPI/User_Setups/Setup71_ESP32_S2_ST7789.h \
+ .pio/libdeps/esp32s3/TFT_eSPI/User_Setups/Setup203_ST7789.h \
  .pio/libdeps/esp32s3/TFT_eSPI/TFT_Drivers/ILI9341_Defines.h \
  .pio/libdeps/esp32s3/TFT_eSPI/Processors/TFT_eSPI_ESP32_S3.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/spi_reg.h \
