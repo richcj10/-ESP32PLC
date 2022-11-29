@@ -13,6 +13,7 @@
 #include "Devices/JoyStick.h"
 #include "Webportal.h"
 #include "Devices/Log.h"
+#include "Remote/MasterController.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 
@@ -56,19 +57,35 @@ void setup() {
 }
 
 int l =0;
+unsigned long LastSendTime = 0;
 
 void loop() {
-  UIUpdateLoop();
-  SensorUpdateLoop();
+  //
+  
+  RemoteRun();
+  //UIUpdateLoop();
+  //SensorUpdateLoop();
   
   //
-  //Serial.print("Joystick = ");
+  //Serial.println("loop");
   //GetJoystickPrint(GetJoyStickPos());
-  MqttLoop();
+  //MqttLoop();
   
   //ScanUserInput();
   //SyncLoop();
-  
+  if(millis() - LastSendTime > 1000){
+    LastSendTime = millis();
+    if (l){
+      SetOcupyLED(0x10,100,200,0);
+      //SetOcupyLED(0x11,200,0,0);
+      l = 0;
+    }
+    else{
+      SetOcupyLED(0x10,0,0,200);
+      //SetOcupyLED(0x11,200,0,0);
+      l = 1;
+    }
+  }
   //DisplayWiFiSignal();
   //SetOcupyLED(0x11,200,0,0);
   //SetOcupyLED(0x10,0,0,0);

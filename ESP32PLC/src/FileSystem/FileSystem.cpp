@@ -26,7 +26,7 @@ char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){\
   }
   else{
     listDir(LittleFS, "/", 0);
-    LOG(" Config Check \r"); 
+    //LOG(" Config Check \r"); 
     // Serial.println(F(" Config Check   ")); 
     WifiComfig(WFC);
     MqttComfig(MQC);
@@ -37,16 +37,16 @@ char FileSystemInit(struct WiFiConfig* WFC,struct MQTTConfig* MQC){\
 
 void WifiComfig(struct WiFiConfig* WFC){
   if(LittleFS.exists(WiFifilename)){
-    LOG("Found File.....Load Config!\r");
+    //LOG("Found File.....Load Config!\r");
     WifiloadConfiguration(WFC);
     delay(100);
     PrintWiFiConfigStruct(WFC);
     delay(100);
   }
   else{
-    LOG("No Wifi Config! Save One!....");
+    //LOG("No Wifi Config! Save One!....");
     WifisaveConfiguration(WFC);
-    LOG("Now Load Config! \r");            
+    //LOG("Now Load Config! \r");            
     WifiloadConfiguration(WFC);
     delay(100);
     PrintWiFiConfigStruct(WFC);
@@ -56,7 +56,7 @@ void WifiComfig(struct WiFiConfig* WFC){
 
 void MqttComfig(struct MQTTConfig* MQC){
   if(LittleFS.exists(MQTTfilename)){
-    LOG("Found File.....Load Config!\r");
+    //LOG("Found File.....Load Config!\r");
     MqttloadConfiguration(MQC);
     delay(100);
     PrintMqttConfigStruct(MQC);
@@ -64,9 +64,9 @@ void MqttComfig(struct MQTTConfig* MQC){
   }
   else{
     //Config Doc dson't exist, wite one!
-    LOG("No MQTT Config! Save One!....");
+    //LOG("No MQTT Config! Save One!....");
     MqttsaveConfiguration(MQC);
-    LOG("Now Load Config! \r");            
+    //LOG("Now Load Config! \r");            
     MqttloadConfiguration(MQC);
     delay(100);
     PrintMqttConfigStruct(MQC);
@@ -107,7 +107,7 @@ void WifiloadConfiguration(struct WiFiConfig* WFC) {
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
   if (error){
-    LOG("WiFi - File Read Error, Rebuilding file from defults ****Rebooting****\r");
+    //LOG("WiFi - File Read Error, Rebuilding file from defults ****Rebooting****\r");
     LittleFS.remove(WiFifilename);
     delay(1000);
     ESP.restart(); //Reboot the device and load defaults. 
@@ -140,7 +140,7 @@ void WifisaveConfiguration(struct WiFiConfig* WFC) {
   // Open file for writing
   File file = LittleFS.open(WiFifilename, "w");
   if (file) {
-    LOG("Opened File! \r");
+    //LOG("Opened File! \r");
 
     StaticJsonDocument<512> doc; // Allocate a temporary JsonDocument
 
@@ -172,7 +172,7 @@ void WifisaveConfiguration(struct WiFiConfig* WFC) {
     file.close();
   }
   else{
-    LOG("File not able to be opened :(");
+    //LOG("File not able to be opened :(");
   }
 }
 
@@ -188,7 +188,7 @@ void MqttloadConfiguration(struct MQTTConfig* MQC) {
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
   if (error){
-    LOG("MQTT - File Read Error, Rebuilding file from defults ****Rebooting****\r");
+    //LOG("MQTT - File Read Error, Rebuilding file from defults ****Rebooting****\r");
     LittleFS.remove(MQTTfilename);
     delay(1000);
     ESP.restart(); //Reboot the device and load defaults. 
@@ -211,7 +211,7 @@ void MqttsaveConfiguration(struct MQTTConfig* MQC) {
   // Open file for writing
   File file = LittleFS.open(MQTTfilename, "w");
   if (file) {
-    LOG("Opened MQTT File! \r");
+    //LOG("Opened MQTT File! \r");
     // Allocate a temporary JsonDocument
     // Don't forget to change the capacity to match your requirements.
     // Use arduinojson.org/assistant to compute the capacity.
@@ -230,7 +230,7 @@ void MqttsaveConfiguration(struct MQTTConfig* MQC) {
     file.close();
   }
   else{
-    LOG("MQTT File not able to be opened :(");
+    //LOG("MQTT File not able to be opened :(");
   }
 }
 

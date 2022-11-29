@@ -61,53 +61,53 @@ char GPIOStart(){
 void SetIOType(char IOValue, unsigned int IOLocation){
   switch (IOValue){
   case UNUSED:
-    LOG("Unused IO");
+    //LOG("Unused IO");
     /* code */
     break;
   case IOINPUT:
-    LOG("Input IO");
+    //LOG("Input IO");
     //LOG("%s",IOArray[IOLocation]);
     pinMode(IOArray[IOLocation], INPUT);
     ScanArrayAdd(IOArray[IOLocation]);
     /* code */
     break;
   case IOOUTPUT:
-    LOG("Output IO");
+    //LOG("Output IO");
     //LOG("%s",IOArray[IOLocation]);
     pinMode(IOArray[IOLocation], OUTPUT);
     /* code */
     break;
   case UART1TX:
-    LOG("UART TX IO");
+    //LOG("UART TX IO");
     //LOG("%s",IOArray[IOLocation]);
     SetUARTWires(TX, IOArray[IOLocation]);
     /* code */
     break;
   case UART1RX:
-    LOG("UART TX IO");
+    //LOG("UART TX IO");
     //LOG("%s",IOArray[IOLocation]);
     SetUARTWires(RX, IOArray[IOLocation]);
     break;
   case IOSCL:
-    LOG("I2C SCL IO");
+    //LOG("I2C SCL IO");
     //LOG("%s",IOArray[IOLocation]);
     SetI2CWires(SCLPIN, IOArray[IOLocation]);
     break;
   case IOSDA:
-    LOG("I2C SDA IO");
+    //LOG("I2C SDA IO");
     //LOG("%s",IOArray[IOLocation]);
     SetI2CWires(SDAPIN, IOArray[IOLocation]);
     break;
   case NEOPIXEL:
-    LOG("Neopixel IO");
+    //LOG("Neopixel IO");
     //LOG("%s",IOArray[IOLocation]);
     break;
   case ONEWIRE:
-    LOG("OneWore IO");
+    //LOG("OneWore IO");
     //LOG("%s",IOArray[IOLocation]);
     break;
   default:
-    LOG("Bad IO Config");
+    //LOG("Bad IO Config");
     break;
   }
 

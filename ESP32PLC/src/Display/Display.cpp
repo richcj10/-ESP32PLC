@@ -69,14 +69,14 @@ void DisplayManager(){
   if(DisplayMode == 0){  //If Display is off,
       if(GetJoyStickSelect()){ //And then we get a Joystic Select, (TODO: Make this a "movment")
         Log(NOTIFY,"Display Wakeup");
-        DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
+        //DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
         if(Displaytype == TFT){  //If we have the TFT, I need to enable the back light 
           DisplayBrightnes(25);
         }
-        DisplayTHBar();
-        WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
-        CheckMQTTCon(1);
-        DisplayID();
+        //DisplayTHBar();
+        //WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
+        //CheckMQTTCon(1);
+        //DisplayID();
         DisplayMode = 1; //The Display is now "on", handel user selections
       //DeviceIDDisplay();
     }
@@ -86,20 +86,20 @@ void DisplayManager(){
       LastDisplayUpdate = millis();
       //DeviceIDDisplay();
       Log(DEBUG,"Display Update");
-      DisplayTHBar();
-      WiFiCheckRSSI(0);
-      CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
+      //DisplayTHBar();
+      //WiFiCheckRSSI(0);
+      //CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
       LastDisplayUpdate = millis();
       ModeActive = 1;
     }
     if(GetJoyStickSelect() && ModeActive){
       //Change UI
-      DisplayTimeoutReset();
+      //DisplayTimeoutReset();
       ModeActive = 0;
       LastDisplayUpdate = millis();
-      DisplaySwitchCase();
+      //DisplaySwitchCase();
     }
-    DisplaySaver();
+    //DisplaySaver();
   }
 }
 

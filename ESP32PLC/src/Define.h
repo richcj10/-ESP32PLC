@@ -5,8 +5,8 @@
 
 #define SREENTIMEOUT 20000
 
-#define LOG(f_, ...) \
-  { Serial.printf((f_), ##__VA_ARGS__); }
+// #define LOG(f_, ...) \
+//   { Serial.printf((f_), ##__VA_ARGS__); }
 
 #define RXD2 16
 #define TXD2 17
