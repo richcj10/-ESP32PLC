@@ -9,11 +9,14 @@
 
 String IpAddress2String(const IPAddress& ipAddress);
 
-const char* ssid     = "Lights.Camera.Action";
-const char* password = "RR58fa!8";
+const char* ssid     = "JohnsonCamper";
+const char* password = "LoveShack0nWheels";
+//const char* password = "RR58fa!8";
+
+char WiFiMode = WIFI_STA_MODE;
 
 char SetupWiFi(void){
-    if(setupMode() == 1){
+    if(GetWiFisetupMode() == WIFI_STA_MODE){
         Serial.printf("WiFi STA mode!\n");
         //WiFi.disconnect();
         //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
@@ -27,9 +30,10 @@ char SetupWiFi(void){
             LEDUpdate();
             DisplayWiFiConnect();
             counter++;
-            delay(50);
-            if(counter > 140){
-                ESP.restart();
+            delay(20);
+            if(counter > 100){
+                //ESP.restart();
+                return 0;
             }
         }
 
@@ -38,7 +42,7 @@ char SetupWiFi(void){
         GetIPStr();
         return 1;
     }
-    else if(setupMode() == 2){
+    else if(GetWiFisetupMode() == WIFI_AP_MODE){
         Serial.printf("WiFi AP mode!\n");
         WiFi.disconnect();
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
@@ -66,8 +70,12 @@ String IpAddress2String(const IPAddress& ipAddress)
   String(ipAddress[3])  ; 
 }
 
-char setupMode(void){
-    return 1;
+char GetWiFisetupMode(void){
+    return WiFiMode;
+}
+
+void SetWiFisetupMode(char value){
+    WiFiMode = value;
 }
 
 String GetIPStr(){
