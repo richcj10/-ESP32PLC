@@ -16,8 +16,10 @@
 #include "Remote/MasterController.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
+int BuffSize = 0;
 
 void setup() {
+  LogSetup(LOG,1);
   SaveResetReason();
   ClientIdCreation();
   SystemStart();
@@ -37,11 +39,15 @@ void setup() {
 
 
   //GPIOStart();
-  setupMode();
+  //setupMode();
   //Serial.print("SiSensor = ");
   //Serial.println(Si7021checkID());
   DisplayLog(" Connecting to WiFi...");
-  SetupWiFi();
+  if(!SetupWiFi()){
+    DisplayLog("Connection Failed..Setting up AP");
+    SetWiFisetupMode(WIFI_AP_MODE);
+    SetupWiFi();
+  }
   DisplayLog(GetIPStr().c_str());
   delay(1000);
   InitSensors();
@@ -53,16 +59,22 @@ void setup() {
   //I2CScan();
   SetLEDStatus(NORMAL,1000);
   Serial.println("Setup Done!");
-  DisplayTimeoutReset();//This allows the display to be shown for 10 seconds afer reboot. 
+  DisplayTimeoutReset();//This allows the display to be shown for 10 seconds afer reboot.
+  delay(100); 
+  Serial.print("Buff Size = ");
+  Serial.print(Serial1.availableForWrite());
 }
 
 int l =0;
 unsigned long LastSendTime = 0;
+char TSChannel = 1;
 
 void loop() {
   //
   
   RemoteRun();
+  
+  
   //UIUpdateLoop();
   //SensorUpdateLoop();
   
@@ -73,18 +85,10 @@ void loop() {
   
   //ScanUserInput();
   //SyncLoop();
-  if(millis() - LastSendTime > 1000){
+  if(millis() - LastSendTime > 500){
     LastSendTime = millis();
-    if (l){
-      SetOcupyLED(0x10,100,200,0);
-      //SetOcupyLED(0x11,200,0,0);
-      l = 0;
-    }
-    else{
-      SetOcupyLED(0x10,0,0,200);
-      //SetOcupyLED(0x11,200,0,0);
-      l = 1;
-    }
+    ReadRemoteTemp();
+    //GetRemoteTemp(10);
   }
   //DisplayWiFiSignal();
   //SetOcupyLED(0x11,200,0,0);

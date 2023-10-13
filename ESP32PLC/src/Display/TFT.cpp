@@ -25,15 +25,20 @@ PNG png;
 // int32_t pngSeek(PNGFILE *page, int32_t position);
 
 TFT_eSPI tft = TFT_eSPI(320,240);       // Invoke custom library
+TFT_eSprite StatusBar = TFT_eSprite(&tft);       //Create Sprite for Top 
+TFT_eSprite Main = TFT_eSprite(&tft);       //Create Sprite for Middel
+TFT_eSprite Bottom = TFT_eSprite(&tft);       //Create Sprite for bottom 
 void pngDraw(PNGDRAW *pDraw);
 
 void TFTInit(){
-
-    tft.init();   // initialize a ST7735S chip
-    Serial.println("TFT-Config");
-    tft.invertDisplay(1);
-    tft.fillScreen(TFT_BLACK);
-    TFTLog("Init.....");
+  tft.init();   // initialize a ST7735S chip
+  Serial.println("TFT-Config");
+  tft.invertDisplay(1);
+  tft.fillScreen(TFT_BLACK);
+  StatusBar.createSprite(20,240,8);
+  Main.createSprite(270,240,8);
+  Bottom.createSprite(30,240,8);
+  TFTLog("Init.....");
 }
 
 void testdrawtext(char *text, uint16_t color) {
@@ -46,50 +51,54 @@ void testdrawtext(char *text, uint16_t color) {
 char TFTLastWiFiSig = 0;
 
 void TFTTHBar(){
-  TFTBarClear();
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE);
-  tft.setCursor(25, TFTBANNERY);
-  tft.println("T: ");
-  tft.setCursor(55, TFTBANNERY);
-  tft.println(String(getDeviceClimateTemprature(),1));
-  tft.setCursor(110, TFTBANNERY);
-  tft.println("H: ");
-  tft.setCursor(140, TFTBANNERY);
-  tft.println(String(getDeviceClimateHumidity(),1));
+  //TFTBarClear();
+  Bottom.setTextSize(2);
+  Bottom.setTextColor(TFT_WHITE);
+  Bottom.setCursor(0, 8);
+  Bottom.println("T: ");
+  Bottom.setCursor(55, 8);
+  Bottom.println(String(getDeviceClimateTemprature(),1));
+  Bottom.setCursor(110, 8);
+  Bottom.println("H: ");
+  Bottom.setCursor(140, 8);
+  Bottom.println(String(getDeviceClimateHumidity(),1));
+  Bottom.pushSprite(40,TFTBANNERY);
 }
 
 void TFTIDSet(){
-  tft.setTextSize(1);
-  tft.setCursor(100, 8);
-  tft.setTextColor(TFT_WHITE);
-  tft.print(GetClientId().c_str());
+  StatusBar.setTextSize(1);
+  StatusBar.setCursor(100, 8);
+  StatusBar.setTextColor(TFT_WHITE);
+  StatusBar.print(GetClientId().c_str());
+  StatusBar.pushSprite(40, 8);
 }
 
 void TFTMQTTIconSet(char IconMode){
   if(IconMode == 1){
-    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Connected, 16, 16, TFT_WHITE);
+    StatusBar.drawBitmap(20,8,Clear, 16, 16, TFT_BLACK);
+    StatusBar.drawBitmap(20,8,Connected, 16, 16, TFT_WHITE);
   }
   else{
-    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTMQTTCX,TFTMQTTCY,NotConnected, 16, 16, TFT_WHITE);
-  } 
+    StatusBar.drawBitmap(20,8,Clear, 16, 16, TFT_BLACK);
+    StatusBar.drawBitmap(20,8,NotConnected, 16, 16, TFT_WHITE);
+  }
+  StatusBar.pushSprite(40, 8);
 }
 
 void TFTWiFiConnect(char Position){
   if(Position == 1){
-    tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,SignalSmall, 16, 16, TFT_RED);
+    StatusBar.drawBitmap(0,8,Clear, 16, 16, TFT_BLACK);
+    StatusBar.drawBitmap(0,8,SignalSmall, 16, 16, TFT_RED);
   }
   if(Position == 2){
-    tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,SignalMed, 16, 16, TFT_YELLOW);
+    StatusBar.drawBitmap(0,8,Clear, 16, 16, TFT_BLACK);
+    StatusBar.drawBitmap(0,8,SignalMed, 16, 16, TFT_YELLOW);
   }
   if(Position == 3){
-    tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Clear, 16, 16, TFT_BLACK);
-    tft.drawBitmap(TFTWIFIBITMAPX,TFTWIFIBITMAPY,Sig, 16, 16, TFT_GREEN);
+    StatusBar.drawBitmap(0,8,Clear, 16, 16, TFT_BLACK);
+    StatusBar.drawBitmap(0,8,Sig, 16, 16, TFT_GREEN);
   }
+  StatusBar.pushSprite(40, 8);
 }
 
 void TFTDisplayInputs(void){

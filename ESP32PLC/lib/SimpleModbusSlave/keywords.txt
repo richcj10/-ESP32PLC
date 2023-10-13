@@ -1,3 +1,2 @@
-modbus_configure	KEYWORD2
-modbus_update	KEYWORD2
-modbus_update_comms	KEYWORD2
+modbus_configure KEYWORD2
+modbus_update	 KEYWORD2

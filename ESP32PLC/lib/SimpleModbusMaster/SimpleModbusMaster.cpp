@@ -126,7 +126,10 @@ void constructPacket()
 	
 	frame[4] = packet->data >> 8; // MSB
 	frame[5] = packet->data & 0xFF; // LSB
-	
+/*     for(char k = 0;k<6;k++){
+	    Serial.print(frame[k],HEX);
+    }
+    Serial.println(); */
 	unsigned char frameSize;    
 	
   // construct the frame according to the modbus function  
@@ -227,7 +230,7 @@ void waiting_for_reply()
 {
 	if ((*ModbusPort).available()) // is there something to check?
 	{
-		Serial.println("Got Stuuf");
+		//Serial.println("Got Stuuf");
 		unsigned char overflowFlag = 0;
 		buffer = 0;
 		while ((*ModbusPort).available())
@@ -253,8 +256,10 @@ void waiting_for_reply()
 			// while reading from the buffer then the buffer is most likely empty
 			// If there are more bytes after such a delay it is not supposed to
 			// be received and thus will force a frame_error.
-			Serial.print(Data);
-			delayMicroseconds(T1_5); // inter character time out
+			//Serial.print(Data);
+            delay(10);
+			yield(); // inter character time out
+            //delay(10);
 		}
 			
 		// The minimum buffer size from a slave can be an exception response of
@@ -262,21 +267,32 @@ void waiting_for_reply()
 		// The maximum number of bytes in a modbus packet is 256 bytes.
 		// The serial buffer limits this to 64 bytes.
 	
-		if ((buffer < 5) || overflowFlag)
-			processError();       
+		if (buffer < 5){
+            //Serial.println("P - BCE");
+			processError();
+        }
+		if (overflowFlag){
+            //Serial.println("P - OVF");
+			processError();
+        }
       
 		// Modbus over serial line datasheet states that if an unexpected slave 
     // responded the master must do nothing and continue with the time out.
 		// This seems silly cause if an incorrect slave responded you would want to
     // have a quick turnaround and poll the right one again. If an unexpected 
     // slave responded it will most likely be a frame error in any event
-		else if (frame[0] != packet->id) // check id returned
+		else if (frame[0] != packet->id){// check id returned
+            //Serial.println("PE");
 			processError();
-		else
+       }
+		else{
+            //Serial.println("PP");
 			processReply();
+        }
 	}
 	else if ((millis() - delayStart) > timeout) // check timeout
 	{
+        //Serial.println("P - TO");
 		processError();
 		state = IDLE; //state change, override processError() state
 	}
@@ -307,6 +323,7 @@ void processReply()
         break;
         case READ_INPUT_REGISTERS:
         case READ_HOLDING_REGISTERS:
+        //Serial.println("F3-F4");
         process_F3_F4();
         break;
 				case FORCE_SINGLE_COIL:
@@ -323,6 +340,7 @@ void processReply()
 	} 
 	else // checksum failed
 	{
+        //Serial.println("CRC Bad");
 		processError();
 	}
 }
@@ -519,13 +537,15 @@ unsigned int calculateCRC(unsigned char bufferSize)
 void sendPacket(unsigned char bufferSize)
 {
 	digitalWrite(TxEnablePin, HIGH);
-		
+    delay(1);
+	(*ModbusPort).flush();
 	for (unsigned char i = 0; i < bufferSize; i++)
 		(*ModbusPort).write(frame[i]);
 		
-	(*ModbusPort).flush();
-	
-	delayMicroseconds(frameDelay-100);
+	//delay(3);
+    delayMicroseconds(2050);
+
+    //used = SERIAL_TX_BUFFER_SIZE - Serial1.availableForWrite();
 	
 	digitalWrite(TxEnablePin, LOW);
 		

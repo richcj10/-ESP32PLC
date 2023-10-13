@@ -45,7 +45,7 @@ void SystemStart(){
 void UIUpdateLoop(){
   JoyStickUpdate();
   LEDUpdate();
-  //DisplayManager();
+  DisplayManager();
   WebHandel();
 }
 

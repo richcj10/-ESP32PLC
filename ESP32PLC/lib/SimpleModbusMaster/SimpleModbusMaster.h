@@ -124,6 +124,7 @@ typedef struct
 // function definitions
 void modbus_update();
 void modbus_uart_mod(unsigned char rx, unsigned char tx);
+void waiting_for_reply();
 void modbus_construct(Packet *_packet, 
 											unsigned char id, 
 											unsigned char function, 
