@@ -71,7 +71,7 @@ void DisplayManager(){
   if(DisplayMode == 0){  //If Display is off,
       if(GetJoyStickSelect()){ //And then we get a Joystic Select, (TODO: Make this a "movment")
         Log(NOTIFY,"Display Wakeup");
-        //DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
+        DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
         if(Displaytype == TFT){  //If we have the TFT, I need to enable the back light 
           DisplayBrightnes(25);
         }
@@ -101,7 +101,7 @@ void DisplayManager(){
       LastDisplayUpdate = millis();
       //DisplaySwitchCase();
     }
-    //DisplaySaver();
+    DisplaySaver();
   }
 }
 

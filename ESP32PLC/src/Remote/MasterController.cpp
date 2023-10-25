@@ -7,8 +7,8 @@
 
 //////////////////// Port information ///////////////////
 #define baud 38400
-#define timeout 100
-#define polling 1000 // the scan rate
+#define timeout 2000
+#define polling 1500 // the scan rate
 #define retry_count 0
 
 // used to toggle the receive/transmit pin on the driver
@@ -22,7 +22,7 @@
 // This is the easiest way to create new packets
 // Add as many as you want. TOTAL_NO_OF_PACKETS
 // is automatically updated.
-unsigned int regs[9];
+unsigned int regs[20];
 unsigned int write_regs[3];
 
 enum
@@ -38,9 +38,9 @@ Packet packets[TOTAL_NO_OF_PACKETS];
 
 char RemoteStart(){
   modbus_uart_mod(16,17);
-  modbus_construct(&packets[PACKET1], 32, READ_INPUT_REGISTERS, 4, 1, 1);
-  modbus_construct(&packets[PACKET2], 32, READ_INPUT_REGISTERS, 5, 1, 2);
-  modbus_construct(&packets[PACKET3], 32, READ_INPUT_REGISTERS, 6, 1, 3);
+  modbus_construct(&packets[PACKET1], 32, READ_INPUT_REGISTERS, 4, 3, 1);
+  modbus_construct(&packets[PACKET2], 48, READ_INPUT_REGISTERS, 0, 7, 4);
+  modbus_construct(&packets[PACKET3], 5, READ_INPUT_REGISTERS, 1, 5, 12);
   modbus_configure(&Serial1, baud, SERIAL_8N1, timeout, polling, retry_count, TxEnablePin, packets, TOTAL_NO_OF_PACKETS, regs);
   return 1;
 }
@@ -55,6 +55,35 @@ char ReadRemoteTemp(){
   Log(LOG,"Temp = %0.2f\r\n",regs[2]/100.0);
   Log(LOG,"Temp = %0.2f\r\n",regs[3]/100.0);
   return 1;
+}
+
+char ReadRemoteWeather(){
+  Log(LOG,"Type = %f\r\n",regs[4]);
+  Log(LOG,"Outside Temp = %0.2f\r\n",regs[5]/100.0);
+  Log(LOG,"Outside Humid = %0.2f\r\n",regs[6]/100.0);
+  Log(LOG,"Outside mC = %0.2f\r\n",regs[7]/100.0);
+  Log(LOG,"Wind Speed = %0.2f\r\n",regs[8]/100.0);
+  Log(LOG,"Wind Dir = %0.2f\r\n",regs[9]);
+  //Log(LOG,"Temp = %0.2f\r\n",regs[10]/100.0);
+  return 1;
+}
+
+char ReadRemoteCurrent(){
+  Log(LOG,"Type = %f\r\n",regs[12]);
+  Log(LOG,"Current A = %0.2f\r\n",regs[REMOTE_CS_A]/100.0);
+  Log(LOG,"Current B = %0.2f\r\n",regs[REMOTE_CS_B]/100.0);
+  Log(LOG,"Current C = %0.2f\r\n",regs[REMOTE_CS_C]/100.0);
+  //Log(LOG,"Temp = %0.2f\r\n",regs[10]/100.0);
+  return 1;
+}
+
+float GetRemoteDataFromQue(unsigned char x, bool Divide){
+  if(Divide){
+    return (float)regs[x]/100.00;
+  }
+  else{
+    return regs[x];
+  }
 }
 
 int ReadDeviceType(int Address) {

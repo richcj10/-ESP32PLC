@@ -40,6 +40,7 @@ char SetupWiFi(void){
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
         GetIPStr();
+        WiFiOK();
         return 1;
     }
     else if(GetWiFisetupMode() == WIFI_AP_MODE){

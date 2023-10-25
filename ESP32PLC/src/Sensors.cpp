@@ -20,8 +20,8 @@ void InitSensors(void){
 }
 
 void UpdateSensors(void){
-  DeviceHumidity = ESgetRH();
-  DeviceTempratureF = ESreadTemp();
+  //DeviceHumidity = ESgetRH();
+  //DeviceTempratureF = ESreadTemp();
 }
 
 void InitOneWire(void){

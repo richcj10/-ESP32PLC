@@ -24,7 +24,7 @@ body{
 }
 
 .SelectBox {
-    float left;
+    float: left;
     top: -5%;
     left: 3%;
     position: absolute;
@@ -146,4 +146,35 @@ fieldset div {
   background-color: #bbb;
   border-radius: 50%;
   display: inline-block;
+}
+
+.terminal{
+    background: rgb(165, 161, 161);
+    color: white;
+    font: courier;
+    padding: 10px;
+    height: 300px;
+    overflow: hidden;
+}
+  
+.line{
+    display: table;
+    width: 100%;
+}
+  
+.terminal{
+    background: rgb(165, 161, 161);
+    color: white;
+    font: courier;
+    padding: 10px;
+    height: 300px;
+    overflow-x: hidden; /* Hide horizontal scrollbar */
+    overflow-y: scroll; /* Add vertical scrollbar */
+}
+
+.terminal input{
+    padding: 10px;
+    width:100%;
+    background: rgb(165, 161, 161);
+    color: white;
 }

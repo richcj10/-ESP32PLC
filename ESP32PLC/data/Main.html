@@ -123,10 +123,12 @@
                 <h1>File Info</h1>
             </div>
             <div class = "Log tabShow">
-                <h1>Log Info</h1>
-                <div class="termDiv">
-                    <div id="terminal-container"></div>
-                </div>
+                <fieldset>
+                    <legend>LOG:</legend>
+                      <div class="terminal" id="history"></div>
+                      <button type="button" id="SendInput">Send</button>
+                      <input type="text" id="Loginput">
+                </fieldset>
             </div>
         </div>
     </div>
@@ -165,13 +167,36 @@
         socket.addEventListener('message', function (event) { 
             console.log('Message from server ', event.data);
             const obj = JSON.parse(event.data);
-            document.getElementById("dRSSI").innerHTML = obj.RSSI;
-            document.getElementById("dssid").innerHTML = obj.SSID;
-            document.getElementById("dTemp").innerHTML = obj.Temp;
-            document.getElementById("dHumid").innerHTML = obj.Humid;
-            document.getElementById("dMAC").innerHTML = obj.MAC;
-            document.getElementById("dIP").innerHTML = obj.IP;
-            IODisplay(obj.Input1,obj.Input2,obj.Input3,obj.Input4,obj.Output1,obj.Output2,obj.Output3,obj.Output4);
+            //if(obj.Type == 0){
+                //DeviceName = obj.HN;
+                //console.log('Server Name ',DeviceName);
+                //document.getElementById("dssid").innerHTML = obj.SSID;
+                //document.getElementById("dMAC").innerHTML = obj.MAC;
+                //document.getElementById("dIP").innerHTML = obj.IP;
+            //}
+            //if(obj.Type == 1){
+                //document.getElementById("dRSSI").innerHTML = obj.RSSI;
+                //document.getElementById("dssid").innerHTML = obj.IO1;
+                //document.getElementById("dMAC").innerHTML = obj.IO2;
+            //}
+            //if(obj.Type == 2){
+                //document.getElementById("dLTEStat").innerHTML = obj.CELST;
+                //document.getElementById("dNtwkIP").innerHTML = obj.CELIP;
+                //document.getElementById("dNtwkRSSI").innerHTML = obj.CELSIG;
+                //document.getElementById("dSIMNwk").innerHTML = obj.CELNT;
+                //document.getElementById("dGPSOK").innerHTML = obj.GPSEN;
+                //document.getElementById("dLAT").innerHTML = obj.GPSLAT;
+                //document.getElementById("dLON").innerHTML = obj.GPSLOG;
+                //document.getElementById("dDetected").innerHTML = obj.SIM;
+            //}
+            //if(obj.Type == 3){
+                //document.getElementById("dBatVolt").innerHTML = obj.BATV;
+                //document.getElementById("dBatPct").innerHTML = obj.BATP;
+                //document.getElementById("PwrMode").innerHTML = obj.PWRMD;
+            //}
+            if(obj.Type == 10){
+                append_to_div(obj.LOG);
+            }
         });
 
         socket.addEventListener('close', function (event) { 
@@ -191,6 +216,23 @@
                 document.getElementById("In1").style.backgroundColor  = 'Red';
             }
         }
+        function append_to_div(data){ 
+	        document.getElementById("history").innerText += data; 
+            const element = document.getElementById("history");
+            element.scrollTop = element.scrollHeight;
+        } 
+
+        document.getElementById("SendInput").addEventListener('click', function() { 
+            var e_input = document.getElementById("Loginput"); 
+            var value = e_input.value.trim(); 
+
+            if(!value){
+                alert("Input field can't be empty!"); 
+            } else {
+                append_to_div( value+"\n"); 
+            }
+            //e_input.value = ""; 
+        }); 
     </script>
 </body>
 </html>

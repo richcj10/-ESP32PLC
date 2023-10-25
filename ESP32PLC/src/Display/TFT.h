@@ -34,4 +34,7 @@ void TFTIDSet();
 void TFTDisplayRemote();
 void TFTCenterClear();
 
+void TFTBargraph(char Mode);
+void TFTBargraphUpdate(unsigned int Precent);
+
 #endif
