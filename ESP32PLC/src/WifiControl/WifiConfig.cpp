@@ -9,7 +9,7 @@
 
 String IpAddress2String(const IPAddress& ipAddress);
 
-const char* ssid     = "JohnsonCamper";
+const char* ssid     = "JohnsonCamper-2.4G";
 const char* password = "LoveShack0nWheels";
 //const char* password = "RR58fa!8";
 
@@ -40,6 +40,7 @@ char SetupWiFi(void){
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
         GetIPStr();
+        WiFiOK();
         return 1;
     }
     else if(GetWiFisetupMode() == WIFI_AP_MODE){

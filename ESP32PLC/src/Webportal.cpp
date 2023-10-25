@@ -89,22 +89,22 @@ void WebHandel(){
     if(wsconnected == true){
       lastButtonState = digitalRead(USER_SW);
       jsonDocTx.clear();
-      jsonDocTx["SSID"] = GetSSID();
-      jsonDocTx["IP"] = GetIPStr();
-      jsonDocTx["HN"] = GetHostName();
-      jsonDocTx["RSSI"] = GetRSSIStr();
-      jsonDocTx["MAC"] = GetMACStr();
-      jsonDocTx["Temp"] = String(getDeviceClimateTemprature());
-      jsonDocTx["Humid"] = String(getDeviceClimateHumidity());
-      jsonDocTx["button"] = lastButtonState;
-      jsonDocTx["Input1"] = lastButtonState;
-      jsonDocTx["Input2"] = lastButtonState;
-      jsonDocTx["Input3"] = lastButtonState;
-      jsonDocTx["Input4"] = lastButtonState;
-      jsonDocTx["Output1"] = lastButtonState;
-      jsonDocTx["Output2"] = lastButtonState;
-      jsonDocTx["Output3"] = lastButtonState;
-      jsonDocTx["Output4"] = lastButtonState;
+      //jsonDocTx["SSID"] = GetSSID();
+      //jsonDocTx["IP"] = GetIPStr();
+      //jsonDocTx["HN"] = GetHostName();
+      //jsonDocTx["RSSI"] = GetRSSIStr();
+      //jsonDocTx["MAC"] = GetMACStr();
+      ///jsonDocTx["Temp"] = String(getDeviceClimateTemprature());
+      //jsonDocTx["Humid"] = String(getDeviceClimateHumidity());
+      //jsonDocTx["button"] = lastButtonState;
+      //jsonDocTx["Input1"] = lastButtonState;
+      //jsonDocTx["Input2"] = lastButtonState;
+      //jsonDocTx["Input3"] = lastButtonState;
+      //jsonDocTx["Input4"] = lastButtonState;
+      //jsonDocTx["Output1"] = lastButtonState;
+      //jsonDocTx["Output2"] = lastButtonState;
+      //jsonDocTx["Output3"] = lastButtonState;
+      //jsonDocTx["Output4"] = lastButtonState;
 
       serializeJson(jsonDocTx, output, 512);
 
@@ -118,4 +118,23 @@ void WebHandel(){
       }
     }
   }
+}
+
+char WebLogSend(String LogString){
+  if(wsconnected == true){
+    //Serial.println(LogString);
+    jsonDocTx.clear();
+    jsonDocTx["Type"] = 10; //Log Send Command
+    jsonDocTx["LOG"] = LogString + "\n";//\n";
+    serializeJson(jsonDocTx, output, 512);
+    if (ws.availableForWriteAll()) {
+      ws.textAll(output);
+        //Log(NOTIFY,"Sent Log");
+    } 
+/*       else {
+        Log(ERROR,"Queue Is Full");
+      } */
+    return 1;
+  }
+  return 0;
 }

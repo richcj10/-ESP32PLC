@@ -10,5 +10,6 @@ void httpResponseRedirect(WiFiClient c);
 void httpResponseHome(WiFiClient c);
 void processCommand(char* command);
 void httpResponse414(WiFiClient c);
+char WebLogSend(String LogString);
 
 #endif  /* SENSORS_H */

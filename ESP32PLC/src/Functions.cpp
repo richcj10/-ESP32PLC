@@ -12,6 +12,7 @@
 #include "Webportal.h"
 #include "Remote/MasterController.h"
 #include "Devices/Log.h"
+#include "Display/TFT.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -63,40 +64,74 @@ void SyncLoop(){
   if (now - lastUpdate > 700){
     lastUpdate = now;
     ToggletUserLED();
-    ReadDS18B20OneWire();
-    readDeviceClimate();
-    char PinValue = digitalRead(MP1INPUT);
-    if(PinValue != PinLastVal){
-      if(PinValue == LOW){
-        SendChestPower(1);
-      }
-      else{
-        SendChestPower(0);
-      }
-      PinLastVal = PinValue;
-    }
     if ((WiFi.status() != WL_CONNECTED)) {
       Serial.println("Rebooting - Lost WiFi");
       delay(1000);
       ESP.restart();
     }
   }
-  if (now - lastMsg > 10000){
-    lastMsg = now;
-    SendDeviceEnviroment();
-    SendChestFreezer();
-  }
 }
+
+String OTA;
+char numb = 0;
 
 void setup_ota() {
   ArduinoOTA.setHostname(GetClientId().c_str());
   //ArduinoOTA.setPassword(WiFiSettings.password.c_str());
+
+  ArduinoOTA.onStart([]() {
+    Log(NOTIFY_FORCE,"OTA Update!");
+    delay(100);
+    DisplayLog(" Getting OTA Update...");
+    delay(1000);
+    TFTBargraph(1);
+  });
+  ArduinoOTA.onEnd([]() {
+    Log(NOTIFY_FORCE,"OTA Update - Complete");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    //if(numb == 0){
+    //  Serial.print(progress);
+    //  Serial.print(" ");
+    //  Serial.println(total);
+    //}
+    //numb = 1;
+    //OTA = String("Progress: %d\r", (progress / (total)));
+    float Precent = ((float)progress / (float)total)*100;
+    Serial.print(" progress = ");
+    Serial.println(progress);
+    Serial.print(" total = ");
+    Serial.println(total);
+    Serial.print(" Precent = ");
+    Serial.println(Precent);
+    TFTBargraphUpdate(Precent);
+    delay(10);
+    //Log(NOTIFY_FORCE,"OTA");
+    //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR){
+      Log(NOTIFY_FORCE,"Auth Failed");
+      return 0; //Don't restart due to password issue. 
+    }
+    else if (error == OTA_BEGIN_ERROR) Log(NOTIFY_FORCE,"Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Log(NOTIFY_FORCE,"Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Log(NOTIFY_FORCE,"Receive Failed");
+    else if (error == OTA_END_ERROR) Log(NOTIFY_FORCE,"End Failed");
+    ESP.restart(); //Just encase we lost WiFi, or got stuck, lets try a restart. 
+  });
+
   ArduinoOTA.begin();
 }
 
 void WiFiFaiure(){
   WiFiAP(1);
   WiFiConnected = 0;
+}
+
+void WiFiOK(){
+  WiFiConnected = 1;
 }
 
 unsigned long Countdown = 0;

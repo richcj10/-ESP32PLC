@@ -202,4 +202,5 @@
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src/Wire.h \
  C:/Users/richc/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \
  src/Display/Oled.h src/Sensors.h \
- .pio/libdeps/esp32s3/PubSubClient/src/PubSubClient.h
+ .pio/libdeps/esp32s3/PubSubClient/src/PubSubClient.h \
+ src/Remote/MasterController.h

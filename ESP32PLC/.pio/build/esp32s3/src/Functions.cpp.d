@@ -205,4 +205,4 @@
  src/Display/Oled.h src/Sensors.h src/MQTT.h src/Display/Display.h \
  src/HAL/Digital/Digital.h src/HAL/Com/I2C.h src/Devices/StatusLED.h \
  src/Devices/JoyStick.h src/Webportal.h src/Remote/MasterController.h \
- src/Devices/Log.h
+ src/Devices/Log.h src/Display/TFT.h

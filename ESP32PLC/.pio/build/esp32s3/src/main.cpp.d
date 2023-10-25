@@ -204,4 +204,4 @@
  src/HAL/DeviceConfig.h src/FileSystem/FSInterface.h \
  src/WifiControl/WifiConfig.h src/HAL/Digital/Digital.h src/HAL/Com/I2C.h \
  src/Devices/StatusLED.h src/Devices/JoyStick.h src/Webportal.h \
- src/Devices/Log.h src/Remote/MasterController.h
+ src/Devices/Log.h src/Remote/MasterController.h src/Display/TFT.h

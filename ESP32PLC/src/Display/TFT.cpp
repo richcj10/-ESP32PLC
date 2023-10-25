@@ -54,13 +54,13 @@ void TFTTHBar(){
   //TFTBarClear();
   Bottom.setTextSize(2);
   Bottom.setTextColor(TFT_WHITE);
-  Bottom.setCursor(0, 8);
+  Bottom.setCursor(8, 5);
   Bottom.println("T: ");
-  Bottom.setCursor(55, 8);
+  Bottom.setCursor(8, 55);
   Bottom.println(String(getDeviceClimateTemprature(),1));
-  Bottom.setCursor(110, 8);
+  Bottom.setCursor(8, 108);
   Bottom.println("H: ");
-  Bottom.setCursor(140, 8);
+  Bottom.setCursor(8, 140);
   Bottom.println(String(getDeviceClimateHumidity(),1));
   Bottom.pushSprite(40,TFTBANNERY);
 }
@@ -133,7 +133,7 @@ void TFTDisplayRemote(void){
 
 void TFTDisplayIP(){
   TFTCenterClear();
-  tft.setTextSize(2);
+  tft.setTextSize(1);
   tft.setCursor(60, 50);
   tft.setTextColor(TFT_WHITE);
   tft.print("IP: 0.0.0.0");
@@ -145,12 +145,12 @@ void TFTLogo(){
   int16_t rc = png.openFLASH((uint8_t *)Logo, sizeof(Logo), pngDraw);
   Serial.println("png file try");
   if (rc == PNG_SUCCESS) {
-    Serial.println("Successfully png file");
-    Serial.printf("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
+    //Serial.println("Successfully png file");
+    //Serial.printf("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
     tft.startWrite();
     uint32_t dt = millis();
     rc = png.decode(NULL, 0);
-    Serial.print(millis() - dt); Serial.println("ms");
+    //Serial.print(millis() - dt); Serial.println("ms");
     tft.endWrite();
     // png.close(); // not needed for memory->memory decode
   }
@@ -166,11 +166,40 @@ void pngDraw(PNGDRAW *pDraw){
 }
 
 void TFTLog(const char *Comment){
-  tft.fillRect(INFOX, INFOY, 200, 15, TFT_BLACK);
+  tft.fillRect(INFOX, INFOY, 600, 15, TFT_BLACK);
+  tft.setTextSize(1);
   tft.setCursor(INFOX+5, INFOY);
   tft.setTextColor(TFT_WHITE);
   tft.setTextWrap(true);
   tft.print(Comment);
+}
+
+char GraphPos = 0;
+
+void TFTBargraph(char Mode){
+  if(Mode == 1){ //Start
+    tft.fillRect(35, 86, 5, 16, TFT_RED);
+    tft.fillRect(37, 89, 3, 10, TFT_WHITE);
+    tft.fillRect(210, 86, 5, 16, TFT_RED);
+    tft.fillRect(216, 89, 3, 13, TFT_WHITE);
+    GraphPos = 0;
+  }
+  if(Mode == 2){ //Clear
+    tft.fillRect(5, 20, 200, 50, TFT_BLACK);
+  }
+}
+
+void TFTBargraphUpdate(unsigned int Precent){
+  GraphPos = Precent/5;
+  Serial.println(GraphPos);
+  int Locx = 0;
+  for(char l = 0;l<GraphPos;l++){
+    Serial.print(l);
+    Serial.print(" ");
+    Serial.println(Locx);
+    Locx = (10*l)+40;
+    tft.fillRect(Locx, 90, 3, 13, TFT_WHITE);
+  }
 }
 
 void TFTDisplayClear(){

@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdarg.h>
-//#include "Comunication/Webportal.h"
+#include "Webportal.h"
 
 bool ConfigArray[5] = {1,1,1,1,0};
 bool WiFiLog = 0;
@@ -39,7 +39,7 @@ void LogSetup(char DebugLevel, bool WebPage){
     }
 }
 
-char Log(char level,const char* format, ...){
+char Log(char level, const char* format, ...){
     switch (level){
         case ERROR:
             if(ConfigArray[0] == 1){
@@ -59,7 +59,7 @@ char Log(char level,const char* format, ...){
             break;
         case NOTIFY:
             if(ConfigArray[2] == 1){
-                ets_printf("%s", "NOTFY>");
+                ets_printf("%s", "NOTIFY>");
             }
             else{
                 return 0; 
@@ -72,6 +72,9 @@ char Log(char level,const char* format, ...){
             else{
                 return 0; 
             }
+            break;
+        case NOTIFY_FORCE:
+            ets_printf("%s", "NOTIFY_F>");
             break;
         default:
             ets_printf("%s", "ALT>");
@@ -99,7 +102,7 @@ char Log(char level,const char* format, ...){
     ets_printf("%s", temp);
     if(WiFiLog){
         String s = temp;
-        //WebLogSend(s);
+        WebLogSend(s);
     }
     va_end(arg);
     if(len >= sizeof(loc_buf)){

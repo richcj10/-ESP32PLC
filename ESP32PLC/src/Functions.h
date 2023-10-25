@@ -21,5 +21,6 @@ char GetResetReason(char cpucore);
 void PrintResetReason(void);
 void UIUpdateLoop();
 void SensorUpdateLoop();
+void WiFiOK();
 
 #endif  /* FUNCTIONS_H */
