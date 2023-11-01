@@ -38,7 +38,7 @@ Packet packets[TOTAL_NO_OF_PACKETS];
 
 char RemoteStart(){
   modbus_uart_mod(16,17);
-  modbus_construct(&packets[PACKET1], 32, READ_INPUT_REGISTERS, 4, 3, 1);
+  modbus_construct(&packets[PACKET1], 32, READ_INPUT_REGISTERS, 3, 3, 1);
   modbus_construct(&packets[PACKET2], 48, READ_INPUT_REGISTERS, 0, 7, 4);
   modbus_construct(&packets[PACKET3], 5, READ_INPUT_REGISTERS, 1, 5, 12);
   modbus_configure(&Serial1, baud, SERIAL_8N1, timeout, polling, retry_count, TxEnablePin, packets, TOTAL_NO_OF_PACKETS, regs);
