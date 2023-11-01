@@ -28,7 +28,7 @@ void setup() {
   Log(NOTIFY,"Startup Complete");
   pinMode(2, OUTPUT);
   pinMode(16,INPUT);
-  pinMode(8,OUTPUT); // Relay Control 
+  pinMode(40,OUTPUT); // Relay Control 
   LEDBoot();
   if(FileStstemStart()){
     DisplayLog(" FS OK ");
@@ -90,8 +90,8 @@ void loop() {
   SyncLoop();
   if(millis() - LastSendTime > 3000){
     LastSendTime = millis();
-    ReadRemoteCurrent();
-    ReadRemoteTemp();
+    //ReadRemoteCurrent();
+    //ReadRemoteTemp();
     //GetRemoteTemp(10);
   }
   

@@ -36,11 +36,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("Changing output to ");
     if(messageTemp == "on"){
       Serial.println("on");
-      digitalWrite(8, HIGH);
+      digitalWrite(40, HIGH);
+      client.publish("ESPPLC/Heater/State", "on");
     }
     else if(messageTemp == "off"){
       Serial.println("off");
-      digitalWrite(8, LOW);
+      digitalWrite(40, LOW);
+      client.publish("ESPPLC/Heater/State", "off");
     }
   }
 }
