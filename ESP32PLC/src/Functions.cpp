@@ -13,6 +13,7 @@
 #include "Remote/MasterController.h"
 #include "Devices/Log.h"
 #include "Display/TFT.h"
+#include "WifiControl/WifiConfig.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -29,6 +30,9 @@ void print_reset_reason(RESET_REASON reason);
 void SystemStart(){
   StatusLEDStart();
   Serial.begin(115200);
+  LogSetup(DEBUG,1); 
+  SaveResetReason();
+  ClientIdCreation();
   Log(DEBUG,"LED Start-");
   LEDBoot();
   Log(DEBUG,"TFT Start-");
@@ -64,10 +68,12 @@ void SyncLoop(){
   if (now - lastUpdate > 700){
     lastUpdate = now;
     ToggletUserLED();
-    if ((WiFi.status() != WL_CONNECTED)) {
-      Serial.println("Rebooting - Lost WiFi");
-      delay(1000);
-      ESP.restart();
+    if(GetWiFisetupMode() != 2){
+      if ((WiFi.status() != WL_CONNECTED)) {
+        Serial.println("Rebooting - Lost WiFi");
+        delay(1000);
+        ESP.restart();
+      }
     }
   }
 }
@@ -148,10 +154,11 @@ void ClientIdCreation(void){
   byte mac[6];
   WiFi.macAddress(mac);
   clientId = "ESPPLC-";
-  clientId = clientId + String(mac[1]) + String(mac[0]);
-  
-  Serial.print("ClientID = ");
-  Serial.println(clientId);
+  clientId = clientId + String(mac[4]) + String(mac[5]);
+  //Serial.print(WiFi.macAddress());
+  Log(NOTIFY_FORCE,"ClientID = %s",clientId);
+  //Serial.print("ClientID = ");
+  //Serial.println(clientId);
 }
 
 void SaveResetReason(void){
@@ -223,5 +230,142 @@ void print_reset_reason(RESET_REASON reason){
       break;      /**<16, RTC Watch dog reset digital core and rtc module*/
     default : 
       Serial.println ("NO_MEAN");
+  }
+}
+
+char FWStart = 0;
+char FWCH1 = 0;
+char FWCH2 = 0;
+char FWCH3 = 0;
+char FWCH4 = 0;
+char FWCH5 = 0;
+int FWCH1_T = 0;
+int FWCH2_T = 0;
+int FWCH3_T = 0;
+int FWCH4_T = 0;
+int FWCH5_T = 0;
+
+void SetFWData(char ch1,char ch2,char ch3,char ch4,char ch5,int ch1t, int ch2t,int ch3t,int ch4t,int ch5t){
+  Log(NOTIFY,"CH 1 %d, CH1 Time %d\r\n",ch1,ch1t);
+  Log(NOTIFY,"CH 2 %d, CH2 Time %d\r\n",ch2,ch2t);
+  Log(NOTIFY,"CH 3 %d, CH3 Time %d\r\n",ch3,ch3t);
+  Log(NOTIFY,"CH 4 %d, CH4 Time %d\r\n",ch4,ch4t);
+  Log(NOTIFY,"CH 5 %d, CH5 Time %d\r\n",ch5,ch5t);
+  FWCH1 = ch1;
+  FWCH2 = ch2;
+  FWCH3 = ch3;
+  FWCH4 = ch4;
+  FWCH5 = ch5;
+  FWCH1_T = ch1t*1000;
+  FWCH2_T = ch2t*1000;
+  FWCH3_T = ch3t*1000;
+  FWCH4_T = ch4t*1000;
+  FWCH5_T = ch5t*1000;
+  FWStart = 1;
+}
+
+char FirstTime = 0;
+unsigned long TimeStamp = 0;
+unsigned long CurrentTime = 0;
+
+char CH1_Fire = 0;
+char CH2_Fire = 0;
+char CH3_Fire = 0;
+char CH4_Fire = 0;
+char CH5_Fire = 0;
+
+
+void RunFW(){
+  if(FWStart == 1){
+    if(FirstTime == 0){
+      TimeStamp = millis();
+      FirstTime = 1;
+    }
+    CurrentTime = millis();
+    if(FWCH1 == 1){
+      if ((CurrentTime-TimeStamp) >= FWCH1_T){
+        Log(NOTIFY,"CH 1 Fire\r\n");
+        FWCH1 = 0;
+        CH1_Fire = 1;
+      }
+    }
+    if(FWCH2 == 1){
+      if ((CurrentTime-TimeStamp) >= FWCH2_T){
+        Log(NOTIFY,"CH 2 Fire\r\n");
+        FWCH2 = 0;
+        CH2_Fire = 1;
+      }
+    }
+    if(FWCH3 == 1){
+      if ((CurrentTime-TimeStamp) >= FWCH3_T){
+        Log(NOTIFY,"CH 3 Fire\r\n");
+        FWCH3 = 0;
+        CH3_Fire = 1;
+      }
+    }
+    if(FWCH4 == 1){
+      if ((CurrentTime-TimeStamp) >= FWCH4_T){
+        Log(NOTIFY,"CH 4 Fire\r\n");
+        FWCH4 = 0;
+        CH4_Fire = 1;
+      }
+    }
+    if(FWCH5 == 1){
+      if ((CurrentTime-TimeStamp) >= FWCH5_T){
+        Log(NOTIFY,"CH 5 Fire\r\n");
+        FWCH5 = 0;
+        CH5_Fire = 1;
+      }
+    }
+    if((FWCH1 == 0) && (FWCH2 == 0) && (FWCH3 == 0) && (FWCH4 == 0) && (FWCH5 == 0)){
+      FWStart = 0;
+      FirstTime = 0;
+    }
+  }
+}
+
+char GetCHFire(char ch){
+  if (ch == 1)
+  {
+    return CH1_Fire;
+  }
+  if (ch == 2)
+  {
+    return CH2_Fire;
+  }
+  if (ch == 3)
+  {
+    return CH3_Fire;
+  }
+  if (ch == 4)
+  {
+    return CH4_Fire;
+  }
+  if (ch == 5)
+  {
+    return CH5_Fire;
+  }
+}
+
+void SetCHFire(char ch, char data){
+  if (ch == 1)
+  {
+    CH1_Fire = data;
+  }
+  if (ch == 2)
+  {
+    CH2_Fire = data;
+  }
+  if (ch == 3)
+  {
+    CH3_Fire = data;
+  }
+  if (ch == 4)
+  {
+    CH4_Fire = data;
+  }
+  if (ch == 5)
+  {
+    CH5_Fire = data;
   }
 }

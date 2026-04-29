@@ -117,7 +117,46 @@
                 <h1>MQTT Info</h1>
             </div>
             <div class = "io tabShow">
-                <h1>I/O Info</h1>
+                <h1>Fireworks!</h1>
+				<p class='Same'> CH 1 EN: </p>
+				<input type="checkbox" id="firework1en" name="firework1en" value="1">
+				<br>
+				<p class='Same'> CH 1 Time Delay: </p>
+				<input type="range" style="width: 200px;" id="CH1TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
+				<output>10</output>
+				<br>
+				<p class='Same'> CH 2 EN: </p>
+				<input type="checkbox" id="firework2en" name="fireworkEable2" value="1">
+				<br>
+				<p class='Same'> CH 2 Time Delay: </p>
+				<input type="range" style="width: 200px;" id="CH2TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
+				<output>10</output>
+				<br>
+				<p class='Same'> CH 3 EN: </p>
+				<input type="checkbox" id="firework3en" name="fireworkEable3" value="1">
+				<br>
+				<p class='Same'> CH 3 Time Delay: </p>
+				<input type="range" style="width: 200px;" id="CH3TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
+				<output>10</output>
+				<br>
+				<p class='Same'> CH 4 EN: </p>
+				<input type="checkbox" id="firework4en" name="fireworkEable4" value="1">
+				<br>
+				<p class='Same'> CH 4 Time Delay: </p>
+				<input type="range" style="width: 200px;" id="CH4TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
+				<output>10</output>
+				<br>
+				<p class='Same'> CH 5 EN: </p>
+				<input type="checkbox" id="firework5en" name="fireworkEable5" value="1">
+				<br>
+				<p class='Same'> CH 5 Time Delay: </p>
+				<input type="range" style="width: 200px;" id="CH5TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
+				<output>10</output>
+				<br>
+				<br>
+				<br>
+				<br>
+				<input type="button" style="background-color: red;" id="FWFire" value="----FIRE----">
             </div>
             <div class = "FileView tabShow">
                 <h1>File Info</h1>
@@ -157,11 +196,14 @@
         })
     </script>
     <script type = "text/javascript">
+		var Status = 0;
+		
         var socket = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/ws");
         //const socket = new WebSocket('ws://localhost:80/ws'); 
         socket.addEventListener('open', function (event) { 
             socket.send('CNT'); 
             message("Connected");
+			Status = 1;
         }); 
 
         socket.addEventListener('message', function (event) { 
@@ -202,10 +244,12 @@
         socket.addEventListener('close', function (event) { 
             console.log('The connection has been closed');
             message("Server Disconnected");
+			Status = 0;
         });
         socket.addEventListener('onerror', function (event) { 
             console.log('The connection has been lost');
             message("Server connection lost");
+			Status = 0;
         });
         
         function IODisplay(I1,I2,I3,I4,O1,O2,O3,O4){
@@ -233,6 +277,74 @@
             }
             //e_input.value = ""; 
         }); 
+
+        document.getElementById("FWFire").addEventListener('click', function() { 
+			let text = "OK TO FIRE?\nSelect OK or Cancel.";
+			if (confirm(text) == true) {
+				let jsonObject = {
+					Mode: 'FW',
+				};
+				checkBox = document.getElementById('firework1en');
+				// Check if the element is selected/checked
+				if(checkBox.checked) {
+					// Respond to the result
+					jsonObject.CH1 = 1;
+				}
+				else{
+					jsonObject.CH1 = 0;
+				}
+				checkBox = document.getElementById('firework2en');
+				// Check if the element is selected/checked
+				if(checkBox.checked) {
+					// Respond to the result
+					jsonObject.CH2 = 1;
+				}
+				else{
+					jsonObject.CH2 = 0;
+				}
+				checkBox = document.getElementById('firework3en');
+				// Check if the element is selected/checked
+				if(checkBox.checked) {
+					// Respond to the result
+					jsonObject.CH3 = 1;
+				}
+				else{
+					jsonObject.CH3 = 0;
+				}
+				checkBox = document.getElementById('firework4en');
+				// Check if the element is selected/checked
+				if(checkBox.checked) {
+					jsonObject.CH4 = 1;
+				}
+				else{
+					jsonObject.CH4 = 0;
+				}
+				checkBox = document.getElementById('firework5en');
+				// Check if the element is selected/checked
+				if(checkBox.checked) {
+					// Respond to the result
+					jsonObject.CH5 = 1;
+				}
+				else{
+					jsonObject.CH5 = 0;
+				}
+				jsonObject.CH1T = parseInt(document.getElementById("CH1TD").value,10);
+				jsonObject.CH2T = parseInt(document.getElementById("CH2TD").value,10);
+				jsonObject.CH3T = parseInt(document.getElementById("CH3TD").value,10);
+				jsonObject.CH4T = parseInt(document.getElementById("CH4TD").value,10);
+				jsonObject.CH5T = parseInt(document.getElementById("CH5TD").value,10);
+				console.log(jsonObject);
+				//if(Status == 1){
+				socket.send(JSON.stringify(jsonObject));
+				alert("Fire   Fire   Fire");
+				//}
+				//else{
+				//	alert("Lost Connection");
+				//}
+			} else {
+				alert("Did not Activate!"); 
+			}
+        });
     </script>
 </body>
 </html>

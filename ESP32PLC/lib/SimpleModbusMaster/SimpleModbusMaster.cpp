@@ -1,4 +1,4 @@
-#include "SimpleModbusMaster.h"
+﻿#include "SimpleModbusMaster.h"
 #include "HardwareSerial.h"
 
 // SimpleModbusMasterV2rev2
@@ -90,16 +90,24 @@ void idle()
 		current_connection = packet->connection;
 		
 		if (!current_connection)
-		{			
+		{
 			// If all the connection attributes are false return
 			// immediately to the main sketch
 			if (++failed_connections == total_no_of_packets)
 				return;
 		}
-		packet_index++;     
-    
-	// if a packet has no connection get the next one		
-	}while (!current_connection); 
+		else if (packet->polling_interval > 0 &&
+		         (millis() - packet->last_polled) < packet->polling_interval)
+		{
+			// connected but not yet due for polling
+			if (++failed_connections == total_no_of_packets)
+				return;
+			current_connection = 0; // skip this packet this cycle
+		}
+		packet_index++;
+
+	// if a packet has no connection get the next one
+	}while (!current_connection);
 		
 	constructPacket();
 }
@@ -430,15 +438,16 @@ void processError()
 
 void processSuccess()
 {
-	packet->successful_requests++; // transaction sent successfully
-	packet->retries = 0; // if a request was successful reset the retry counter
+	packet->successful_requests++;
+	packet->retries = 0;
+	packet->last_polled = millis();
 	state = WAITING_FOR_TURNAROUND;
-	delayStart = millis(); // start the turnaround delay
+	delayStart = millis();
 }
   
 void modbus_configure(HardwareSerial* SerialPort,
 											long baud,
-											unsigned char byteFormat,
+											uint32_t byteFormat,
 											long _timeout, 
 											long _polling, 
 											unsigned char _retry_count, 
@@ -508,6 +517,8 @@ void modbus_construct(Packet *_packet,
   _packet->data = data;
 	_packet->local_start_address = local_start_address;
 	_packet->connection = 1;
+	_packet->polling_interval = 0;
+	_packet->last_polled = 0;
 }
 
 unsigned int calculateCRC(unsigned char bufferSize) 

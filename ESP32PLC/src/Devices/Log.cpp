@@ -99,7 +99,7 @@ char Log(char level, const char* format, ...){
     
     vsnprintf(temp, len+1, format, arg);
 
-    ets_printf("%s", temp);
+    ets_printf("%s\r\n", temp);
     if(WiFiLog){
         String s = temp;
         WebLogSend(s);

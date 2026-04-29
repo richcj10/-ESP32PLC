@@ -8,7 +8,7 @@
 #define MQTTid "123321"
 #define MQTTip "192.168.X.X"
 #define MQTTport 1883
-#define MQTTuser "ESPPLC"
+#define MQTTuser "ESPPLC_TEST"
 #define MQTTpsw "ESPPLCpass"
 #define MQTTpubQos 1
 #define MQTTsubQos 1
@@ -18,9 +18,12 @@ char msg[MSG_BUFFER_SIZE];
 char MQTTActive = 0;
 char MQTTLockout = 0;
 char temp[50]; 
+char ErrorCounter = 0;
 
 WiFiClient wclient;
 PubSubClient client(wclient);
+
+PubSubClient& GetMQTTClient() { return client; }
 
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
@@ -45,6 +48,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
       client.publish("ESPPLC/Heater/State", "off");
     }
   }
+  if (String(topic) == "ESPPLC/Lights") {
+    Serial.print("Changing output to ");
+    if(messageTemp == "on"){
+      Serial.println("on");
+      digitalWrite(41, HIGH);
+      digitalWrite(42, HIGH);
+      digitalWrite(39, HIGH);
+      client.publish("ESPPLC/Lights/State", "on");
+    }
+    else if(messageTemp == "off"){
+      Serial.println("off");
+      digitalWrite(41, LOW);
+      digitalWrite(42, LOW);
+      digitalWrite(39, LOW);
+      client.publish("ESPPLC/Lights/State", "off");
+    }
+  }
 }
 
 void MqttLoop(void){
@@ -55,6 +75,14 @@ void MqttLoop(void){
     else{
       MQTTreconnect();
     }
+  }
+  else if(ErrorCounter > 20){
+    //Reset Device
+    ESP.restart();
+  }
+  else if(MQTTLockout){
+    //Reset Device
+    MQTTreconnect(); 
   }
 }
 
@@ -76,13 +104,22 @@ void MQTTreconnect(void) {
           //MQTTMessageInit();
        }
        counter++;
-       if(counter > 2){
+       if(counter > 10){
          Serial.println("MQTT ISSUE");
          MQTTLockout = 1;
          break;
        }
      }
    }
+}
+
+void SetMQTTLockout(char Mode){
+  if(Mode == true){
+    MQTTLockout = 1;
+  }
+  else{
+    MQTTLockout = 0;
+  }
 }
 
 /* void MQTTMessageInit(){
@@ -113,20 +150,36 @@ void SendOutsideEnvoroment(){
     report = String(GetRemoteDataFromQue(OUTSIDE_TEMP_POS,1));
     report.toCharArray(temp, report.length() + 1);
     if(client.publish("Outside/Weather/temp", temp) == 0){
-      Serial.println("MQTT Send Fail");
+      ErrorCounter++;
     }
     report = String(GetRemoteDataFromQue(OUTSIDE_HUMID_POS,1));
     report.toCharArray(temp, report.length() + 1);
-    client.publish("Outside/Weather/humid", temp);
+    if(client.publish("Outside/Weather/humid", temp) == 0){
+      ErrorCounter++;
+    }
     report = String(GetRemoteDataFromQue(MC_POS,1));
     report.toCharArray(temp, report.length() + 1);
-    client.publish("Outside/Weather/mH", temp);
+    if(client.publish("Outside/Weather/mH", temp) == 0){
+      ErrorCounter++;
+    }
     report = String(GetRemoteDataFromQue(WIND_SPEED_POS,1));
     report.toCharArray(temp, report.length() + 1);
-    client.publish("Outside/Weather/WindSpeed", temp);
+    if(client.publish("Outside/Weather/WindSpeed", temp) == 0){
+      ErrorCounter++;
+    }
     report = String(GetRemoteDataFromQue(WIND_DIR_POS,0));
     report.toCharArray(temp, report.length() + 1);
-    client.publish("Outside/Weather/windDir", temp);
+    if(client.publish("Outside/Weather/windDir", temp) == 0){
+      ErrorCounter++;
+    }
+    report = String(GetRemoteDataFromQue(RAIN_POS,1));
+    report.toCharArray(temp, report.length() + 1);
+    if(client.publish("Outside/Weather/rain", temp) == 0){
+      ErrorCounter++;
+    }
+    else{
+      ErrorCounter = 0;
+    }
 /*     report = String(GetRemoteDataFromQue(OUTSIDE_TEMP_POS,1));
     report.toCharArray(temp, report.length() + 1);
     client.publish("Outside/Weather/Rain", temp); */
@@ -139,16 +192,21 @@ void SendRemoteRTD(){
     report = String(GetRemoteDataFromQue(REMOTE_TEMP_RTD_1,1));
     report.toCharArray(temp, report.length() + 1);
     if(client.publish("Outside/UnderRV/RTD1", temp) == 0){
-      Serial.println("MQTT Send Fail");
+      //Serial.println("MQTT Send Fail");
+      ErrorCounter++;
     }
     report = String(GetRemoteDataFromQue(REMOTE_TEMP_RTD_2,1));
     report.toCharArray(temp, report.length() + 1);
     if(client.publish("Outside/UnderRV/RTD2", temp) == 0){
-      Serial.println("MQTT Send Fail");
+      //Serial.println("MQTT Send Fail");
+      ErrorCounter++;
     }
     report = String(GetRemoteDataFromQue(REMOTE_TEMP_RTD_3,1));
     report.toCharArray(temp, report.length() + 1);
-    client.publish("Outside/UnderRV/RTD3", temp);
+    if(client.publish("Outside/UnderRV/RTD3", temp) == 0){
+      //Serial.println("MQTT Send Fail");
+      ErrorCounter++;
+    }
   }
 }
 
@@ -158,16 +216,21 @@ void SendRemoteCurrentSense(){
     report = String(GetRemoteDataFromQue(REMOTE_CS_A,1));
     report.toCharArray(temp, report.length() + 1);
     if(client.publish("Outside/Current/A", temp) == 0){
-      Serial.println("MQTT Send Fail");
+      //Serial.println("MQTT Send Fail");
+      ErrorCounter++;
     }
     report = String(GetRemoteDataFromQue(REMOTE_CS_B,1));
     report.toCharArray(temp, report.length() + 1);
     if(client.publish("Outside/Current/B", temp) == 0){
-      Serial.println("MQTT Send Fail");
+      //Serial.println("MQTT Send Fail");
+      ErrorCounter++;
     }
     report = String(GetRemoteDataFromQue(REMOTE_CS_C,1));
     report.toCharArray(temp, report.length() + 1);
-    client.publish("Outside/Current/C", temp);
+    if(client.publish("Outside/Current/C", temp) == 0){
+      //Serial.println("MQTT Send Fail");
+      ErrorCounter++;
+    }
   }
 }
 

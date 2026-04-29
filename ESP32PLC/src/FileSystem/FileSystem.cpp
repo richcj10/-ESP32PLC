@@ -99,8 +99,6 @@ void WifiloadConfiguration(struct WiFiConfig* WFC) {
   // Open file for reading
   File file = LittleFS.open(WiFifilename);
 
-  // Allocate a temporary JsonDocument
-  // Don't forget to change the capacity to match your requirements.
   // Use arduinojson.org/v6/assistant to compute the capacity.
   StaticJsonDocument<512> doc;
 
@@ -126,8 +124,6 @@ void WifiloadConfiguration(struct WiFiConfig* WFC) {
     WFC->PswdLN = doc["PswdLN"];
     WFC->HoastLN = doc["HoastLN"];
     WFC->DHCP = doc["DHCP"];
-    // Close the file (Curiously, File's destructor doesn't close the file)
-    //SPIFFS.close();
     file.close();
   }
 }
@@ -181,7 +177,6 @@ void MqttloadConfiguration(struct MQTTConfig* MQC) {
   File file = LittleFS.open(MQTTfilename);
 
   // Allocate a temporary JsonDocument
-  // Don't forget to change the capacity to match your requirements.
   // Use arduinojson.org/v6/assistant to compute the capacity.
   StaticJsonDocument<256> doc;
 
@@ -199,7 +194,6 @@ void MqttloadConfiguration(struct MQTTConfig* MQC) {
     strlcpy(MQC->MQTTPassword,doc["MQTTPassword"],sizeof(MQC->MQTTPassword));
     MQC->MQTTEnabble = doc["MQTTEnabble"];
     MQC->MQTTPasswordLN = doc["MQTTPasswordLN"];
-    // Close the file (Curiously, File's destructor doesn't close the file)
     file.close();
   }
 }
@@ -212,8 +206,6 @@ void MqttsaveConfiguration(struct MQTTConfig* MQC) {
   File file = LittleFS.open(MQTTfilename, "w");
   if (file) {
     //LOG("Opened MQTT File! \r");
-    // Allocate a temporary JsonDocument
-    // Don't forget to change the capacity to match your requirements.
     // Use arduinojson.org/assistant to compute the capacity.
     StaticJsonDocument<256> doc;
 
@@ -304,9 +296,6 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
             Serial.print("  DIR : ");
 
             Serial.println(file.name());
-            //time_t t= file.getLastWrite();
-            //struct tm * tmstruct = localtime(&t);
-            //Serial.printf("  LAST WRITE: %d-%02d-%02d %02d:%02d:%02d\n",(tmstruct->tm_year)+1900,( tmstruct->tm_mon)+1, tmstruct->tm_mday,tmstruct->tm_hour , tmstruct->tm_min, tmstruct->tm_sec);
 
             if(levels){
                 listDir(fs, file.name(), levels -1);
@@ -317,9 +306,6 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
             Serial.print("  SIZE: ");
 
             Serial.println(file.size());
-            //time_t t= file.getLastWrite();
-            //struct tm * tmstruct = localtime(&t);
-            //Serial.printf("  LAST WRITE: %d-%02d-%02d %02d:%02d:%02d\n",(tmstruct->tm_year)+1900,( tmstruct->tm_mon)+1, tmstruct->tm_mday,tmstruct->tm_hour , tmstruct->tm_min, tmstruct->tm_sec);
         }
         file = root.openNextFile();
     }

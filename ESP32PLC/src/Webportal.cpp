@@ -6,16 +6,19 @@
 #include "WifiControl/WifiConfig.h"
 #include "Sensors.h"
 #include "Define.h"
+#include "Functions.h"
 
 #include "Devices/Log.h"
 
 #define HTTP_PORT 80
 
+void WSRunJSON();
+
 AsyncWebServer server(HTTP_PORT);
 AsyncWebSocket ws("/ws");
 
 StaticJsonDocument<200> jsonDocTx;
-StaticJsonDocument<100> jsonDocRx;
+StaticJsonDocument<300> jsonDocRx;
 
 bool wsconnected = false;
 bool lastButtonState = 0;
@@ -57,6 +60,7 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
         Log(NOTIFY,"%s\r\n\r\n", msg.c_str());
 
         deserializeJson(jsonDocRx, msg);
+        WSRunJSON();
         jsonDocRx.clear();
       }
     }
@@ -137,4 +141,10 @@ char WebLogSend(String LogString){
     return 1;
   }
   return 0;
+}
+
+void WSRunJSON(){
+  if(jsonDocRx["Mode"] == "FW"){
+    SetFWData(jsonDocRx["CH1"],jsonDocRx["CH2"],jsonDocRx["CH3"],jsonDocRx["CH4"],jsonDocRx["CH5"],int(jsonDocRx["CH1T"]), int(jsonDocRx["CH2T"]),int(jsonDocRx["CH3T"]),int(jsonDocRx["CH4T"]),int(jsonDocRx["CH5T"]));
+  }
 }
