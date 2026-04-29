@@ -1,4 +1,4 @@
-#ifndef SIMPLE_MODBUS_MASTER_H
+﻿#ifndef SIMPLE_MODBUS_MASTER_H
 #define SIMPLE_MODBUS_MASTER_H
 
 // SimpleModbusMasterV2r2
@@ -117,8 +117,12 @@ typedef struct
   unsigned int retries;
   	
   // connection status of packet
-  unsigned char connection; 
-  
+  unsigned char connection;
+
+  // per-packet polling interval (ms). 0 = poll every cycle (default)
+  unsigned long polling_interval;
+  unsigned long last_polled;
+
 }Packet;
 
 // function definitions
@@ -134,7 +138,7 @@ void modbus_construct(Packet *_packet,
 											
 void modbus_configure(HardwareSerial* SerialPort,
 											long baud, 
-											unsigned char byteFormat,
+											uint32_t byteFormat,
 											long _timeout, 
 											long _polling, 
 											unsigned char _retry_count, 

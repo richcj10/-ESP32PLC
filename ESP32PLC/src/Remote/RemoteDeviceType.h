@@ -1,6 +1,95 @@
 #ifndef REMOTEDEVICETYPE_H
 #define  REMOTEDEVICETYPE_H
 
+#include <Arduino.h>
+
+/* class BitRef
+{
+public:
+    BitRef& operator=( bool x )
+    {
+        *byteRef = (*byteRef & ~(1 << bitPos));
+        if (x) *byteRef = *byteRef | (1 << bitPos);
+        return *this;
+    }
+    //BitRef& operator=( const BitRef& x );
+
+    operator bool() const 
+    {
+        if (*byteRef & (1 << bitPos)) return true;
+        return false;
+    }
+public:
+    BitRef(uint8_t *ref, int pos)
+    {
+        byteRef = ref;
+        bitPos = pos;
+    }
+private:
+    uint8_t *byteRef;
+    int bitPos;
+};
+
+typedef union {
+    uint64_t uint64;
+    uint32_t uint32[2]; 
+    uint16_t uint16[4];
+    uint8_t  uint8[8];
+    int64_t int64;
+    int32_t int32[2]; 
+    int16_t int16[4];
+    int8_t  int8[8];
+
+    //deprecated names used by older code
+    uint64_t value;
+    struct {
+        uint32_t low;
+        uint32_t high;
+    };
+    struct {
+        uint16_t s0;
+        uint16_t s1;
+        uint16_t s2;
+        uint16_t s3;
+    };
+    uint8_t bytes[8];
+    uint8_t byte[8]; //alternate name so you can omit the s if you feel it makes more sense
+    struct {
+        uint8_t bitField[8];
+        const bool operator[]( int pos ) const
+        {
+            if (pos < 0 || pos > 63) return 0;
+            int bitFieldIdx = pos / 8;
+            return (bitField[bitFieldIdx] >> pos) & 1;
+        }
+        BitRef operator[]( int pos )
+        {
+            if (pos < 0 || pos > 63) return BitRef((uint8_t *)&bitField[0], 0);
+            uint8_t *ptr = (uint8_t *)&bitField[0]; 
+            return BitRef(ptr + (pos / 8), pos & 7);
+        }
+    } bit;
+} BytesUnion;
+
+class MODBUS_TX_FRAME
+{
+    //MODBUS_TX_FRAME();
+
+    BytesUnion data;    // 64 bits - lots of ways to access it.
+    unsigned char id;        // 29 bit if ide set, 11 bit otherwise
+    unsigned char RegType;
+    unsigned char length;     // Number of data bytes
+    void *Returnfcn;
+}; */
+
+struct MODBUS_TX_TX_FRAME {
+  unsigned char id;        // 29 bit if ide set, 11 bit otherwise
+  unsigned char RegType;
+  unsigned char length;     // Number of data bytes
+  unsigned char Data[40];
+  void *Returnfcn;
+};
+
 struct RemoteSensorChannel {
     unsigned char Code = 0;
     unsigned char Type = 0; 

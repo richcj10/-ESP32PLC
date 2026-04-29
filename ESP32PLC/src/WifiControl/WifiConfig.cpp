@@ -6,21 +6,22 @@
 #include "Functions.h"
 #include "Devices/StatusLED.h"
 #include "Display/Display.h"
+#include "MQTT.h"
 
 String IpAddress2String(const IPAddress& ipAddress);
 
-const char* ssid     = "JohnsonCamper-2.4G";
-const char* password = "LoveShack0nWheels";
-//const char* password = "RR58fa!8";
+const char* ssid     = "JWN";
+//const char* password = "LoveShack0nWheels";
+const char* password = "RR58ga!8";
 
 char WiFiMode = WIFI_STA_MODE;
 
 char SetupWiFi(void){
     if(GetWiFisetupMode() == WIFI_STA_MODE){
         Serial.printf("WiFi STA mode!\n");
-        //WiFi.disconnect();
-        //WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-        //WiFi.setHostname(GetHostName().c_str());
+        WiFi.disconnect();
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        WiFi.setHostname(GetHostName().c_str());
         Serial.println(GetSSID().c_str());
         SetLEDStatus(WIFI_CONNECTING,250);
         //WiFi.begin(GetSSID().c_str(), GetSSIDPassword().c_str());
@@ -44,6 +45,8 @@ char SetupWiFi(void){
         return 1;
     }
     else if(GetWiFisetupMode() == WIFI_AP_MODE){
+        SetMQTTLockout(true);
+        WiFiMode = WIFI_AP_MODE;
         Serial.printf("WiFi AP mode!\n");
         WiFi.disconnect();
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);

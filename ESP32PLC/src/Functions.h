@@ -23,4 +23,10 @@ void UIUpdateLoop();
 void SensorUpdateLoop();
 void WiFiOK();
 
+void SetFWData(char ch1,char ch2,char ch3,char ch4,char ch5,int ch1t, int ch2t,int ch3t,int ch4t,int ch5t);
+void RunFW();
+void FireWorksTrigger(char CH);
+char GetCHFire(char ch);
+void SetCHFire(char ch, char data);
+
 #endif  /* FUNCTIONS_H */
