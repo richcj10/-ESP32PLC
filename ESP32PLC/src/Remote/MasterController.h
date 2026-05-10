@@ -21,20 +21,27 @@
 #define REMOTE_CS_B        14
 #define REMOTE_CS_C        15
 
-// Raw ModbusDevice objects — low-level driver access
+// Active device
+extern ModbusDevice           occSensor;
+extern ModbusMasterController master;
+extern PLCModuleInstance_t    occInst;
+
+// Stubbed-out devices — not polled, kept for legacy callers
 extern ModbusDevice           tempSensor;
 extern ModbusDevice           weatherSensor;
 extern ModbusDevice           currentSensor;
-extern ModbusMasterController master;
-
-// Module instances — descriptor + device + runtime status
-extern PLCModuleInstance_t tempInst;
-extern PLCModuleInstance_t weatherInst;
-extern PLCModuleInstance_t currentInst;
+extern PLCModuleInstance_t    tempInst;
+extern PLCModuleInstance_t    weatherInst;
+extern PLCModuleInstance_t    currentInst;
 
 // Setup / runtime
 char RemoteStart();
 void RemoteRun();
+
+// Occupancy sensor accessors
+bool     GetOccupied();
+uint16_t GetZoneCount();
+uint16_t GetTimeOnSec();
 
 // Diagnostic log — prints all SCAN_ALWAYS groups for a module
 void LogModuleData(const PLCModuleInstance_t* inst);
@@ -56,5 +63,22 @@ char  GetRemoteTemp(char TempCH);
 void SetTempPollRate   (unsigned long ms);
 void SetWeatherPollRate(unsigned long ms);
 void SetCurrentPollRate(unsigned long ms);
+
+/* ── RS-485 bus control for FW update ─────────────────────────────────────
+ * Call SuspendRemotePolling() before handing Serial1 to ModBusBLMaster.
+ * Call ResumeRemotePolling()  when the flash task is complete.
+ * ──────────────────────────────────────────────────────────────────────── */
+void SuspendRemotePolling();
+void ResumeRemotePolling();
+bool IsRemotePollingActive();
+
+/* ── Device list for FW update UI ──────────────────────────────────────── */
+struct FwDeviceInfo {
+    const char *name;
+    uint8_t     slaveId;
+};
+
+/* Fills 'out' with up to maxCount entries. Returns actual count. */
+uint8_t GetFwDeviceList(FwDeviceInfo *out, uint8_t maxCount);
 
 #endif

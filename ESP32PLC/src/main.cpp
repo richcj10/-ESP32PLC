@@ -4,6 +4,7 @@
 #include "Sensors.h"
 
 #include "Display/Display.h"
+#include "Display/UIPages.h"
 #include "HAL/DeviceConfig.h"
 #include "FileSystem/FSInterface.h"
 #include "WifiControl/WifiConfig.h"
@@ -14,6 +15,7 @@
 #include "Webportal.h"
 #include "Devices/Log.h"
 #include "Remote/MasterController.h"
+#include "Remote/FwUpdater.h"
 
 #include "Display/TFT.h"
 
@@ -22,13 +24,9 @@ int BuffSize = 0;
 
 void setup() {
   SystemStart();
-  Log(NOTIFY,"Startup Complete");
+  Log(ERROR,"Startup Complete");
   pinMode(2, OUTPUT);
   pinMode(16,INPUT);
-  pinMode(40,OUTPUT); // Relay Control 
-  pinMode(41,OUTPUT); // Relay Control, Lights
-  pinMode(42,OUTPUT); // Relay Control, Lights
-  pinMode(39,OUTPUT); // Relay Control, Lights
   LEDBoot();
   if(FileStstemStart()){
     DisplayLog(" FS OK ");
@@ -39,33 +37,31 @@ void setup() {
     delay(1000);
   }
   QueryLocalDevice();
-
-
-  //GPIOStart();
-  //setupMode();
-  //Serial.print("SiSensor = ");
-  //Serial.println(Si7021checkID());
   DisplayLog(" Connecting to WiFi...");
-  if(!SetupWiFi()){
-    Serial.println(" WiFi Fialed");
-    DisplayLog("Connection Failed..Setting up AP");
-    SetWiFisetupMode(WIFI_AP_MODE);
-    SetupWiFi();
-  }
+  SetupWiFi();   // retries STA 3x then falls back to AP internally
   setup_ota();
   DisplayLog(GetIPStr().c_str());
   delay(1000);
   InitSensors();
   MQTTStart();
   WebStart();
+  fwUpdater.init();
   //DisplayCenterClear();
   //GPIOStart();
   //pinMode(MP1INPUT, INPUT);
   //I2CScan();
   SetLEDStatus(NORMAL,1000);
   Serial.println("Setup Done!");
-  DisplayTimeoutReset();//This allows the display to be shown for 10 seconds afer reboot.
-  TFTBargraph(1);
+  DisplayTimeoutReset();
+  if (GetWiFiMode() == WIFI_AP_MODE) {
+    DisplaySetAPMode(true, GetHostName().c_str());
+    DisplayAPInfo(GetHostName().c_str());
+  } else {
+    DisplaySetAPMode(false, nullptr);
+    DisplayClear();
+    UIPageInit();
+    UIPageDraw();
+  }
   pinMode(42, OUTPUT);
   pinMode(41, OUTPUT);
   pinMode(40, OUTPUT);
@@ -82,11 +78,8 @@ unsigned long LastSendTimeCH1, LastSendTimeCH2, LastSendTimeCH3, LastSendTimeCH4
 char CH1FT, CH2FT, CH3FT, CH4FT, CH5FT = 0;
 
 void loop() {
-  //
-  
+  CaptivePortalLoop();
   RemoteRun();
-  
-  
   UIUpdateLoop();
   SensorUpdateLoop();
   

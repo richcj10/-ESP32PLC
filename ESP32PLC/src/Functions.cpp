@@ -30,7 +30,8 @@ void print_reset_reason(RESET_REASON reason);
 void SystemStart(){
   StatusLEDStart();
   Serial.begin(115200);
-  LogSetup(DEBUG,1); 
+  LogSetup(NOTIFY,1);
+  LogRingInit();
   SaveResetReason();
   ClientIdCreation();
   Log(DEBUG,"LED Start-");
@@ -125,7 +126,8 @@ void setup_ota() {
     else if (error == OTA_CONNECT_ERROR) Log(NOTIFY_FORCE,"Connect Failed");
     else if (error == OTA_RECEIVE_ERROR) Log(NOTIFY_FORCE,"Receive Failed");
     else if (error == OTA_END_ERROR) Log(NOTIFY_FORCE,"End Failed");
-    ESP.restart(); //Just encase we lost WiFi, or got stuck, lets try a restart. 
+    ESP.restart();
+    return 0;
   });
 
   ArduinoOTA.begin();
@@ -345,6 +347,7 @@ char GetCHFire(char ch){
   {
     return CH5_Fire;
   }
+  return 0;
 }
 
 void SetCHFire(char ch, char data){

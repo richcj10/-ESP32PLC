@@ -9,14 +9,10 @@
 // add or remove a module from this build.
 // ================================================================
 
-#include "PLCMod_RTD3CH.h"
-#include "PLCMod_WeatherStation.h"
-#include "PLCMod_CurrentSensor.h"
+#include "PLCMod_OCC.h"
 
 const PLCModuleDesc_t* const PLCModuleRegistry[] = {
-    &RTD3CH_Desc,
-    &WeatherStation_Desc,
-    &CurrentSensor_Desc,
+    &OCC_Desc,
 };
 const uint8_t PLCModuleRegistryCount =
     sizeof(PLCModuleRegistry) / sizeof(PLCModuleRegistry[0]);

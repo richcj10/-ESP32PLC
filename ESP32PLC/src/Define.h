@@ -3,7 +3,8 @@
 
 #define HOW_MANY_IO_TYPES 5
 
-#define SREENTIMEOUT 20000
+#define SREENTIMEOUT    20000
+#define AP_SCREEN_TIMEOUT 60000
 
 // #define LOG(f_, ...) \
 //   { Serial.printf((f_), ##__VA_ARGS__); }

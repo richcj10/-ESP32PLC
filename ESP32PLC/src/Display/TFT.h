@@ -1,6 +1,11 @@
 #ifndef TFT_H
 #define  TFT_H
 
+#include <TFT_eSPI.h>
+
+// Full-screen PSRAM back-buffer — draw here, push once with Screen.pushSprite(0,0)
+extern TFT_eSprite Screen;
+
 #define TFTWIFIBITMAPX 40
 #define TFTWIFIBITMAPY 8
 
@@ -36,5 +41,7 @@ void TFTCenterClear();
 
 void TFTBargraph(char Mode);
 void TFTBargraphUpdate(unsigned int Precent);
+void TFTDisplayAPInfo(const char* ssid);
+void TFTBootLog(const char* line);
 
 #endif

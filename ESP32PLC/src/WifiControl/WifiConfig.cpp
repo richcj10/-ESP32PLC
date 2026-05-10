@@ -1,97 +1,126 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include "WifiControl/WifiConfig.h"
 #include "FileSystem/FSInterface.h"
 #include "Define.h"
 #include "Functions.h"
 #include "Devices/StatusLED.h"
+#include "Devices/Log.h"
 #include "Display/Display.h"
 #include "MQTT.h"
 
-String IpAddress2String(const IPAddress& ipAddress);
+static String IpAddress2String(const IPAddress& ipAddress);
 
-const char* ssid     = "JWN";
-//const char* password = "**REDACTED-PASS**";
-const char* password = "**REDACTED-PASS**";
+#define WIFI_STA_ATTEMPTS   3
+#define WIFI_STA_TIMEOUT_MS 4000   // per attempt
 
-char WiFiMode = WIFI_STA_MODE;
+static void startAP();
 
-char SetupWiFi(void){
-    if(GetWiFisetupMode() == WIFI_STA_MODE){
-        Serial.printf("WiFi STA mode!\n");
-        WiFi.disconnect();
-        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-        WiFi.setHostname(GetHostName().c_str());
-        Serial.println(GetSSID().c_str());
-        SetLEDStatus(WIFI_CONNECTING,250);
-        //WiFi.begin(GetSSID().c_str(), GetSSIDPassword().c_str());
-        WiFi.begin(ssid, password);
-        int counter = 0;
-        while (WiFi.status() != WL_CONNECTED) {
-            LEDUpdate();
-            DisplayWiFiConnect();
-            counter++;
-            delay(20);
-            if(counter > 100){
-                //ESP.restart();
-                return 0;
-            }
+char SetupWiFi(void) {
+    char mode = (char)GetWiFiMode();
+
+    if (mode == WIFI_STA_MODE) {
+        String ssid = GetSSID();
+        String pass = GetSSIDPassword();
+
+        if (ssid.length() == 0) {
+            Log(ERROR, "WiFi: STA mode but no SSID configured — falling back to AP\r\n");
+            startAP();
+            return 1;
         }
 
-        Serial.print("IP Address: ");
-        Serial.println(WiFi.localIP());
-        GetIPStr();
-        WiFiOK();
-        return 1;
-    }
-    else if(GetWiFisetupMode() == WIFI_AP_MODE){
-        SetMQTTLockout(true);
-        WiFiMode = WIFI_AP_MODE;
-        Serial.printf("WiFi AP mode!\n");
-        WiFi.disconnect();
+        WiFi.disconnect(true);
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
         WiFi.setHostname(GetHostName().c_str());
-        delay(250);
-        WiFi.mode(WIFI_AP);
-        delay(250);
-        WiFi.softAP(GetClientId().c_str());
-        Serial.print("IP Address: ");
-        Serial.println(WiFi.localIP()); 
-        return 1;       
+        SetLEDStatus(WIFI_CONNECTING, 250);
+
+        for (int attempt = 1; attempt <= WIFI_STA_ATTEMPTS; attempt++) {
+            Log(LOG, "WiFi: connecting to %s (attempt %d/%d)\r\n",
+                ssid.c_str(), attempt, WIFI_STA_ATTEMPTS);
+            DisplayWiFiConnect();
+            WiFi.begin(ssid.c_str(), pass.c_str());
+
+            unsigned long t = millis();
+            while (WiFi.status() != WL_CONNECTED) {
+                LEDUpdate();
+                delay(20);
+                if (millis() - t > WIFI_STA_TIMEOUT_MS) break;
+            }
+
+            if (WiFi.status() == WL_CONNECTED) {
+                Log(LOG, "WiFi: connected — IP %s\r\n", WiFi.localIP().toString().c_str());
+                if (MDNS.begin(GetHostName().c_str())) {
+                    MDNS.addService("http", "tcp", 80);
+                    Log(LOG, "WiFi: mDNS — http://%s.local\r\n", GetHostName().c_str());
+                } else {
+                    Log(ERROR, "WiFi: mDNS failed\r\n");
+                }
+                WiFiOK();
+                return 1;
+            }
+
+            Log(ERROR, "WiFi: attempt %d failed\r\n", attempt);
+            WiFi.disconnect(true);
+            delay(500);
+        }
+
+        Log(ERROR, "WiFi: all %d attempts failed — switching to AP mode\r\n", WIFI_STA_ATTEMPTS);
+        DisplayLog("WiFi failed — AP mode");
     }
-    else{
-        Serial.println("WiFi OFF");
-        return 1;
+
+    startAP();
+    return 1;
+}
+
+static void startAP() {
+    SetMQTTLockout(true);
+    String apSsid = GetHostName();
+    Log(LOG, "WiFi: AP mode — SSID=%s\r\n", apSsid.c_str());
+    WiFi.disconnect(true);
+    delay(250);
+    WiFi.mode(WIFI_AP);
+    delay(250);
+    WiFi.setHostname(apSsid.c_str());
+    WiFi.softAP(apSsid.c_str());
+    Log(LOG, "WiFi: AP IP %s\r\n", WiFi.softAPIP().toString().c_str());
+    if (MDNS.begin(apSsid.c_str())) {
+        MDNS.addService("http", "tcp", 80);
+        Log(LOG, "WiFi: mDNS — http://%s.local\r\n", apSsid.c_str());
+    } else {
+        Log(ERROR, "WiFi: mDNS failed\r\n");
     }
-    return 2;
+    DisplaySetAPMode(true, apSsid.c_str());
+    DisplayBrightnes(25);
+    DisplayAPInfo(apSsid.c_str());
 }
 
-String IpAddress2String(const IPAddress& ipAddress)
-{
-  return String(ipAddress[0]) + String(".") +\
-  String(ipAddress[1]) + String(".") +\
-  String(ipAddress[2]) + String(".") +\
-  String(ipAddress[3])  ; 
+char GetWiFisetupMode(void) {
+    return (char)GetWiFiMode();
 }
 
-char GetWiFisetupMode(void){
-    return WiFiMode;
+void SetWiFisetupMode(char value) {
+    (void)value;
 }
 
-void SetWiFisetupMode(char value){
-    WiFiMode = value;
+static String IpAddress2String(const IPAddress& ipAddress) {
+    return String(ipAddress[0]) + "." + String(ipAddress[1]) + "." +
+           String(ipAddress[2]) + "." + String(ipAddress[3]);
 }
 
-String GetIPStr(){
-    return IpAddress2String(WiFi.localIP());
+String GetIPStr() {
+    if (GetWiFiMode() == WIFI_AP_MODE)
+        return WiFi.softAPIP().toString();
+    return WiFi.localIP().toString();
 }
 
-String GetRSSIStr(){
+String GetRSSIStr() {
     return String(WiFi.RSSI());
 }
 
-String GetMACStr(){
+String GetMACStr() {
     byte mac[6];
     WiFi.macAddress(mac);
-    return String(mac[5]) +":"+ String(mac[4]) +":"+ String(mac[3]) +":"+ String(mac[2]) +":"+ String(mac[1]) +":"+ String(mac[0]);
+    return String(mac[5]) + ":" + String(mac[4]) + ":" + String(mac[3]) + ":" +
+           String(mac[2]) + ":" + String(mac[1]) + ":" + String(mac[0]);
 }

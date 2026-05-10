@@ -1,345 +1,167 @@
 #include "Display.h"
 #include <WiFi.h>
-#include "Oled.h"
-#include "TFT.h"
+#include "UIPages.h"
 #include "Define.h"
 #include "HAL/Digital/Digital.h"
 #include "MQTT.h"
 #include "Devices/Joystick.h"
 #include "Devices/Log.h"
 
-char DisplayMode = 1;
-char ModeActive = 1;
-char Displaytype = 0;
-char ScreenShow = 0;
-unsigned long TimeReading = 0;
-unsigned long DisplayOnTime = 0;
-unsigned long LastDisplayUpdate = 0;
+// ── Hardware seam ─────────────────────────────────────────────────────────────
+// Implemented in DisplayTFT.cpp or DisplayOLED.cpp — never both.
+// Display.cpp calls these; nothing else should.
+extern void _hw_init();
+extern void _hw_clear();
+extern void _hw_brightness(uint8_t b);      // OLED impl is a no-op
+extern void _hw_wifi_signal(uint8_t lvl);   // 0=animation frame, 1-3=strength
+extern void _hw_mqtt_icon(uint8_t mode);
+extern void _hw_th_bar();
+extern void _hw_id_label();
+extern void _hw_logo();
+extern void _hw_boot_log(const char* line);
+extern void _hw_ap_info(const char* ssid);
+extern void _hw_center_input();
+extern void _hw_center_output();
+extern void _hw_center_ip();
+extern void _hw_center_remote();
+
+// ── State ─────────────────────────────────────────────────────────────────────
+char DisplayMode  = 1;
+char ModeActive   = 1;
+char ScreenShow   = 0;
 char DisplaySleepEn = 1;
 
-long DisplayRefreshRate = 0;
-long DisplayUpdateInterval = 1000;
-unsigned long DisplaycurrentMillis = 0;
+static bool _apMode = false;
+static char _apSsid[40] = "";
 
-void DisplaySetup(){
-  switch (Displaytype){
-  case TFT:
-    Log(NOTIFY,"TFT Init");
-    TFTInit();
-    ledcSetup(0, LEDC_BASE_FREQ, 12);
-    ledcAttachPin(LED_PIN, 0);
-    TFTLogo();
-    break;
-  case OLED:
-    Log(NOTIFY,"Oled Init");
-    OLEDInit();
-    break;
-  }
+unsigned long TimeReading        = 0;
+unsigned long DisplayOnTime      = 0;
+unsigned long LastDisplayUpdate  = 0;
+
+long          DisplayRefreshRate    = 0;
+long          DisplayUpdateInterval = 1000;
+unsigned long DisplaycurrentMillis  = 0;
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
+void DisplaySetup() {
+    _hw_init();
 }
 
-void DisplayWiFiRSSI(){
-  switch (Displaytype){
-  case TFT:
-    TFTWiFiSignal(0);
-    break;
-  case OLED:
-    WiFiCheckRSSI(0);
-    break;
-  }
-}
+// ── Joystick-driven page carousel ────────────────────────────────────────────
 
-char LastMQTT = 0;
+static bool _joyPrev = false;
 
-void CheckMQTTCon(char overide){
-  if(GetMQTTStatus() == 1){
-    if((LastMQTT != 1) || (overide == 1)){
-      DisplayMQTT(1);
-      LastMQTT = 1;
-    }
-  }
-  else{
-    if((LastMQTT != 2) || (overide == 1)){
-      DisplayMQTT(0);
-      LastMQTT = 2;
-    }
-  }
-}
+void DisplayManager() {
+    bool joySel  = GetJoyStickSelect();
+    bool joyEdge = joySel && !_joyPrev;
+    _joyPrev = joySel;
 
-
-
-void DisplayManager(){
-  if(DisplayMode == 0){  //If Display is off,
-      if(GetJoyStickSelect()){ //And then we get a Joystic Select, (TODO: Make this a "movment")
-        Log(NOTIFY,"Display Wakeup");
-        DisplayTimeoutReset(); //Reset Display Saver (New Timeout)
-        if(Displaytype == TFT){  //If we have the TFT, I need to enable the back light 
-          DisplayBrightnes(25);
+    if (DisplayMode == 0) {
+        if (joyEdge) {
+            Log(NOTIFY, "Display Wakeup");
+            DisplayTimeoutReset();
+            _hw_brightness(25);
+            if (_apMode) { _hw_ap_info(_apSsid); } else { UIPageDraw(); }
+            DisplayMode = 1;
         }
-        DisplayTHBar();
-        WiFiCheckRSSI(1);   //We need to force display refresh here, because we are redrawing the blank display at this moment. 
-        CheckMQTTCon(1);
-        DisplayID();
-        DisplayMode = 1; //The Display is now "on", handel user selections
-        //DeviceIDDisplay();
+    } else {
+        if (!_apMode) {
+            if (joyEdge) { DisplayTimeoutReset(); UIPageNext(); }
+            if ((millis() - LastDisplayUpdate) > 3000) {
+                LastDisplayUpdate = millis();
+                UIPageDraw();
+            }
+        } else {
+            if (joyEdge) DisplayTimeoutReset();
+        }
+        DisplaySaver();
     }
-  }
-  else{
-    if ((millis() - LastDisplayUpdate) > 1500){
-      LastDisplayUpdate = millis();
-      //DeviceIDDisplay();
-      Log(DEBUG,"Display Update");
-      DisplayTHBar();
-      WiFiCheckRSSI(0);
-      CheckMQTTCon(0);   //Don't force MQTT value to be "refreshed" here...
-      LastDisplayUpdate = millis();
-      ModeActive = 1;
+}
+
+// ── Screen saver ─────────────────────────────────────────────────────────────
+
+void DisplaySaver() {
+    if (DisplaySleepEn == 1) {
+        unsigned long timeout = _apMode ? AP_SCREEN_TIMEOUT : SREENTIMEOUT;
+        if ((millis() - DisplayOnTime) > timeout) {
+            DisplayMode = 0;
+            _hw_clear();
+            _hw_brightness(0);
+        }
     }
-    if(GetJoyStickSelect() && ModeActive){
-      //Change UI
-      DisplayTimeoutReset();
-      ModeActive = 0;
-      LastDisplayUpdate = millis();
-      //DisplaySwitchCase();
+}
+
+// ── WiFi connect animation ────────────────────────────────────────────────────
+
+static char _wifiAnimK = 0;
+
+void DisplayWiFiConnect() {
+    DisplaycurrentMillis = millis();
+    if (DisplaycurrentMillis - DisplayRefreshRate >= 250) {
+        DisplayRefreshRate = DisplaycurrentMillis;
+        if (++_wifiAnimK > 3) _wifiAnimK = 0;
+        _hw_wifi_signal(_wifiAnimK);
     }
-    DisplaySaver();
-  }
 }
 
-void DisplayTHBar(){
-  switch (Displaytype){
-    case TFT:
-      TFTTHBar();
-      break;
-    case OLED:
-      OLEDTHBar();
-      break;
-  }
-}
-
-void DisplayID(){
-  switch (Displaytype){
-    case TFT:
-      TFTIDSet();
-      break;
-    case OLED:
-
-      break;
-  }
-}
-
-void DisplayMQTT(char Mode){
-  switch (Displaytype){
-    case TFT:
-      TFTMQTTIconSet(Mode);
-      break;
-    case OLED:
-      OLEDMQTTIconSet(Mode);
-      break;
-  }
-}
-
-void DisplaySaver(){
-  if(DisplaySleepEn == 1){
-    if ((millis() - DisplayOnTime) > SREENTIMEOUT){
-      DisplayMode = 0;
-      DisplayClear();
-      if(Displaytype == TFT){
-        DisplayBrightnes(0);
-      }
-    }
-  }
-}
-
-void DisplayClear(){
-  switch (Displaytype){
-    case TFT:
-      TFTDisplayClear();
-      break;
-    case OLED:
-      OledDisplayClear();
-      break;
-  }
-}
-
-void DisplaySwitchCase(){
-  switch (ScreenShow) {
-    case 0:
-      DisplayCenterInput();
-      ScreenShow++;
-      break;
-    case 1:
-       DisplayCenterOutput();
-       ScreenShow++;
-      break;
-    case 2:
-       DisplayCenterIPInfo();
-       ScreenShow++;
-      break;
-    default:
-      ScreenShow = 0;
-      break;
-  }
-  Serial.print("Screen = ");
-  Serial.println(int(ScreenShow));
-}
-
-void DisplayCenterInput(void){
-  switch (Displaytype){
-    case TFT:
-      TFTDisplayInputs();
-      break;
-    case OLED:
-      //OledDisplayInputs();
-      break;
-  }
-}
-
-void DisplayCenterOutput(void){
-  switch (Displaytype){
-    case TFT:
-      TFTDisplayOutputs();
-      break;
-    case OLED:
-      //OledDisplayOutputs();
-      break;
-  }
-}
-
-void DisplayCenterIPInfo(void){
-  switch (Displaytype){
-    case TFT:
-      TFTDisplayIP();
-      break;
-    case OLED:
-      //OledDisplayIP();
-      break;
-  }
-}
-
-void DisplayCenterRemoteInfo(void){
-  switch (Displaytype){
-    case TFT:
-      TFTDisplayRemote();
-      break;
-    case OLED:
-      //OledDisplayClear();
-      break;
-  }
-}
-
-
-char k =0;
-
-void DisplayWiFiConnect(){
-  DisplaycurrentMillis = millis();
-  if (DisplaycurrentMillis - DisplayRefreshRate >= 250) {
-    DisplayRefreshRate = DisplaycurrentMillis;
-    k++;
-    if(k>3){
-      k = 0;
-    }
-    switch (Displaytype){
-      case TFT:
-        TFTWiFiConnect(k);
-        break;
-      case OLED:
-        WiFiStreanthDisplay(k);
-        break;
-      default:
-        Serial.println("No Display Config");
-        break;
-    }
-  }
-}
+// ── WiFi RSSI indicator ───────────────────────────────────────────────────────
 
 char LastWiFiSig = 0;
 
-void WiFiCheckRSSI(char overide){
-  long Rssi = WiFi.RSSI()*-1;
-  if(Rssi < HIGHRSSI){
-    if((LastWiFiSig != 1) || (overide == 1)){
-      switch (Displaytype){
-        case TFT:
-          TFTWiFiConnect(1);
-          break;
-        case OLED:
-          WiFiStreanthDisplay(1);
-          break;
-      }
-      LastWiFiSig = 1;
+void WiFiCheckRSSI(char overide) {
+    long rssi = WiFi.RSSI() * -1;
+    uint8_t lvl = (rssi < HIGHRSSI) ? 1 : (rssi < LOWRSSI) ? 2 : 3;
+    if ((LastWiFiSig != (char)lvl) || overide) {
+        _hw_wifi_signal(lvl);
+        LastWiFiSig = (char)lvl;
     }
-  }
-  else if((Rssi > HIGHRSSI) && (Rssi < LOWRSSI)){
-    if((LastWiFiSig != 2) || (overide == 1)){
-      switch (Displaytype){
-        case TFT:
-          TFTWiFiConnect(2);
-          break;
-        case OLED:
-          WiFiStreanthDisplay(2);
-          break;
-      }
-      LastWiFiSig = 2;
+}
+
+// ── MQTT status ───────────────────────────────────────────────────────────────
+
+char LastMQTT = 0;
+
+void CheckMQTTCon(char overide) {
+    if (GetMQTTStatus() == 1) {
+        if ((LastMQTT != 1) || (overide == 1)) { DisplayMQTT(1); LastMQTT = 1; }
+    } else {
+        if ((LastMQTT != 2) || (overide == 1)) { DisplayMQTT(0); LastMQTT = 2; }
     }
-  }
-  else if(Rssi > LOWRSSI){
-    if((LastWiFiSig != 3)  || (overide == 1)){
-      switch (Displaytype){
-        case TFT:
-          TFTWiFiConnect(3);
-          break;
-        case OLED:
-          WiFiStreanthDisplay(3);
-          break;
-      }
-      LastWiFiSig = 3;
+}
+
+// ── Center-screen rotation ────────────────────────────────────────────────────
+
+void DisplaySwitchCase() {
+    switch (ScreenShow) {
+        case 0: DisplayCenterInput();  ScreenShow++; break;
+        case 1: DisplayCenterOutput(); ScreenShow++; break;
+        case 2: DisplayCenterIPInfo(); ScreenShow++; break;
+        default: ScreenShow = 0; break;
     }
-  }
+    Log(DEBUG, "Screen = %d\r\n", (int)ScreenShow);
 }
 
-void DisplayTimeoutReset(){
-  DisplayOnTime = millis();
-}
+// ── Thin dispatch wrappers ────────────────────────────────────────────────────
 
-void DispalySleepControl(char value){
-  DisplaySleepEn = value;
-}
+void DisplayWiFiRSSI()             { WiFiCheckRSSI(1); }
+void DisplayTHBar()                { _hw_th_bar(); }
+void DisplayID()                   { _hw_id_label(); }
+void DisplayMQTT(char mode)        { _hw_mqtt_icon((uint8_t)mode); }
+void DisplayClear()                { _hw_clear(); }
+void DisplayLogo()                 { _hw_logo(); }
+void DisplayLog(const char* t)     { _hw_boot_log(t); }
+void DisplayAPInfo(const char* s)  { _hw_ap_info(s); }
+void DisplayCenterInput()          { _hw_center_input(); }
+void DisplayCenterOutput()         { _hw_center_output(); }
+void DisplayCenterIPInfo()         { _hw_center_ip(); }
+void DisplayCenterRemoteInfo()     { _hw_center_remote(); }
+void DisplayBrightnes(char b)      { _hw_brightness((uint8_t)b); }
+void DisplayTimeoutReset()         { DisplayOnTime = millis(); }
+void DispalySleepControl(char v)   { DisplaySleepEn = v; }
+void DispalyConfigSet(char)        {}  // no-op: driver selected at compile time
 
-void DispalyConfigSet(char value){
-  Displaytype = value;
-}
-
-void DisplayLogo(){
-  switch (Displaytype){
-  case TFT:
-    TFTLogoDisplay();
-    break;
-  case OLED:
-    Serial.println("OLED Config");
-    break;
-  }
-}
-
-void DisplayLog(const char *Text){
-  switch (Displaytype){
-  case TFT:
-    TFTLog(Text);
-    break;
-  case OLED:
-    Serial.println("OLED Config");
-    break;
-  }
-}
-
-void DisplayBrightnes(char Brightness){
-  switch (Displaytype){
-    case TFT:
-      // calculate duty, 4095 from 2 ^ 12 - 1
-      //uint32_t duty = (4095 / 255) *Brightness;
-      ledcWrite(0, ((4095 / 255) *Brightness));
-      break;
-    case OLED:
-      Serial.println("OLED Config");
-      break;
-  }
+void DisplaySetAPMode(bool ap, const char* ssid) {
+    _apMode = ap;
+    if (ap && ssid) strlcpy(_apSsid, ssid, sizeof(_apSsid));
 }

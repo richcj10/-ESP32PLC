@@ -5,7 +5,6 @@ void OLEDInit(void);
 void Bitmap16xBitMapClear(char Location);
 void WiFiConnectAnimation(void);
 void WiFiStreanthDisplay(char power);
-void CheckMQTTCon(char overide);
 void OLEDMQTTIconSet(char IconMode);
 void WiFiAP(char Enable);
 void OLEDTHBar(void);

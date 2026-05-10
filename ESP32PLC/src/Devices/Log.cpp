@@ -2,7 +2,38 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <esp_heap_caps.h>
 #include "Webportal.h"
+
+// ── PSRAM ring buffer ─────────────────────────────────────────────────────────
+#define LOG_RING_LINES    64
+#define LOG_RING_LINE_LEN 128   // 64 × 128 = 8 KB in PSRAM
+
+static char    (*_logRing)[LOG_RING_LINE_LEN] = nullptr;
+static uint8_t   _logHead  = 0;
+static uint8_t   _logCount = 0;
+
+void LogRingInit() {
+    _logRing = (char(*)[LOG_RING_LINE_LEN])
+               heap_caps_malloc(LOG_RING_LINES * LOG_RING_LINE_LEN, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!_logRing)
+        _logRing = (char(*)[LOG_RING_LINE_LEN]) malloc(LOG_RING_LINES * LOG_RING_LINE_LEN);
+}
+
+static void _ringPush(const char* line) {
+    if (!_logRing) return;
+    strlcpy(_logRing[_logHead], line, LOG_RING_LINE_LEN);
+    _logHead = (_logHead + 1) % LOG_RING_LINES;
+    if (_logCount < LOG_RING_LINES) _logCount++;
+}
+
+uint8_t LogRingCount() { return _logCount; }
+
+const char* LogRingGet(uint8_t idx) {
+    if (!_logRing || idx >= _logCount) return "";
+    uint8_t start = (uint8_t)((_logHead - _logCount + LOG_RING_LINES) % LOG_RING_LINES);
+    return _logRing[(start + idx) % LOG_RING_LINES];
+}
 
 bool ConfigArray[5] = {1,1,1,1,0};
 bool WiFiLog = 0;
@@ -90,16 +121,18 @@ char Log(char level, const char* format, ...){
     len = vsnprintf(NULL, 0, format, copy);
     va_end(copy);
     if(len >= sizeof(loc_buf)){
-        temp = (char*)malloc(len+1);
+        temp = (char*) ps_malloc(len+1);
+        if(!temp) temp = (char*) malloc(len+1);
         if(temp == NULL) {
             va_end(arg);
-            //return 0;
+            return 0;
         }
     }
-    
+
     vsnprintf(temp, len+1, format, arg);
 
     ets_printf("%s\r\n", temp);
+    _ringPush(temp);
     if(WiFiLog){
         String s = temp;
         WebLogSend(s);

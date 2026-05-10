@@ -63,7 +63,7 @@ void JoyStickUpdate(){
     }
     if (JoystickcurrentMillis - JoystickRefreshRate >= 80) {
         JoystickRefreshRate = JoystickcurrentMillis;
-        Log(DEBUG,"Joystick ANG READ\r\n");
+        //Log(DEBUG,"Joystick ANG READ\r\n");
          long AvargeCalc = 0;
          DataWindow[r] = analogRead(1);
          r++;

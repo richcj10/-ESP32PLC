@@ -219,3 +219,24 @@ void OledCenterOutputRS485(void){
   display.println("No Slave Connected");
   display.display();
 }
+
+// ── Display hardware seam (Display.cpp calls these) ───────────────────────────
+#ifdef DISPLAY_OLED
+#include "Devices/Log.h"
+
+void _hw_init()                     { Log(NOTIFY, "OLED Init"); OLEDInit(); }
+void _hw_clear()                    { OledDisplayClear(); }
+void _hw_brightness(uint8_t)        {}  // no PWM backlight on OLED
+void _hw_wifi_signal(uint8_t lvl)   { WiFiStreanthDisplay((char)lvl); }
+void _hw_mqtt_icon(uint8_t mode)    { OLEDMQTTIconSet((char)mode); }
+void _hw_th_bar()                   { OLEDTHBar(); }
+void _hw_id_label()                 { OLEDIDDisplay(); }
+void _hw_logo()                     {}
+void _hw_boot_log(const char*)      {}
+void _hw_ap_info(const char*)       {}
+void _hw_center_input()             { OledCenterInput(); }
+void _hw_center_output()            {}
+void _hw_center_ip()                {}
+void _hw_center_remote()            {}
+#endif // DISPLAY_OLED
+

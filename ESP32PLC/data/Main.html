@@ -1,350 +1,582 @@
-
-
 <!DOCTYPE html>
-<html>
-<title>ESP32PLC Web Portal</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="ESP32PLC.css">
+<html lang="en">
 <head>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESP32PLC</title>
+<link rel="stylesheet" href="ESP32PLC.css">
 </head>
 <body>
-    <div class="container">
-        <div class="SelectBox">
-            <nav>
-                <a onclick="tabs(0)"
-                   class="tab active">
-                    <img class="svg-icon" src="/svgs/House.svg">
-                </a>
-                <a onclick="tabs(1)"
-                   class="tab">
-                    <img class="svg-icon" src="/svgs/wifi.svg">
-                </a>
-                <a onclick="tabs(2)"
-                   class="tab">
-                    <img class="svg-icon" src="/svgs/server.svg">
-                </a>
-                <a onclick="tabs(3)"
-                   class="tab">
-                    <img class="svg-icon" src="/svgs/cogs.svg">
-                </a>
-                <a onclick="tabs(4)"
-                   class="tab">
-                    <img class="svg-icon" src="/svgs/file.svg">
-                </a>
-                <a onclick="tabs(5)"
-                   class="tab">
-                    <img class="svg-icon" src="/svgs/log.svg">
-                </a>
-            </nav>
+<div class="shell">
+
+  <!-- ── Sidebar nav ───────────────────────────────────── -->
+  <nav class="sidebar">
+    <img class="logo" src="/Logo.png" alt="PLC">
+    <!-- House -->
+    <button class="tab-btn active" data-tab="home" title="Home">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M511.8 287.6H543.8c17 0 32-14.1 32-32.1 1.1-9-3-17-11-24L564.8 185V64c0-17.67-14.3-32-32-32h-32c-17.7 0-32 14.33-32 32v36.7L309.5 7.014C303.4 2.004 295.4 0 288.4 0c-7 0-15 1.002-22 8.016L10.01 231.5C3.004 238.5 0 246.5 0 255.5c0 18 14.02 32.1 32.05 32.1H64v69.6c-.06.9-.09 1.9-.09 2.8V472c0 22.09 17.91 40 40 40h16c1.2 0 2.4-.09 3.6-.1 1.5.1 3 .1 4.5.1H184c22.1 0 40-17.9 40-40V384c0-17.7 14.3-32 32-32h64c17.7 0 32 14.3 32 32v88c0 22.1 17.9 40 40 40h56.5c1.4 0 2.8-.09 4.2-.1 1.1.09 2.2.1 3.3.1H472c22.1 0 40-17.9 40-40V455.8c.3-2.7.5-5.3.5-8.1L511.8 287.6z"/></svg>
+    </button>
+    <!-- WiFi -->
+    <button class="tab-btn" data-tab="wifi" title="WiFi">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path d="M634.91 154.88C457.74-8.99 182.19-8.93 5.09 154.88c-6.66 6.16-6.79 16.59-.35 22.98l34.24 33.97c6.14 6.1 16.02 6.23 22.4.38 145.92-133.68 371.3-133.71 517.25 0 6.38 5.85 16.26 5.71 22.4-.38l34.24-33.97c6.43-6.39 6.3-16.82-.36-22.98zM320 352c-35.35 0-64 28.65-64 64s28.65 64 64 64 64-28.65 64-64-28.65-64-64-64zm202.67-83.59c-115.26-101.93-290.21-101.82-405.34 0-6.9 6.1-7.12 16.69-.57 23.15l34.44 33.99c6 5.92 15.66 6.32 22.05.8 83.95-72.57 209.74-72.41 293.49 0 6.39 5.52 16.05 5.13 22.05-.8l34.44-33.99c6.56-6.46 6.33-17.06-.56-23.15z"/></svg>
+    </button>
+    <!-- MQTT / Server -->
+    <button class="tab-btn" data-tab="mqtt" title="MQTT">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M480 160H32c-17.673 0-32-14.327-32-32V64c0-17.673 14.327-32 32-32h448c17.673 0 32 14.327 32 32v64c0 17.673-14.327 32-32 32zm-48-88c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm-64 0c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm112 248H32c-17.673 0-32-14.327-32-32v-64c0-17.673 14.327-32 32-32h448c17.673 0 32 14.327 32 32v64c0 17.673-14.327 32-32 32zm-48-88c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm-64 0c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm112 248H32c-17.673 0-32-14.327-32-32v-64c0-17.673 14.327-32 32-32h448c17.673 0 32 14.327 32 32v64c0 17.673-14.327 32-32 32zm-48-88c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm-64 0c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24z"/></svg>
+    </button>
+    <!-- Cogs / I/O -->
+    <button class="tab-btn" data-tab="io" title="I/O">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M444.788 291.1l42.616 24.599c4.867 2.809 7.126 8.618 5.459 13.985-11.07 35.642-29.97 67.842-54.689 94.586a12.016 12.016 0 01-14.832 2.254l-42.584-24.595a191.576 191.576 0 01-60.759 35.13v49.182a12.01 12.01 0 01-9.377 11.718c-34.956 7.85-72.499 8.256-109.219.007-5.49-1.233-9.403-6.096-9.403-11.725v-49.184a191.555 191.555 0 01-60.759-35.13l-42.584 24.595a12.016 12.016 0 01-14.832-2.254c-24.718-26.744-43.619-58.944-54.689-94.586-1.667-5.366.592-11.175 5.459-13.985L67.212 291.1a193.48 193.48 0 010-70.199l-42.616-24.599c-4.867-2.809-7.126-8.618-5.459-13.985 11.07-35.642 29.97-67.842 54.689-94.586a12.016 12.016 0 0114.832-2.254l42.584 24.595a191.576 191.576 0 0160.759-35.13V25.759a12.01 12.01 0 019.377-11.718c34.956-7.85 72.499-8.256 109.219-.007 5.49 1.233 9.403 6.096 9.403 11.725v49.184a191.555 191.555 0 0160.759 35.13l42.584-24.595a12.016 12.016 0 0114.832 2.254c24.718 26.744 43.619 58.944 54.689 94.586 1.667 5.366-.592 11.175-5.459 13.985L444.788 220.9a193.485 193.485 0 010 70.2zM336 256c0-44.112-35.888-80-80-80s-80 35.888-80 80 35.888 80 80 80 80-35.888 80-80z"/></svg>
+    </button>
+    <!-- Files -->
+    <button class="tab-btn" data-tab="files" title="Files">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 5H11.72l-.32-1A3 3 0 008.56 2H3A3 3 0 000 5v14a3 3 0 003 3h18a3 3 0 003-3V8a3 3 0 00-3-3zm1 14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1h5.56a1 1 0 01.95.68L10.28 7H21a1 1 0 011 1z"/></svg>
+    </button>
+    <!-- Log / Terminal -->
+    <button class="tab-btn" data-tab="log" title="Log">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 3H4a1 1 0 00-1 1v16a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1zm-1 16H5V5h14v14zM7.293 9.707l2.147 2.146-2.147 2.147 1.414 1.414L12.267 12l-3.56-3.56-1.414 1.267zM13 15h4v-2h-4v2z"/></svg>
+    </button>
+    <!-- FW text label -->
+    <button class="tab-btn" data-tab="fw" title="FW Update">FW</button>
+  </nav>
+
+  <!-- ── Content ───────────────────────────────────────── -->
+  <main class="content">
+
+    <!-- Home ──────────────────────────────────────────── -->
+    <div class="panel active" id="tab-home">
+      <div class="page-header">Dashboard</div>
+
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Mode</div><div class="stat-val" id="h-mode">—</div></div>
+        <div class="stat"><div class="stat-label">SSID</div><div class="stat-val" id="h-ssid">—</div></div>
+        <div class="stat"><div class="stat-label">IP</div><div class="stat-val" id="h-ip">—</div></div>
+        <div class="stat"><div class="stat-label">Host</div><div class="stat-val" id="h-host">—</div></div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="card-title">Environment</div>
+        <div class="stat-grid">
+          <div class="stat"><div class="stat-label">Temperature</div><div class="stat-val" id="h-temp">—</div></div>
+          <div class="stat"><div class="stat-label">Humidity</div><div class="stat-val" id="h-humid">—</div></div>
         </div>
-        <div class="rightbox">
-            <div class = "home tabShow">
-                <h1>Home</h1>
-                <fieldset>
-                    <legend>Device Connections:</legend>
-                    <p class='Same'>Device Mode: </p>
-                    <p class='Same' id="dCon">AP</p>
-                    <p class='Same'>&emsp;SSID: </p>
-                    <p class='Same' id="dssid">Test</p>
-                    <br>
-                    <p class='Same'>IP: </p>
-                    <p class='Same' id="dIP">192.168.100.100</p>
-                    <p class='Same'>&emsp;RSSI: </p>
-                    <p class='Same' id="dRSSI">90</p>
-                    <br>
-                    <p class='Same'>MAC: </p>
-                    <p class='Same' id="dMAC">xx:xx:xx:xx</p>
-                </fieldset>
-                <fieldset>
-                    <legend>Device Enviromental:</legend>
-                    <p class='Same'>Device Temp: </p>
-                    <p class='Same' id="dTemp">0.0</p>
-                    <p class='Same'>&deg;C</p>
-                    <p class='Same'>&emsp;Humidity: </p>
-                    <p class='Same' id="dHumid">0.0</p>
-                    <p class='Same'>%</p>
-                </fieldset>
-                <fieldset>
-                    <legend>Device I/O:</legend>
-                    <div class='Same' style="padding-right: 10px;">
-                        <p style="margin: 5px;">Inputs: (1-4) </p>
-                        <span class="dot" id="In1"></span>
-                        <span class="dot" id="In2"></span>
-                        <span class="dot" id="In3"></span>
-                        <span class="dot" id="In4"></span>
-                    </div>
-                    <div class='Same' style="padding-left:  10px;">
-                        <p style="margin: 5px;">Outputs: (1-4) </p>
-                        <span class="dot" id="Out1"></span>
-                        <span class="dot" id="Out2"></span>
-                        <span class="dot" id="Out3"></span>
-                        <span class="dot" id="Out4"></span>
-                    </div>
-                </fieldset>
-            </div>
-            <div class = "wificonfig tabShow">
-                <h1>WiFi Info</h1>
-                <fieldset>
-                    <legend>WiFi Config:</legend>
-                    <p class='Same'>SSID: </p>
-                    <input type="text" id="SSIDIn" name="ssid">
-                    <br>
-                    <p class='Same'>Password: </p>
-                    <input type="text" id="PWDin" name="pswd">
-                    <br>
-                    <button type="button" onclick="alert('Hello world!')">Save</button>
-                    <br>
-                </fieldset>
-                <fieldset>
-                    <legend>IP Config:</legend>
-                    <p class='Same'>DHCP: </p>
-                    <input type="checkbox" id="DHCPEn" name="dhcpctl">
-                    <p class='Same'> Static IP: </p>
-                    <input type="text" id="SIPIn" name="sIP">
-                    <br>
-                    <p class='Same'>Gateway: </p>
-                    <input type="text" id="GWIn" name="dGW">
-                    <br>
-                    <p class='Same'>Subnet Mask: </p>
-                    <input type="text" id="SNIn" name="dSN">
-                    <br>
-                    <button type="button" onclick="alert('Hello world!')">Save</button>
-                    <br>
-                </fieldset>
-            </div>
-            <div class = "mqttcontrol tabShow">
-                <h1>MQTT Info</h1>
-            </div>
-            <div class = "io tabShow">
-                <h1>Fireworks!</h1>
-				<p class='Same'> CH 1 EN: </p>
-				<input type="checkbox" id="firework1en" name="firework1en" value="1">
-				<br>
-				<p class='Same'> CH 1 Time Delay: </p>
-				<input type="range" style="width: 200px;" id="CH1TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
-				<output>10</output>
-				<br>
-				<p class='Same'> CH 2 EN: </p>
-				<input type="checkbox" id="firework2en" name="fireworkEable2" value="1">
-				<br>
-				<p class='Same'> CH 2 Time Delay: </p>
-				<input type="range" style="width: 200px;" id="CH2TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
-				<output>10</output>
-				<br>
-				<p class='Same'> CH 3 EN: </p>
-				<input type="checkbox" id="firework3en" name="fireworkEable3" value="1">
-				<br>
-				<p class='Same'> CH 3 Time Delay: </p>
-				<input type="range" style="width: 200px;" id="CH3TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
-				<output>10</output>
-				<br>
-				<p class='Same'> CH 4 EN: </p>
-				<input type="checkbox" id="firework4en" name="fireworkEable4" value="1">
-				<br>
-				<p class='Same'> CH 4 Time Delay: </p>
-				<input type="range" style="width: 200px;" id="CH4TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
-				<output>10</output>
-				<br>
-				<p class='Same'> CH 5 EN: </p>
-				<input type="checkbox" id="firework5en" name="fireworkEable5" value="1">
-				<br>
-				<p class='Same'> CH 5 Time Delay: </p>
-				<input type="range" style="width: 200px;" id="CH5TD" name="vol" min="0" max="50" value="10" oninput="this.nextElementSibling.value = this.value">
-				<output>10</output>
-				<br>
-				<br>
-				<br>
-				<br>
-				<input type="button" style="background-color: red;" id="FWFire" value="----FIRE----">
-            </div>
-            <div class = "FileView tabShow">
-                <h1>File Info</h1>
-            </div>
-            <div class = "Log tabShow">
-                <fieldset>
-                    <legend>LOG:</legend>
-                      <div class="terminal" id="history"></div>
-                      <button type="button" id="SendInput">Send</button>
-                      <input type="text" id="Loginput">
-                </fieldset>
-            </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">I / O</div>
+        <div style="margin-bottom:10px;">
+          <div class="stat-label">Inputs</div>
+          <div class="dot-row">
+            <span class="dot" id="In1"></span>
+            <span class="dot" id="In2"></span>
+            <span class="dot" id="In3"></span>
+            <span class="dot" id="In4"></span>
+          </div>
         </div>
+        <div>
+          <div class="stat-label">Outputs</div>
+          <div class="dot-row">
+            <span class="dot" id="Out1"></span>
+            <span class="dot" id="Out2"></span>
+            <span class="dot" id="Out3"></span>
+            <span class="dot" id="Out4"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Services</div>
+        <div class="svc-row">
+          <div class="svc-item">
+            <div class="svc-label">MQTT</div>
+            <span class="badge badge-grey" id="h-mqtt">—</span>
+          </div>
+          <div class="svc-item">
+            <div class="svc-label">WebSocket</div>
+            <span class="badge badge-yellow" id="h-ws">Connecting</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <script>
-        const tabBtn = document.querySelectorAll(".tab");    
-        const tab = document.querySelectorAll(".tabShow");   
-        
-        function tabs(pannelIndex) {
-            console.log(pannelIndex);
-            tab.forEach(function(node) {
-                node.style.display = "none";
-            });
-            console.log(tab[pannelIndex]);
-            tab[pannelIndex].style.display = "block";
-        }
-        tabs(0);
-        
-        function message(msg){
-            var notification = new Notification("Alert", {body: msg});
-            setTimeout(function() {notification.close()}, 1000);
-        }
-    </script>
-    <script>
-        $(".tab").click(function() {
-            $(this).addClass("active").siblings().removeClass("active");
-        })
-    </script>
-    <script type = "text/javascript">
-		var Status = 0;
-		
-        var socket = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/ws");
-        //const socket = new WebSocket('ws://localhost:80/ws'); 
-        socket.addEventListener('open', function (event) { 
-            socket.send('CNT'); 
-            message("Connected");
-			Status = 1;
-        }); 
 
-        socket.addEventListener('message', function (event) { 
-            console.log('Message from server ', event.data);
-            const obj = JSON.parse(event.data);
-            //if(obj.Type == 0){
-                //DeviceName = obj.HN;
-                //console.log('Server Name ',DeviceName);
-                //document.getElementById("dssid").innerHTML = obj.SSID;
-                //document.getElementById("dMAC").innerHTML = obj.MAC;
-                //document.getElementById("dIP").innerHTML = obj.IP;
-            //}
-            //if(obj.Type == 1){
-                //document.getElementById("dRSSI").innerHTML = obj.RSSI;
-                //document.getElementById("dssid").innerHTML = obj.IO1;
-                //document.getElementById("dMAC").innerHTML = obj.IO2;
-            //}
-            //if(obj.Type == 2){
-                //document.getElementById("dLTEStat").innerHTML = obj.CELST;
-                //document.getElementById("dNtwkIP").innerHTML = obj.CELIP;
-                //document.getElementById("dNtwkRSSI").innerHTML = obj.CELSIG;
-                //document.getElementById("dSIMNwk").innerHTML = obj.CELNT;
-                //document.getElementById("dGPSOK").innerHTML = obj.GPSEN;
-                //document.getElementById("dLAT").innerHTML = obj.GPSLAT;
-                //document.getElementById("dLON").innerHTML = obj.GPSLOG;
-                //document.getElementById("dDetected").innerHTML = obj.SIM;
-            //}
-            //if(obj.Type == 3){
-                //document.getElementById("dBatVolt").innerHTML = obj.BATV;
-                //document.getElementById("dBatPct").innerHTML = obj.BATP;
-                //document.getElementById("PwrMode").innerHTML = obj.PWRMD;
-            //}
-            if(obj.Type == 10){
-                append_to_div(obj.LOG);
-            }
-        });
+    <!-- WiFi ──────────────────────────────────────────── -->
+    <div class="panel" id="tab-wifi">
+      <div class="page-header">WiFi Config</div>
+      <div class="card">
+        <div class="card-title">Connection</div>
+        <div class="form-row">
+          <label>Mode</label>
+          <select id="wifiMode">
+            <option value="2">Access Point (AP)</option>
+            <option value="1">Station (STA)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>SSID</label>
+          <input type="text" id="SSIDIn" placeholder="Network SSID (STA mode)">
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input type="password" id="PWDin" placeholder="Password">
+          <button class="btn-ghost" onclick="togglePwd('PWDin',this)" title="Show/hide">&#128065;</button>
+        </div>
+        <div class="form-row">
+          <label>Hostname</label>
+          <input type="text" id="HostIn" placeholder="ESP32PLC">
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="saveWifiConfig()">Save &amp; Restart</button>
+          <span class="status-text" id="wifi-status"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Backup / Restore</div>
+        <div class="btn-row">
+          <a href="/config/backup" download style="text-decoration:none;">
+            <button class="btn-ghost" type="button">&#11123; Download Config</button>
+          </a>
+          <input type="file" id="wifiJsonFile" accept=".json" style="display:none" onchange="importWifiJson(this)">
+          <button class="btn-ghost" onclick="document.getElementById('wifiJsonFile').click()">&#128194; Load Config JSON</button>
+        </div>
+        <div style="margin-top:8px;"><span class="status-text" id="wifi-import-status"></span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current Status</div>
+        <div class="stat-grid">
+          <div class="stat"><div class="stat-label">IP</div><div class="stat-val" id="dIP">—</div></div>
+          <div class="stat"><div class="stat-label">Mode</div><div class="stat-val" id="dCon2">—</div></div>
+        </div>
+      </div>
+    </div>
 
-        socket.addEventListener('close', function (event) { 
-            console.log('The connection has been closed');
-            message("Server Disconnected");
-			Status = 0;
-        });
-        socket.addEventListener('onerror', function (event) { 
-            console.log('The connection has been lost');
-            message("Server connection lost");
-			Status = 0;
-        });
-        
-        function IODisplay(I1,I2,I3,I4,O1,O2,O3,O4){
-            if(I1 == true){
-                document.getElementById("In1").style.backgroundColor  = 'Green';
-            }
-            else{
-                document.getElementById("In1").style.backgroundColor  = 'Red';
-            }
-        }
-        function append_to_div(data){ 
-	        document.getElementById("history").innerText += data; 
-            const element = document.getElementById("history");
-            element.scrollTop = element.scrollHeight;
-        } 
+    <!-- MQTT ──────────────────────────────────────────── -->
+    <div class="panel" id="tab-mqtt">
+      <div class="page-header">MQTT Config</div>
+      <div class="card">
+        <div class="card-title">Broker</div>
+        <div class="form-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="mqttEn">
+        </div>
+        <div class="form-row">
+          <label>Server IP</label>
+          <input type="text" id="mqttIP" placeholder="192.168.x.x">
+        </div>
+        <div class="form-row">
+          <label>Port</label>
+          <input type="number" id="mqttPort" value="1883" min="1" max="65535" style="max-width:90px;flex:none;">
+        </div>
+        <div class="form-row">
+          <label>Username</label>
+          <input type="text" id="mqttUser" placeholder="esp32plc">
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input type="password" id="mqttPass">
+          <button class="btn-ghost" onclick="togglePwd('mqttPass',this)" title="Show/hide">&#128065;</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="saveMqttConfig()">Save &amp; Restart</button>
+          <span class="status-text" id="mqtt-status"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Backup / Restore</div>
+        <div class="btn-row">
+          <a href="/config/backup" download style="text-decoration:none;">
+            <button class="btn-ghost" type="button">&#11123; Download Config</button>
+          </a>
+          <input type="file" id="mqttJsonFile" accept=".json" style="display:none" onchange="importMqttJson(this)">
+          <button class="btn-ghost" onclick="document.getElementById('mqttJsonFile').click()">&#128194; Load Config JSON</button>
+        </div>
+        <div style="margin-top:8px;"><span class="status-text" id="mqtt-import-status"></span></div>
+      </div>
+    </div>
 
-        document.getElementById("SendInput").addEventListener('click', function() { 
-            var e_input = document.getElementById("Loginput"); 
-            var value = e_input.value.trim(); 
+    <!-- I/O / Fireworks ───────────────────────────────── -->
+    <div class="panel" id="tab-io">
+      <div class="page-header">Fireworks</div>
+      <div class="card">
+        <div class="card-title">Channels</div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework1en"> CH 1</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH1TD" min="0" max="50" value="10" oninput="document.getElementById('o1').value=this.value">
+            <output id="o1">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework2en"> CH 2</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH2TD" min="0" max="50" value="10" oninput="document.getElementById('o2').value=this.value">
+            <output id="o2">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework3en"> CH 3</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH3TD" min="0" max="50" value="10" oninput="document.getElementById('o3').value=this.value">
+            <output id="o3">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework4en"> CH 4</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH4TD" min="0" max="50" value="10" oninput="document.getElementById('o4').value=this.value">
+            <output id="o4">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework5en"> CH 5</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH5TD" min="0" max="50" value="10" oninput="document.getElementById('o5').value=this.value">
+            <output id="o5">10</output>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-red" id="FWFire">&#128293; FIRE</button>
+      </div>
+    </div>
 
-            if(!value){
-                alert("Input field can't be empty!"); 
-            } else {
-                append_to_div( value+"\n"); 
-            }
-            //e_input.value = ""; 
-        }); 
+    <!-- Files ─────────────────────────────────────────── -->
+    <div class="panel" id="tab-files">
+      <div class="page-header">File Info</div>
+      <div class="card">
+        <div class="card-title">LittleFS</div>
+        <p style="color:var(--muted);font-size:13px;">File browser — coming soon</p>
+      </div>
+    </div>
 
-        document.getElementById("FWFire").addEventListener('click', function() { 
-			let text = "OK TO FIRE?\nSelect OK or Cancel.";
-			if (confirm(text) == true) {
-				let jsonObject = {
-					Mode: 'FW',
-				};
-				checkBox = document.getElementById('firework1en');
-				// Check if the element is selected/checked
-				if(checkBox.checked) {
-					// Respond to the result
-					jsonObject.CH1 = 1;
-				}
-				else{
-					jsonObject.CH1 = 0;
-				}
-				checkBox = document.getElementById('firework2en');
-				// Check if the element is selected/checked
-				if(checkBox.checked) {
-					// Respond to the result
-					jsonObject.CH2 = 1;
-				}
-				else{
-					jsonObject.CH2 = 0;
-				}
-				checkBox = document.getElementById('firework3en');
-				// Check if the element is selected/checked
-				if(checkBox.checked) {
-					// Respond to the result
-					jsonObject.CH3 = 1;
-				}
-				else{
-					jsonObject.CH3 = 0;
-				}
-				checkBox = document.getElementById('firework4en');
-				// Check if the element is selected/checked
-				if(checkBox.checked) {
-					jsonObject.CH4 = 1;
-				}
-				else{
-					jsonObject.CH4 = 0;
-				}
-				checkBox = document.getElementById('firework5en');
-				// Check if the element is selected/checked
-				if(checkBox.checked) {
-					// Respond to the result
-					jsonObject.CH5 = 1;
-				}
-				else{
-					jsonObject.CH5 = 0;
-				}
-				jsonObject.CH1T = parseInt(document.getElementById("CH1TD").value,10);
-				jsonObject.CH2T = parseInt(document.getElementById("CH2TD").value,10);
-				jsonObject.CH3T = parseInt(document.getElementById("CH3TD").value,10);
-				jsonObject.CH4T = parseInt(document.getElementById("CH4TD").value,10);
-				jsonObject.CH5T = parseInt(document.getElementById("CH5TD").value,10);
-				console.log(jsonObject);
-				//if(Status == 1){
-				socket.send(JSON.stringify(jsonObject));
-				alert("Fire   Fire   Fire");
-				//}
-				//else{
-				//	alert("Lost Connection");
-				//}
-			} else {
-				alert("Did not Activate!"); 
-			}
-        });
-    </script>
+    <!-- Log ───────────────────────────────────────────── -->
+    <div class="panel" id="tab-log">
+      <div class="page-header">System Log</div>
+      <div class="card">
+        <div class="terminal" id="history"></div>
+        <div class="btn-row" style="margin-top:10px;">
+          <input type="text" id="Loginput" placeholder="Send command…"
+            style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--border);
+                   border-radius:5px;color:var(--text);padding:6px 10px;font-size:13px;outline:none;">
+          <button class="btn" id="SendInput">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FW Update ─────────────────────────────────────── -->
+    <div class="panel" id="tab-fw">
+      <div class="page-header">Remote FW Update</div>
+      <div class="card">
+        <div class="card-title">Devices</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Device</th><th>ID</th><th>Stored FW</th><th>Upload</th><th>Flash</th>
+            </tr>
+          </thead>
+          <tbody id="fw-body">
+            <tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" id="fw-panel" style="display:none;">
+        <div class="card-title">Progress</div>
+        <p id="fw-msg" style="font-size:13px;margin-bottom:6px;">Idle</p>
+        <div class="prog-bg"><div class="prog-fill" id="fw-bar"></div></div>
+        <p id="fw-pct" style="font-size:12px;color:var(--muted);margin-top:4px;">0%</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ── Tab switching (no jQuery) ──────────────────────────── */
+var _panels = {}, _btns = {};
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  var id = btn.dataset.tab;
+  _btns[id]   = btn;
+  _panels[id] = document.getElementById('tab-' + id);
+  btn.addEventListener('click', function() { showTab(id); });
+});
+
+function showTab(id) {
+  Object.keys(_panels).forEach(function(k) {
+    _panels[k].classList.remove('active');
+    _btns[k].classList.remove('active');
+  });
+  _panels[id].classList.add('active');
+  _btns[id].classList.add('active');
+  if (id === 'home')  loadHomeStats();
+  if (id === 'wifi')  loadWifiConfig();
+  if (id === 'mqtt')  loadMqttConfig();
+  if (id === 'fw')    loadFwDeviceList();
+}
+
+/* ── WebSocket ──────────────────────────────────────────── */
+var socket = new WebSocket(
+  (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+
+socket.addEventListener('open', function() {
+  socket.send('CNT');
+  setBadge('h-ws', 'Connected', 'green');
+});
+socket.addEventListener('close', function() {
+  setBadge('h-ws', 'Disconnected', 'red');
+});
+socket.addEventListener('error', function() {
+  setBadge('h-ws', 'Error', 'red');
+});
+socket.addEventListener('message', function(ev) {
+  var obj = JSON.parse(ev.data);
+  if (!obj) return;
+  if (obj.Type === 10) appendLog(obj.LOG);
+  if (obj.Type === 20) {
+    setFwProgress(obj.FW_PROG || 0);
+    if (obj.FW_MSG) document.getElementById('fw-msg').innerText = obj.FW_MSG;
+    if (obj.FW_DONE) {
+      document.getElementById('fw-msg').innerText =
+        obj.FW_OK ? 'Update successful!' : 'FAILED: ' + (obj.FW_MSG || 'unknown');
+      loadFwDeviceList();
+    }
+  }
+});
+
+/* ── Home tab ───────────────────────────────────────────── */
+function loadHomeStats() {
+  fetch('/config/wifi')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('h-mode').innerText = d.mode == 1 ? 'STA' : 'AP';
+      document.getElementById('h-ssid').innerText = d.ssid || '—';
+      document.getElementById('h-ip').innerText   = d.ip   || '—';
+      document.getElementById('h-host').innerText = d.host || '—';
+    }).catch(function() {});
+  fetch('/config/mqtt')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.enabled)
+        setBadge('h-mqtt', 'Disabled', 'grey');
+      else
+        setBadge('h-mqtt', d.enabled ? 'Enabled' : 'Disabled', d.enabled ? 'green' : 'grey');
+    }).catch(function() {});
+}
+loadHomeStats();
+
+/* ── WiFi config ────────────────────────────────────────── */
+function loadWifiConfig() {
+  fetch('/config/wifi')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('wifiMode').value  = d.mode || 2;
+      document.getElementById('SSIDIn').value    = d.ssid || '';
+      document.getElementById('HostIn').value    = d.host || '';
+      document.getElementById('dIP').innerText   = d.ip   || '—';
+      document.getElementById('dCon2').innerText = d.mode == 1 ? 'STA' : 'AP';
+      setStatus('wifi-status', '');
+    }).catch(function(e) { setStatus('wifi-status', 'Load error: ' + e, true); });
+}
+
+function saveWifiConfig() {
+  var body = {
+    mode: parseInt(document.getElementById('wifiMode').value, 10),
+    ssid: document.getElementById('SSIDIn').value.trim(),
+    pass: document.getElementById('PWDin').value,
+    host: document.getElementById('HostIn').value.trim()
+  };
+  setStatus('wifi-status', 'Saving…');
+  fetch('/config/wifi', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { setStatus('wifi-status', d.ok ? d.msg : 'Error: ' + d.error, !d.ok); })
+    .catch(function(e) { setStatus('wifi-status', 'Save error: ' + e, true); });
+}
+
+/* ── MQTT config ────────────────────────────────────────── */
+function loadMqttConfig() {
+  fetch('/config/mqtt')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('mqttEn').checked   = d.enabled === true;
+      document.getElementById('mqttIP').value     = d.ip   || '';
+      document.getElementById('mqttPort').value   = d.port || 1883;
+      document.getElementById('mqttUser').value   = d.user || '';
+      setStatus('mqtt-status', '');
+    }).catch(function(e) { setStatus('mqtt-status', 'Load error: ' + e, true); });
+}
+
+function saveMqttConfig() {
+  var body = {
+    enabled: document.getElementById('mqttEn').checked,
+    ip:   document.getElementById('mqttIP').value.trim(),
+    port: parseInt(document.getElementById('mqttPort').value, 10),
+    user: document.getElementById('mqttUser').value.trim(),
+    pass: document.getElementById('mqttPass').value
+  };
+  setStatus('mqtt-status', 'Saving…');
+  fetch('/config/mqtt', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { setStatus('mqtt-status', d.ok ? d.msg : 'Error: ' + d.error, !d.ok); })
+    .catch(function(e) { setStatus('mqtt-status', 'Save error: ' + e, true); });
+}
+
+/* ── Config import (wifi or full backup) ────────────────── */
+function importWifiJson(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var st = 'wifi-import-status';
+  setStatus(st, 'Reading…');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var root = JSON.parse(e.target.result);
+      var o = root.wifi || root;
+      var mode = o.mode !== undefined ? o.mode : (o.WIFIMode !== undefined ? o.WIFIMode : null);
+      if (mode === null) { setStatus(st, 'No wifi config in file', true); return; }
+      document.getElementById('wifiMode').value = mode;
+      document.getElementById('SSIDIn').value   = o.ssid || o.SSID     || '';
+      document.getElementById('PWDin').value    = o.pass || o.Passcode || '';
+      document.getElementById('HostIn').value   = o.host || o.Host     || '';
+      setStatus(st, 'Loaded — review then Save & Restart');
+      setStatus('wifi-status', '');
+    } catch(err) { setStatus(st, 'Invalid JSON: ' + err.message, true); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function importMqttJson(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var st = 'mqtt-import-status';
+  setStatus(st, 'Reading…');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var root = JSON.parse(e.target.result);
+      var o = root.mqtt || root;
+      document.getElementById('mqttEn').checked = !!(o.enabled !== undefined ? o.enabled : o.MQTTEnabble);
+      document.getElementById('mqttIP').value   = o.ip   || o.MQTTIP       || '';
+      document.getElementById('mqttPort').value = o.port || o.MQTTPort     || 1883;
+      document.getElementById('mqttUser').value = o.user || o.MQTTUser     || '';
+      document.getElementById('mqttPass').value = o.pass || o.MQTTPassword || '';
+      setStatus(st, 'Loaded — review then Save & Restart');
+      setStatus('mqtt-status', '');
+    } catch(err) { setStatus(st, 'Invalid JSON: ' + err.message, true); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ── FW Update ──────────────────────────────────────────── */
+function setFwProgress(pct) {
+  document.getElementById('fw-panel').style.display = 'block';
+  document.getElementById('fw-bar').style.width = pct + '%';
+  document.getElementById('fw-pct').innerText = pct + '%';
+}
+
+function loadFwDeviceList() {
+  fetch('/fw/list')
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(data) {
+      var body = document.getElementById('fw-body');
+      body.innerHTML = '';
+      if (!data.devices || !data.devices.length) {
+        body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">No devices configured</td></tr>';
+        return;
+      }
+      data.devices.forEach(function(dev) {
+        var fwInfo  = dev.hasFw ? (dev.fwSize / 1024).toFixed(1) + ' KB' : '<em style="color:var(--muted)">None</em>';
+        var flashOk = dev.hasFw && !data.updating;
+        body.innerHTML +=
+          '<tr>' +
+          '<td>' + dev.name + '</td>' +
+          '<td>' + dev.id + '</td>' +
+          '<td id="fw-size-' + dev.id + '">' + fwInfo + '</td>' +
+          '<td><input type="file" id="fw-file-' + dev.id + '" accept=".bin,.hex" style="display:none" onchange="uploadFw(' + dev.id + ')">' +
+              '<button class="btn-ghost" onclick="document.getElementById(\'fw-file-' + dev.id + '\').click()">Upload</button></td>' +
+          '<td><button class="btn-ghost" id="fw-flash-' + dev.id + '" ' + (flashOk ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"') +
+              ' onclick="flashFw(' + dev.id + ')">Flash</button></td>' +
+          '</tr>';
+      });
+    })
+    .catch(function(e) {
+      document.getElementById('fw-body').innerHTML =
+        '<tr><td colspan="5" style="color:var(--red);padding:10px 8px;">Error: ' + e.message + '</td></tr>';
+    });
+}
+
+function uploadFw(slaveId) {
+  var file = document.getElementById('fw-file-' + slaveId).files[0];
+  if (!file) return;
+  document.getElementById('fw-msg').innerText = 'Uploading ' + file.name + '…';
+  document.getElementById('fw-panel').style.display = 'block';
+  var form = new FormData();
+  form.append('fw', file, file.name);
+  fetch('/fw/upload?id=' + slaveId, { method:'POST', body:form })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('fw-msg').innerText = d.ok ? 'Upload OK: ' + d.msg : 'Failed: ' + d.msg;
+      if (d.ok) loadFwDeviceList();
+    })
+    .catch(function(e) { document.getElementById('fw-msg').innerText = 'Upload error: ' + e; });
+}
+
+function flashFw(slaveId) {
+  if (!confirm('Flash firmware to device ID ' + slaveId + '?\nModbus polling pauses during update.')) return;
+  document.getElementById('fw-panel').style.display = 'block';
+  document.getElementById('fw-msg').innerText = 'Starting flash for slave ' + slaveId + '…';
+  setFwProgress(0);
+  fetch('/fw/flash?id=' + slaveId, { method:'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (!d.ok) document.getElementById('fw-msg').innerText = 'Error: ' + d.msg; })
+    .catch(function(e) { document.getElementById('fw-msg').innerText = 'Flash error: ' + e; });
+}
+
+/* ── Fireworks ──────────────────────────────────────────── */
+document.getElementById('FWFire').addEventListener('click', function() {
+  if (!confirm('OK TO FIRE?')) { alert('Did not activate!'); return; }
+  var ids = [1,2,3,4,5];
+  var payload = { Mode: 'FW' };
+  ids.forEach(function(i) {
+    payload['CH' + i]  = document.getElementById('firework' + i + 'en').checked ? 1 : 0;
+    payload['CH' + i + 'T'] = parseInt(document.getElementById('CH' + i + 'TD').value, 10);
+  });
+  socket.send(JSON.stringify(payload));
+  alert('Fire   Fire   Fire');
+});
+
+/* ── Log ────────────────────────────────────────────────── */
+function appendLog(data) {
+  var el = document.getElementById('history');
+  el.innerText += data;
+  el.scrollTop = el.scrollHeight;
+}
+
+document.getElementById('SendInput').addEventListener('click', function() {
+  var input = document.getElementById('Loginput');
+  var val = input.value.trim();
+  if (!val) { alert("Input can't be empty!"); return; }
+  appendLog(val + '\n');
+});
+
+/* ── Helpers ────────────────────────────────────────────── */
+function togglePwd(id, btn) {
+  var f = document.getElementById(id);
+  var show = f.type === 'password';
+  f.type = show ? 'text' : 'password';
+  btn.style.opacity = show ? '1' : '0.45';
+}
+
+function setStatus(id, msg, isErr) {
+  var el = document.getElementById(id);
+  el.innerText = msg;
+  el.className = 'status-text' + (isErr ? ' status-err' : (msg ? ' status-ok' : ''));
+}
+
+function setBadge(id, text, color) {
+  var el = document.getElementById(id);
+  el.innerText = text;
+  el.className = 'badge badge-' + (color || 'grey');
+}
+</script>
 </body>
 </html>

@@ -34,5 +34,7 @@ void DisplayCenterInput(void);
 void DisplayCenterOutput(void);
 void DisplayCenterIPInfo(void);
 void DisplayCenterRemoteInfo(void);
+void DisplayAPInfo(const char* ssid);
+void DisplaySetAPMode(bool ap, const char* ssid);
 
 #endif
