@@ -4,7 +4,7 @@
 #define ST7789_DRIVER
 
 #define TFT_WIDTH  240
-#define TFT_HEIGHT 280
+#define TFT_HEIGHT 320
 
 #define CGRAM_OFFSET
 #define TFT_RGB_ORDER TFT_RGB

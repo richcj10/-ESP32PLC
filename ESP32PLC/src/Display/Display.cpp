@@ -4,7 +4,7 @@
 #include "Define.h"
 #include "HAL/Digital/Digital.h"
 #include "MQTT.h"
-#include "Devices/Joystick.h"
+#include "Devices/JoyStick.h"
 #include "Devices/Log.h"
 
 // ── Hardware seam ─────────────────────────────────────────────────────────────
@@ -50,15 +50,21 @@ void DisplaySetup() {
 
 // ── Joystick-driven page carousel ────────────────────────────────────────────
 
-static bool _joyPrev = false;
+static bool _joySelPrev  = false;
+static char _joyPosPrev  = JOYSTICK_NONE;
 
 void DisplayManager() {
     bool joySel  = GetJoyStickSelect();
-    bool joyEdge = joySel && !_joyPrev;
-    _joyPrev = joySel;
+    bool joyEdge = joySel && !_joySelPrev;
+    _joySelPrev  = joySel;
+
+    char joyPos      = GetJoyStickPos();
+    bool joyRight    = (joyPos == JOYSTICK_RIGHT) && (_joyPosPrev != JOYSTICK_RIGHT);
+    bool joyLeft     = (joyPos == JOYSTICK_LEFT)  && (_joyPosPrev != JOYSTICK_LEFT);
+    _joyPosPrev      = joyPos;
 
     if (DisplayMode == 0) {
-        if (joyEdge) {
+        if (joyEdge || joyRight || joyLeft) {
             Log(NOTIFY, "Display Wakeup");
             DisplayTimeoutReset();
             _hw_brightness(25);
@@ -67,7 +73,8 @@ void DisplayManager() {
         }
     } else {
         if (!_apMode) {
-            if (joyEdge) { DisplayTimeoutReset(); UIPageNext(); }
+            if (joyRight || joyEdge) { DisplayTimeoutReset(); UIPageNext(); }
+            if (joyLeft)             { DisplayTimeoutReset(); UIPagePrev(); }
             if ((millis() - LastDisplayUpdate) > 3000) {
                 LastDisplayUpdate = millis();
                 UIPageDraw();

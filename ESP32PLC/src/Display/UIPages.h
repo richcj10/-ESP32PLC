@@ -4,5 +4,7 @@
 void UIPageInit();
 void UIPageDraw();
 void UIPageNext();
+void UIPagePrev();
+void UIPageTestPattern();
 
 #endif

@@ -66,7 +66,7 @@ void TFTInit() {
     // Full-screen back buffer — uses PSRAM (150 KB) when BOARD_HAS_PSRAM is set,
     // falls back to internal SRAM if ps_malloc returns null.
     Screen.setColorDepth(16);
-    void* buf = Screen.createSprite(320, 240);
+    void* buf = Screen.createSprite(320, 240);  // landscape: 320 wide × 240 tall
     if (buf)
         Log(NOTIFY, "TFT: Screen sprite OK (%s)\r\n",
             heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0 ? "PSRAM" : "SRAM");
