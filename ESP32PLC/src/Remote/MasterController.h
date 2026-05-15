@@ -1,11 +1,10 @@
 #ifndef MASTERCONTROLLER_H
 #define MASTERCONTROLLER_H
 
-#include "ModbusDevice.h"
-#include "ModbusMasterController.h"
+#include <ESP32ModbusMaster.h>
 #include "Remote/RemoteConfig.h"
 
-// Legacy absolute register index defines — kept for MQTT.cpp / other callers
+// Legacy register index defines — kept for MQTT.cpp stubs (all return 0)
 #define REMOTE_TEMP_RTD_1  1
 #define REMOTE_TEMP_RTD_2  2
 #define REMOTE_TEMP_RTD_3  3
@@ -21,18 +20,14 @@
 #define REMOTE_CS_B        14
 #define REMOTE_CS_C        15
 
-// Active device
-extern ModbusDevice           occSensor;
 extern ModbusMasterController master;
-extern PLCModuleInstance_t    occInst;
 
-// Stubbed-out devices — not polled, kept for legacy callers
-extern ModbusDevice           tempSensor;
-extern ModbusDevice           weatherSensor;
-extern ModbusDevice           currentSensor;
-extern PLCModuleInstance_t    tempInst;
-extern PLCModuleInstance_t    weatherInst;
-extern PLCModuleInstance_t    currentInst;
+// Group pool — one slot per active (device × group) pair
+uint8_t        RemoteGrpCount();
+ModbusDevice*  RemoteGrpDevice(uint8_t grpPoolIdx);
+uint8_t        RemoteGrpDevIdx(uint8_t grpPoolIdx);
+uint8_t        RemoteGrpGrpIdx(uint8_t grpPoolIdx);
+ModuleStatus_t RemoteDevStatus(uint8_t devIdx);
 
 // Setup / runtime
 char RemoteStart();
@@ -47,7 +42,6 @@ uint16_t GetTimeOnSec();
 void LogModuleData(const PLCModuleInstance_t* inst);
 
 // Read a register value using the descriptor's scale factor.
-// Returns 0.0 if the instance is not MODULE_VALID.
 float GetModuleValue(const PLCModuleInstance_t* inst, uint8_t localIdx);
 
 // Legacy C-style API — unchanged so existing callers compile without modification
@@ -73,10 +67,7 @@ void ResumeRemotePolling();
 bool IsRemotePollingActive();
 
 /* ── Device list for FW update UI ──────────────────────────────────────── */
-struct FwDeviceInfo {
-    const char *name;
-    uint8_t     slaveId;
-};
+using FwDeviceInfo = RemoteMaster::DeviceInfo;
 
 /* Fills 'out' with up to maxCount entries. Returns actual count. */
 uint8_t GetFwDeviceList(FwDeviceInfo *out, uint8_t maxCount);

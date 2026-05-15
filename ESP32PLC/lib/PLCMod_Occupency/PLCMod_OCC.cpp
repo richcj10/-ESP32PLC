@@ -31,5 +31,4 @@ const PLCModuleDesc_t OCC_Desc = {
     .name           = "OCC-TOL",
     .groups         = _groups,
     .groupCount     = 1,
-    .defaultPollMs  = 500,
 };

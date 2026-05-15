@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(cd \"c:\\\\Repo\\\\-ESP32PLC\\\\ESP32PLC\"; & \"$env:USERPROFILE\\\\.platformio\\\\penv\\\\Scripts\\\\pio.exe\" run 2>&1 | Where-Object { $_ -match \"error:\" } | Select-Object -First 20)"
+      "PowerShell(cd \"c:\\\\Repo\\\\-ESP32PLC\\\\ESP32PLC\"; & \"$env:USERPROFILE\\\\.platformio\\\\penv\\\\Scripts\\\\pio.exe\" run 2>&1 | Where-Object { $_ -match \"error:\" } | Select-Object -First 20)",
+      "Bash(find \"c:/Repo/ESP32ModbusMaster\" -type f | sort)",
+      "Read(//c/Repo/ESP32ModbusMaster/**)"
     ]
   }
 }

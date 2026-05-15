@@ -22,4 +22,7 @@ uint16_t GetMQTTPort();
 bool SaveWiFiConfig(uint8_t mode, const char* ssid, const char* pass, const char* host);
 bool SaveMQTTConfig(bool enabled, const char* ip, uint16_t port, const char* user, const char* pass);
 
+// Remote device config accessor
+const RemoteConfig_t& GetRemoteConfig();
+
 #endif

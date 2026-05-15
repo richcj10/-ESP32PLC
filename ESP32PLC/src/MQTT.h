@@ -15,6 +15,7 @@ char GetMQTTStatus(void);
 void SendOutsideEnvoroment();
 void SendRemoteRTD();
 void SendRemoteCurrentSense();
+void SendRemoteDevices();   // publishes all JSON-configured devices per group mqttTopic
 void SetMQTTLockout(char Mode);
 
 #endif  /* OLED_H */

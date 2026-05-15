@@ -184,6 +184,49 @@ static void _onFwUpload(AsyncWebServerRequest *req,
     }
 }
 
+/* ── Remote.json upload context ─────────────────────────────────────────────── */
+
+static struct {
+    bool ok      = false;
+    bool aborted = false;
+    char msg[80] = {};
+} remUp;
+
+static void _onRemoteUpload(AsyncWebServerRequest *req,
+                            const String& /*filename*/, size_t index,
+                            uint8_t *data, size_t len, bool final)
+{
+    if (index == 0) {
+        remUp.ok      = false;
+        remUp.aborted = false;
+        remUp.msg[0]  = '\0';
+        if (req->contentLength() > 16384) {
+            remUp.aborted = true;
+            strncpy(remUp.msg, "File too large (max 16 KB)", sizeof(remUp.msg) - 1);
+            return;
+        }
+    }
+    if (remUp.aborted) return;
+
+    File f = LittleFS.open("/Remote.json", index == 0 ? "w" : "a");
+    if (!f) {
+        remUp.aborted = true;
+        strncpy(remUp.msg, "FS open failed", sizeof(remUp.msg) - 1);
+        return;
+    }
+    if (f.write(data, len) != len) {
+        remUp.aborted = true;
+        strncpy(remUp.msg, "Write error — LittleFS full?", sizeof(remUp.msg) - 1);
+    }
+    f.close();
+
+    if (final && !remUp.aborted) {
+        remUp.ok = true;
+        strncpy(remUp.msg, "Remote.json saved — reboot to apply", sizeof(remUp.msg) - 1);
+        Log(NOTIFY, "Web: Remote.json uploaded (%u B)\r\n", (unsigned)(index + len));
+    }
+}
+
 /* ── Config body accumulation buffer (one request at a time) ───────────────── */
 static constexpr size_t CFG_BUF_SIZE = 512;
 static char*  _cfgBuf    = nullptr;
@@ -416,6 +459,17 @@ void WebStart(){
       req->send(200, "application/json", resp);
     },
     _onFwUpload
+  );
+
+  /* POST /api/remote/upload — replace Remote.json; reboot to apply */
+  server.on("/api/remote/upload", HTTP_POST,
+    [](AsyncWebServerRequest *req) {
+      char resp[120];
+      snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"}",
+               remUp.ok ? "true" : "false", remUp.msg);
+      req->send(remUp.ok ? 200 : 400, "application/json", resp);
+    },
+    _onRemoteUpload
   );
 
   /* POST /fw/flash?id=<slaveId> — trigger OTA flash task */

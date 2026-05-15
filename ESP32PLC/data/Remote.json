@@ -1,1 +1,38 @@
-{"rev":"1.0"}
+{
+  "rev": "2.0",
+  "devices": [
+    {
+      "name": "OCC-TOL",
+      "address": 22,
+      "typeId": 2,
+      "swVersion": 256,
+      "versionRegIdx": 0,
+      "versionRegType": 3,
+      "groups": [
+        {
+          "name": "Occupancy",
+          "fc": 4,
+          "startReg": 0,
+          "count": 3,
+          "pollMs": 500,
+          "scale": 1.0,
+          "units": "",
+          "regs": ["OccStatus", "ZoneCount", "TimeOnSec"],
+          "mqttEnable": true,
+          "mqttTopic": "home/remote/occ",
+          "writes": [
+            {
+              "name": "LED",
+              "fc": 16,
+              "startReg": 2,
+              "count": 3,
+              "regs": ["Command", "R", "GB"],
+              "defaults": [12, 0, 0],
+              "mqttTopic": "home/remote/occ/led/set"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

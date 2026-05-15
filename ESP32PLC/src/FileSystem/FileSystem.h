@@ -1,6 +1,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 #include <stdint.h>
+#include <RemoteDeviceConfig.h>
 
 char FileSystemInit(struct WiFiConfig* WFC, struct MQTTConfig* MQC);
 void WifisaveConfiguration(struct WiFiConfig* WFC);
@@ -13,6 +14,10 @@ void WifiComfig(struct WiFiConfig* WFC);
 void MqttComfig(struct MQTTConfig* MQC);
 void RemoteComfig();
 void SaveHostName(struct WiFiConfig* WFC);
+
+// Remote device config — loaded from /Remote.json
+const RemoteConfig_t* RemoteGetConfig();
+void RemoteSaveConfig(const RemoteConfig_t* cfg);
 
 struct WiFiConfig {
     unsigned char WIFIMode        = 2;          // 1=STA  2=AP (default AP)

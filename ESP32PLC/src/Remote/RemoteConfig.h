@@ -35,12 +35,17 @@ typedef enum : uint8_t {
     RTYPE_DISCRETE     = 2,   // FC2  digital inputs / switches
 } RegType_t;
 
+// Guard matches the identical definition in the ESP32ModbusMaster library
+// (RemoteDeviceConfig.h). Whichever header is included first defines the type.
+#ifndef MODULE_STATUS_T_DEFINED
+#define MODULE_STATUS_T_DEFINED
 typedef enum : uint8_t {
     MODULE_UNKNOWN  = 0,   // version check not yet run
     MODULE_VALID,          // version matched  — data is trusted and published
     MODULE_INVALID,        // version mismatch — data suppressed until resolved
     MODULE_OFFLINE,        // not responding on the bus
 } ModuleStatus_t;
+#endif
 
 // ----------------------------------------------------------------
 // RegGroup_t — a contiguous block of same-type registers
@@ -84,7 +89,6 @@ typedef struct {
     const char*        name;            // human label: "RTD-3CH", "WeatherStation"
     const RegGroup_t*  groups;          // array of register group descriptors
     uint8_t            groupCount;
-    unsigned long      defaultPollMs;
 } PLCModuleDesc_t;
 
 // ----------------------------------------------------------------

@@ -38,6 +38,9 @@ bool SaveWiFiConfig(uint8_t mode, const char* ssid, const char* pass, const char
     return true;
 }
 
+// ── Remote config accessor ────────────────────────────────────────────────────
+const RemoteConfig_t& GetRemoteConfig() { return *RemoteGetConfig(); }
+
 // ── Save MQTT config ──────────────────────────────────────────────────────────
 bool SaveMQTTConfig(bool enabled, const char* ip, uint16_t port, const char* user, const char* pass) {
     mqconfig.MQTTEnabble = enabled ? 1 : 0;
