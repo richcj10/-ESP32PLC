@@ -40,10 +40,11 @@ typedef enum : uint8_t {
 #ifndef MODULE_STATUS_T_DEFINED
 #define MODULE_STATUS_T_DEFINED
 typedef enum : uint8_t {
-    MODULE_UNKNOWN  = 0,   // version check not yet run
-    MODULE_VALID,          // version matched  — data is trusted and published
-    MODULE_INVALID,        // version mismatch — data suppressed until resolved
-    MODULE_OFFLINE,        // not responding on the bus
+    MODULE_UNKNOWN        = 0,  // version check not yet run
+    MODULE_VALID,               // version + typeId matched — data trusted
+    MODULE_INVALID,             // version mismatch — data suppressed
+    MODULE_OFFLINE,             // not responding on bus
+    MODULE_TYPE_MISMATCH,       // version OK but typeId mismatch — data suppressed
 } ModuleStatus_t;
 #endif
 

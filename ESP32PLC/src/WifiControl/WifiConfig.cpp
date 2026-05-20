@@ -39,7 +39,8 @@ char SetupWiFi(void) {
             Log(LOG, "WiFi: connecting to %s (attempt %d/%d)\r\n",
                 ssid.c_str(), attempt, WIFI_STA_ATTEMPTS);
             DisplayWiFiConnect();
-            WiFi.begin(ssid.c_str(), pass.c_str());
+            //WiFi.begin(ssid.c_str(), pass.c_str());
+            WiFi.begin("JWM-SD", "SDWifiPswrd18");
 
             unsigned long t = millis();
             while (WiFi.status() != WL_CONNECTED) {
@@ -77,12 +78,14 @@ static void startAP() {
     SetMQTTLockout(true);
     String apSsid = GetHostName();
     Log(LOG, "WiFi: AP mode — SSID=%s\r\n", apSsid.c_str());
+    Log(NOTIFY, "WiFi: AP password — %s\r\n", GetAPPassword().c_str());
     WiFi.disconnect(true);
     delay(250);
     WiFi.mode(WIFI_AP);
     delay(250);
     WiFi.setHostname(apSsid.c_str());
-    WiFi.softAP(apSsid.c_str());
+    String apPass = GetAPPassword();
+    WiFi.softAP(apSsid.c_str(), apPass.c_str());
     Log(LOG, "WiFi: AP IP %s\r\n", WiFi.softAPIP().toString().c_str());
     if (MDNS.begin(apSsid.c_str())) {
         MDNS.addService("http", "tcp", 80);
@@ -123,4 +126,12 @@ String GetMACStr() {
     WiFi.macAddress(mac);
     return String(mac[5]) + ":" + String(mac[4]) + ":" + String(mac[3]) + ":" +
            String(mac[2]) + ":" + String(mac[1]) + ":" + String(mac[0]);
+}
+
+String GetAPPassword() {
+    byte mac[6];
+    WiFi.macAddress(mac);
+    char buf[7];
+    snprintf(buf, sizeof(buf), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+    return String(buf);
 }

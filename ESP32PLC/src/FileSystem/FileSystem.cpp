@@ -1,6 +1,7 @@
 #include "FileSystem.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include "Define.h"
 #include "Functions.h"
 #include "FS.h"
@@ -14,8 +15,6 @@ static const char *WiFifilename  = "/WiFiconfig.json";
 static const char *MQTTfilename  = "/MQTTconfig.json";
 static const char *Remotefilename = "/Remote.json";
 
-/* Only written, never read externally — keep internal */
-static bool DefaultsLoaded = false;
 
 static void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 
@@ -103,11 +102,9 @@ void RemoteComfig() {
         RemoteDeviceCfg_t& d = _remoteCfg.devices[_remoteCfg.deviceCount];
 
         strlcpy(d.name,       dev["name"]          | "Unknown", sizeof(d.name));
-        d.address         = dev["address"]       | (uint8_t)1;
-        d.typeId          = dev["typeId"]        | (uint8_t)0;
-        d.swVersion       = dev["swVersion"]     | (uint16_t)0;
-        d.versionRegIdx   = dev["versionRegIdx"] | (uint8_t)0;
-        d.versionRegType  = dev["versionRegType"]| (uint8_t)0;
+        d.address   = dev["address"]    | (uint8_t)1;
+        d.typeId    = dev["typeId"]     | (uint8_t)0;
+        d.swVersion = dev["swVersion"]  | (uint16_t)0;
 
         JsonArray grpArr = dev["groups"].as<JsonArray>();
         for (JsonObject grp : grpArr) {
@@ -142,15 +139,22 @@ void RemoteComfig() {
                 strlcpy(w.mqttTopic, wg["mqttTopic"]  | "",      sizeof(w.mqttTopic));
 
                 uint8_t wi = 0;
-                for (JsonVariant rv : wg["regs"].as<JsonArray>()) {
-                    if (wi >= MAX_REGS_PER_GROUP) break;
-                    const char* rn = rv.as<const char*>();
-                    strlcpy(w.regs[wi++], rn ? rn : "", REG_NAME_LEN);
-                }
-                wi = 0;
                 for (JsonVariant dv : wg["defaults"].as<JsonArray>()) {
                     if (wi >= MAX_REGS_PER_GROUP) break;
                     w.defaults[wi++] = (uint16_t)dv.as<int>();
+                }
+                wi = 0;
+                for (JsonVariant rv : wg["regs"].as<JsonArray>()) {
+                    if (wi >= MAX_REGS_PER_GROUP) break;
+                    if (rv.is<int>()) {
+                        // Numeric literal — fixed value sent as-is, not a payload key
+                        w.regs[wi][0]  = '\0';
+                        w.defaults[wi] = (uint16_t)rv.as<int>();
+                    } else {
+                        const char* rn = rv.as<const char*>();
+                        strlcpy(w.regs[wi], rn ? rn : "", REG_NAME_LEN);
+                    }
+                    wi++;
                 }
                 g.writeCount++;
             }
@@ -175,12 +179,8 @@ void RemoteSaveConfig(const RemoteConfig_t* cfg) {
         JsonObject dev = devArr.createNestedObject();
         dev["name"]    = d.name;
         dev["address"] = d.address;
-        if (d.typeId)    dev["typeId"]         = d.typeId;
-        if (d.swVersion) {
-            dev["swVersion"]      = d.swVersion;
-            dev["versionRegIdx"]  = d.versionRegIdx;
-            dev["versionRegType"] = d.versionRegType;
-        }
+        if (d.typeId)    dev["typeId"]    = d.typeId;
+        if (d.swVersion) dev["swVersion"] = d.swVersion;
 
         JsonArray grpArr = dev.createNestedArray("groups");
         for (uint8_t g = 0; g < d.groupCount; g++) {
@@ -230,120 +230,132 @@ void RemoteSaveConfig(const RemoteConfig_t* cfg) {
 }
 
 // ----------------------------------------------------------------
-// WiFi load — returns false if file does not exist
-// Drops SSIDLN/PswdLN/HoastLN from JSON; derives them via strlen()
+// WiFi — NVS via Preferences (namespace "wifi")
+// Falls back to legacy LittleFS JSON on first boot, then migrates.
 // ----------------------------------------------------------------
 bool WifiloadConfiguration(struct WiFiConfig* WFC) {
-    File file = LittleFS.open(WiFifilename);
-    if (!file) return false;
+    Preferences p;
+    p.begin("wifi", true);  // read-only
+    bool found = p.isKey("mode");
+    if (found) {
+        WFC->WIFIMode = p.getUChar("mode", 2);
+        WFC->DHCP     = p.getUChar("dhcp", 1);
+        p.getString("ssid", WFC->SSID,    sizeof(WFC->SSID));
+        p.getString("pass", WFC->Passcode,sizeof(WFC->Passcode));
+        p.getString("host", WFC->Host,    sizeof(WFC->Host));
+        p.getString("ip",   WFC->IP,      sizeof(WFC->IP));
+        p.getString("gw",   WFC->DefultGateway, sizeof(WFC->DefultGateway));
+        p.getString("mask", WFC->SubMask, sizeof(WFC->SubMask));
+    }
+    p.end();
 
-    StaticJsonDocument<384> doc;          // reduced from 512; 8 fields, no derived
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-
-    if (error) {
-        Log(ERROR, "FS: WiFi config corrupt (%s) — rebuilding defaults\r\n", error.c_str());
-        LittleFS.remove(WiFifilename);
-        return false;
+    if (found) {
+        WFC->SSIDLN  = strlen(WFC->SSID);
+        WFC->PswdLN  = strlen(WFC->Passcode);
+        WFC->HoastLN = strlen(WFC->Host);
+        Log(LOG, "NVS: WiFi loaded (mode=%u ssid=%s)\r\n", WFC->WIFIMode, WFC->SSID);
+        return true;
     }
 
-    strlcpy(WFC->SSID,          doc["SSID"]          | "",              sizeof(WFC->SSID));
-    strlcpy(WFC->Passcode,      doc["Passcode"]       | "",              sizeof(WFC->Passcode));
-    strlcpy(WFC->Host,          doc["Host"]           | "ESP32PLC",      sizeof(WFC->Host));
-    strlcpy(WFC->IP,            doc["IP"]             | "192.168.4.1",   sizeof(WFC->IP));
-    strlcpy(WFC->DefultGateway, doc["DefultGateway"]  | "0.0.0.0",       sizeof(WFC->DefultGateway));
-    strlcpy(WFC->SubMask,       doc["SubMask"]        | "255.255.255.0", sizeof(WFC->SubMask));
+    // ── Legacy migration: read old JSON file once ──────────────
+    File file = LittleFS.open(WiFifilename);
+    if (!file) return false;
+    StaticJsonDocument<384> doc;
+    DeserializationError error = deserializeJson(doc, file);
+    file.close();
+    if (error) { LittleFS.remove(WiFifilename); return false; }
 
+    strlcpy(WFC->SSID,          doc["SSID"]         | "",              sizeof(WFC->SSID));
+    strlcpy(WFC->Passcode,      doc["Passcode"]      | "",              sizeof(WFC->Passcode));
+    strlcpy(WFC->Host,          doc["Host"]          | "ESP32PLC",      sizeof(WFC->Host));
+    strlcpy(WFC->IP,            doc["IP"]            | "192.168.4.1",   sizeof(WFC->IP));
+    strlcpy(WFC->DefultGateway, doc["DefultGateway"] | "0.0.0.0",       sizeof(WFC->DefultGateway));
+    strlcpy(WFC->SubMask,       doc["SubMask"]       | "255.255.255.0", sizeof(WFC->SubMask));
     WFC->WIFIMode = doc["WIFIMode"] | (unsigned char)2;
     WFC->DHCP     = doc["DHCP"]     | (unsigned char)1;
-    WFC->SSIDLN   = strlen(WFC->SSID);       // derived — not stored in JSON
+    WFC->SSIDLN   = strlen(WFC->SSID);
     WFC->PswdLN   = strlen(WFC->Passcode);
     WFC->HoastLN  = strlen(WFC->Host);
 
-    Log(LOG, "FS: WiFi loaded (mode=%u ssid=%s)\r\n", WFC->WIFIMode, WFC->SSID);
+    Log(LOG, "NVS: WiFi migrated from JSON (mode=%u ssid=%s)\r\n", WFC->WIFIMode, WFC->SSID);
+    WifisaveConfiguration(WFC);   // write to NVS, ignore JSON from now on
+    LittleFS.remove(WiFifilename);
     return true;
 }
 
-// ----------------------------------------------------------------
-// WiFi save — no remove() before write; "w" truncates automatically
-// Drops SSIDLN/PswdLN/HoastLN — derived fields don't belong in JSON
-// ----------------------------------------------------------------
 void WifisaveConfiguration(struct WiFiConfig* WFC) {
-    DefaultsLoaded = true;
-
-    strlcpy(WFC->Host, GetClientId().c_str(), sizeof(WFC->Host));
-    WFC->HoastLN = strlen(WFC->Host);
-
-    File file = LittleFS.open(WiFifilename, "w");   // "w" truncates existing file
-    if (!file) { Log(ERROR, "FS: cannot open WiFi config for write\r\n"); return; }
-
-    StaticJsonDocument<384> doc;
-    doc["WIFIMode"]      = WFC->WIFIMode;
-    doc["SSID"]          = WFC->SSID;
-    doc["Passcode"]      = WFC->Passcode;
-    doc["Host"]          = WFC->Host;
-    doc["DHCP"]          = WFC->DHCP;
-    doc["IP"]            = WFC->IP;
-    doc["DefultGateway"] = WFC->DefultGateway;
-    doc["SubMask"]       = WFC->SubMask;
-
-    if (serializeJson(doc, file) == 0)
-        Log(ERROR, "FS: WiFi config write failed\r\n");
-    else
-        Log(LOG, "FS: WiFi config saved\r\n");
-    file.close();
+    if (WFC->HoastLN == 0 || strcmp(WFC->Host, "ESP32PLC") == 0) {
+        strlcpy(WFC->Host, GetClientId().c_str(), sizeof(WFC->Host));
+        WFC->HoastLN = strlen(WFC->Host);
+    }
+    Preferences p;
+    p.begin("wifi", false);  // read-write
+    p.putUChar("mode", WFC->WIFIMode);
+    p.putUChar("dhcp", WFC->DHCP);
+    p.putString("ssid", WFC->SSID);
+    p.putString("pass", WFC->Passcode);
+    p.putString("host", WFC->Host);
+    p.putString("ip",   WFC->IP);
+    p.putString("gw",   WFC->DefultGateway);
+    p.putString("mask", WFC->SubMask);
+    p.end();
+    Log(LOG, "NVS: WiFi saved (mode=%u ssid=%s)\r\n", WFC->WIFIMode, WFC->SSID);
 }
 
 // ----------------------------------------------------------------
-// MQTT load — returns false if file does not exist
-// Drops MQTTPasswordLN from JSON; derived via strlen()
+// MQTT — NVS via Preferences (namespace "mqtt")
+// Falls back to legacy LittleFS JSON on first boot, then migrates.
 // ----------------------------------------------------------------
 bool MqttloadConfiguration(struct MQTTConfig* MQC) {
+    Preferences p;
+    p.begin("mqtt", true);
+    bool found = p.isKey("enable");
+    if (found) {
+        MQC->MQTTEnabble = p.getUChar("enable", 0);
+        MQC->MQTTPort    = p.getUShort("port",  1883);
+        p.getString("ip",   MQC->MQTTIP,       sizeof(MQC->MQTTIP));
+        p.getString("user", MQC->MQTTUser,     sizeof(MQC->MQTTUser));
+        p.getString("pass", MQC->MQTTPassword, sizeof(MQC->MQTTPassword));
+    }
+    p.end();
+
+    if (found) {
+        MQC->MQTTPasswordLN = strlen(MQC->MQTTPassword);
+        Log(LOG, "NVS: MQTT loaded (enabled=%u ip=%s)\r\n", MQC->MQTTEnabble, MQC->MQTTIP);
+        return true;
+    }
+
+    // ── Legacy migration ────────────────────────────────────────
     File file = LittleFS.open(MQTTfilename);
     if (!file) return false;
-
     StaticJsonDocument<256> doc;
     DeserializationError error = deserializeJson(doc, file);
     file.close();
+    if (error) { LittleFS.remove(MQTTfilename); return false; }
 
-    if (error) {
-        Log(ERROR, "FS: MQTT config corrupt (%s) — rebuilding defaults\r\n", error.c_str());
-        LittleFS.remove(MQTTfilename);
-        return false;
-    }
-
-    strlcpy(MQC->MQTTIP,       doc["MQTTIP"]       | "",          sizeof(MQC->MQTTIP));
-    strlcpy(MQC->MQTTUser,     doc["MQTTUser"]     | "esp32plc",  sizeof(MQC->MQTTUser));
-    strlcpy(MQC->MQTTPassword, doc["MQTTPassword"] | "",          sizeof(MQC->MQTTPassword));
+    strlcpy(MQC->MQTTIP,       doc["MQTTIP"]       | "",         sizeof(MQC->MQTTIP));
+    strlcpy(MQC->MQTTUser,     doc["MQTTUser"]     | "esp32plc", sizeof(MQC->MQTTUser));
+    strlcpy(MQC->MQTTPassword, doc["MQTTPassword"] | "",         sizeof(MQC->MQTTPassword));
     MQC->MQTTEnabble    = doc["MQTTEnabble"] | (unsigned char)0;
     MQC->MQTTPort       = doc["MQTTPort"]    | (uint16_t)1883;
-    MQC->MQTTPasswordLN = strlen(MQC->MQTTPassword);  // derived
+    MQC->MQTTPasswordLN = strlen(MQC->MQTTPassword);
 
-    Log(LOG, "FS: MQTT loaded (enabled=%u ip=%s port=%u)\r\n",
-        MQC->MQTTEnabble, MQC->MQTTIP, MQC->MQTTPort);
+    Log(LOG, "NVS: MQTT migrated from JSON (enabled=%u ip=%s)\r\n", MQC->MQTTEnabble, MQC->MQTTIP);
+    MqttsaveConfiguration(MQC);
+    LittleFS.remove(MQTTfilename);
     return true;
 }
 
-// ----------------------------------------------------------------
-// MQTT save — no remove() before write
-// Drops MQTTPasswordLN — derived field doesn't belong in JSON
-// ----------------------------------------------------------------
 void MqttsaveConfiguration(struct MQTTConfig* MQC) {
-    File file = LittleFS.open(MQTTfilename, "w");   // "w" truncates existing file
-    if (!file) { Log(ERROR, "FS: cannot open MQTT config for write\r\n"); return; }
-
-    StaticJsonDocument<256> doc;
-    doc["MQTTEnabble"]  = MQC->MQTTEnabble;
-    doc["MQTTIP"]       = MQC->MQTTIP;
-    doc["MQTTUser"]     = MQC->MQTTUser;
-    doc["MQTTPassword"] = MQC->MQTTPassword;
-    doc["MQTTPort"]     = MQC->MQTTPort;
-
-    if (serializeJson(doc, file) == 0)
-        Log(ERROR, "FS: MQTT config write failed\r\n");
-    else
-        Log(LOG, "FS: MQTT config saved\r\n");
-    file.close();
+    Preferences p;
+    p.begin("mqtt", false);
+    p.putUChar("enable",  MQC->MQTTEnabble);
+    p.putUShort("port",   MQC->MQTTPort);
+    p.putString("ip",     MQC->MQTTIP);
+    p.putString("user",   MQC->MQTTUser);
+    p.putString("pass",   MQC->MQTTPassword);
+    p.end();
+    Log(LOG, "NVS: MQTT saved (enabled=%u ip=%s)\r\n", MQC->MQTTEnabble, MQC->MQTTIP);
 }
 
 // ----------------------------------------------------------------

@@ -1,5 +1,6 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <Preferences.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
@@ -27,6 +28,7 @@ StaticJsonDocument<300> jsonDocRx;
 bool wsconnected = false;
 bool lastButtonState = 0;
 static char* output = nullptr;
+
 static constexpr size_t OUTPUT_BUF_SIZE = 512;
 
 unsigned long cnt = 0;
@@ -243,6 +245,22 @@ static void _cfgBodyHandler(AsyncWebServerRequest*, uint8_t *data, size_t len,
     if (index + len >= total) _cfgBuf[_cfgBufLen] = '\0';
 }
 
+/* ── Device config body buffer (larger — holds full Remote.json) ────────── */
+static constexpr size_t DEV_BUF_SIZE = 8192;
+static char*  _devBuf    = nullptr;
+static size_t _devBufLen = 0;
+
+static void _devBodyHandler(AsyncWebServerRequest*, uint8_t *data, size_t len,
+                            size_t index, size_t total) {
+    if (!_devBuf) return;
+    if (index == 0) _devBufLen = 0;
+    if (_devBufLen + len < DEV_BUF_SIZE - 1) {
+        memcpy(_devBuf + _devBufLen, data, len);
+        _devBufLen += len;
+    }
+    if (index + len >= total) _devBuf[_devBufLen] = '\0';
+}
+
 /* ── Captive portal ─────────────────────────────────────────────────────── */
 static DNSServer _dns;
 static bool      _captive = false;
@@ -267,6 +285,8 @@ void WebStart(){
   if (!output)   output   = (char*) malloc(OUTPUT_BUF_SIZE);
   _cfgBuf  = (char*) heap_caps_malloc(CFG_BUF_SIZE,    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (!_cfgBuf)  _cfgBuf  = (char*) malloc(CFG_BUF_SIZE);
+  _devBuf  = (char*) heap_caps_malloc(DEV_BUF_SIZE,    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!_devBuf)  _devBuf  = (char*) malloc(DEV_BUF_SIZE);
 
   Log(DEBUG,"Web Server Start!");
 
@@ -288,15 +308,23 @@ void WebStart(){
     server.on("/canonical.html",             HTTP_GET, _captiveRedirect); // macOS alt
   }
 
+  /* POST /api/reboot */
+  server.on("/api/reboot", HTTP_POST, [](AsyncWebServerRequest *req) {
+    req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Rebooting\"}");
+    _scheduleRestart();
+  });
+
   /* ── API routes first — must be before serveStatic ──────────────────── */
 
   /* ── Config: GET /config/wifi ──────────────────────────────────────────── */
   server.on("/config/wifi", HTTP_GET, [](AsyncWebServerRequest *req) {
-    char buf[256];
+    Preferences p; p.begin("wifi", true);
+    bool nvs = p.isKey("mode"); p.end();
+    char buf[280];
     snprintf(buf, sizeof(buf),
-        "{\"mode\":%u,\"ssid\":\"%s\",\"host\":\"%s\",\"dhcp\":%u,\"ip\":\"%s\"}",
+        "{\"mode\":%u,\"ssid\":\"%s\",\"host\":\"%s\",\"dhcp\":%u,\"ip\":\"%s\",\"nvs\":%s}",
         (unsigned)GetWiFiMode(), GetSSID().c_str(), GetHostName().c_str(),
-        1, GetIPStr().c_str());
+        1, GetIPStr().c_str(), nvs ? "true" : "false");
     req->send(200, "application/json", buf);
   });
 
@@ -491,6 +519,174 @@ void WebStart(){
     req->send(200, "application/json", resp);
   });
 
+  /* GET + POST /api/devices/scan — registered BEFORE /api/devices to win prefix match.
+   * POST: start background bus scan.  GET: poll status/results. */
+  server.on("/api/devices/scan", HTTP_ANY, [](AsyncWebServerRequest *req) {
+    if (req->method() == HTTP_POST) {
+        if (IsBusScanRunning()) {
+            req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Already scanning\"}");
+            return;
+        }
+        uint8_t from = (uint8_t)(req->hasParam("from") ? req->getParam("from")->value().toInt() : 1);
+        uint8_t to   = (uint8_t)(req->hasParam("to")   ? req->getParam("to")->value().toInt()   : 247);
+        if (from < 1)   from = 1;
+        if (to   > 247) to   = 247;
+        if (from > to)  from = 1;
+        StartBusScan(from, to);
+        char msg[60];
+        snprintf(msg, sizeof(msg), "{\"ok\":true,\"msg\":\"Scan started (addr %u-%u)\"}",
+                 (unsigned)from, (unsigned)to);
+        req->send(200, "application/json", msg);
+    } else {
+        AsyncResponseStream *resp = req->beginResponseStream("application/json");
+        resp->printf("{\"running\":%s,\"progress\":%u,\"total\":%u,\"addresses\":%s}",
+            IsBusScanRunning() ? "true" : "false",
+            (unsigned)GetBusScanProgress(),
+            (unsigned)GetBusScanTotal(),
+            GetBusScanResult());
+        req->send(resp);
+    }
+  });
+
+  /* POST /api/devices/save — registered BEFORE /api/devices to win prefix match. */
+  server.on("/api/devices/save", HTTP_POST,
+    [](AsyncWebServerRequest *req) {
+        if (!_devBuf || _devBufLen == 0) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"No data received\"}");
+            return;
+        }
+        DynamicJsonDocument doc(8192);
+        if (deserializeJson(doc, (const char*)_devBuf, _devBufLen)) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"Invalid JSON\"}");
+            return;
+        }
+        File f = LittleFS.open("/Remote.json", "w");
+        if (!f) {
+            req->send(500, "application/json", "{\"ok\":false,\"msg\":\"FS open failed\"}");
+            return;
+        }
+        f.write((const uint8_t*)_devBuf, _devBufLen);
+        f.close();
+        Log(NOTIFY, "Web: Remote.json saved via devices tab (%u B)\r\n", (unsigned)_devBufLen);
+        req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Saved — reboot to apply\"}");
+    },
+    nullptr,
+    _devBodyHandler
+  );
+
+  /* GET /api/devices/status — live verification status per device address.
+   * Registered BEFORE /api/devices to win prefix match. */
+  server.on("/api/devices/status", HTTP_GET, [](AsyncWebServerRequest *req) {
+    const RemoteConfig_t& cfg = GetRemoteConfig();
+    AsyncResponseStream *resp = req->beginResponseStream("application/json");
+    resp->print("{");
+    bool first = true;
+    bool seen[8] = {};  // MAX_REMOTE_DEVICES = 8
+    for (uint8_t g = 0; g < RemoteGrpCount(); g++) {
+        uint8_t di = RemoteGrpDevIdx(g);
+        if (di >= cfg.deviceCount || di >= 8 || seen[di]) continue;
+        seen[di] = true;
+        ModuleStatus_t st = RemoteDevStatus(di);
+        if (!first) resp->print(",");
+        first = false;
+        if (st == MODULE_INVALID) {
+            uint16_t got = RemoteGrpDevice(g)->getRaw(0);  // version always at [0]
+            resp->printf("\"%u\":{\"status\":\"invalid\",\"expected\":%u,\"got\":%u}",
+                (unsigned)cfg.devices[di].address,
+                (unsigned)cfg.devices[di].swVersion, (unsigned)got);
+        } else if (st == MODULE_TYPE_MISMATCH) {
+            uint16_t got = RemoteGrpDevice(g)->getRaw(1);  // typeId always at [1]
+            resp->printf("\"%u\":{\"status\":\"type_mismatch\",\"expected\":%u,\"got\":%u}",
+                (unsigned)cfg.devices[di].address,
+                (unsigned)cfg.devices[di].typeId, (unsigned)got);
+        } else {
+            const char* s = (st == MODULE_VALID)  ? "valid"   :
+                            (st == MODULE_OFFLINE) ? "offline" : "unknown";
+            resp->printf("\"%u\":\"%s\"", (unsigned)cfg.devices[di].address, s);
+        }
+    }
+    resp->print("}");
+    req->send(resp);
+  });
+
+  /* GET /api/devices — serve Remote.json directly; registered last as it prefix-matches all /api/devices/* */
+  server.on("/api/devices", HTTP_GET, [](AsyncWebServerRequest *req) {
+    if (!LittleFS.exists("/Remote.json")) {
+        req->send(200, "application/json", "{\"devices\":[]}");
+        return;
+    }
+    req->send(LittleFS, "/Remote.json", "application/json");
+  });
+
+  /* GET /api/files — list LittleFS files with sizes + usage stats */
+  server.on("/api/files", HTTP_GET, [](AsyncWebServerRequest *req) {
+    size_t total = LittleFS.totalBytes();
+    size_t used  = LittleFS.usedBytes();
+    String json = "{\"total\":" + String(total) +
+                  ",\"used\":"  + String(used)  +
+                  ",\"files\":[";
+    File root = LittleFS.open("/");
+    File f    = root.openNextFile();
+    bool first = true;
+    while (f) {
+      if (!f.isDirectory()) {
+        if (!first) json += ",";
+        json += "{\"name\":\"" + String(f.name()) +
+                "\",\"size\":"  + String(f.size()) + "}";
+        first = false;
+      }
+      f = root.openNextFile();
+    }
+    json += "]}";
+    req->send(200, "application/json", json);
+  });
+
+  /* DELETE /api/files?name=/Remote.json — delete a file */
+  server.on("/api/files", HTTP_DELETE, [](AsyncWebServerRequest *req) {
+    if (!req->hasParam("name")) {
+      req->send(400, "application/json", "{\"ok\":false,\"msg\":\"missing name\"}");
+      return;
+    }
+    String name = req->getParam("name")->value();
+    bool ok = LittleFS.remove(name);
+    char resp[80];
+    snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"}",
+             ok ? "true" : "false",
+             ok ? "Deleted" : "Delete failed");
+    req->send(200, "application/json", resp);
+    Log(ok ? LOG : ERROR, "Web: %s file %s\r\n", ok ? "deleted" : "failed to delete", name.c_str());
+  });
+
+  /* POST /api/files/upload?name=/Remote.json — upload any file to LittleFS (multipart) */
+  static struct { bool ok = false; bool aborted = false; char msg[80] = {}; char path[64] = {}; } _fileUp;
+  server.on("/api/files/upload", HTTP_POST,
+    [](AsyncWebServerRequest *req) {
+      char resp[120];
+      snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"}",
+               _fileUp.ok ? "true" : "false", _fileUp.msg);
+      req->send(_fileUp.ok ? 200 : 400, "application/json", resp);
+    },
+    [](AsyncWebServerRequest *req, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+      if (index == 0) {
+        _fileUp.ok = false; _fileUp.aborted = false; _fileUp.msg[0] = '\0';
+        String name = req->hasParam("name") ? req->getParam("name")->value() : "/" + filename;
+        if (!name.startsWith("/")) name = "/" + name;
+        strlcpy(_fileUp.path, name.c_str(), sizeof(_fileUp.path));
+        Log(NOTIFY, "Web: uploading → %s\r\n", _fileUp.path);
+      }
+      if (_fileUp.aborted) return;
+      File f = LittleFS.open(_fileUp.path, index == 0 ? "w" : "a");
+      if (!f) { _fileUp.aborted = true; strlcpy(_fileUp.msg, "FS open failed", sizeof(_fileUp.msg)); return; }
+      if (f.write(data, len) != len) { _fileUp.aborted = true; strlcpy(_fileUp.msg, "Write failed — full?", sizeof(_fileUp.msg)); }
+      f.close();
+      if (final && !_fileUp.aborted) {
+        _fileUp.ok = true;
+        snprintf(_fileUp.msg, sizeof(_fileUp.msg), "%s saved (%u B)", _fileUp.path, (unsigned)(index + len));
+        Log(NOTIFY, "Web: %s\r\n", _fileUp.msg);
+      }
+    }
+  );
+
   /* GET /log — recent log ring buffer as plain text, newest last */
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* req) {
     uint8_t count = LogRingCount();
@@ -507,6 +703,9 @@ void WebStart(){
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     Log(DEBUG,"MP server\r\n");
     request->send(LittleFS, "/Main.html", "text/html");
+  });
+  server.on("/ESP32PLC.css", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(LittleFS, "/ESP32PLC.css", "text/css");
   });
   server.serveStatic("/", LittleFS, "/");
 

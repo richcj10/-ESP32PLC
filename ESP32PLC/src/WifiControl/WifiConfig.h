@@ -10,4 +10,5 @@ void SetWiFisetupMode(char value);
 String GetIPStr();
 String GetRSSIStr();
 String GetMACStr();
+String GetAPPassword();
 #endif

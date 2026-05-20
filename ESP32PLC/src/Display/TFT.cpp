@@ -11,12 +11,14 @@
 #include "Sensors.h"
 #include "TFTBitMaps.h"
 #include "Devices/Log.h"
+#include "Define.h"
+#include "WifiControl/WifiConfig.h"
 
 #define MAX_IMAGE_WIDTH 240
 
 PNG png;
 
-TFT_eSPI tft = TFT_eSPI(320, 240);
+TFT_eSPI tft = TFT_eSPI(240, 320);
 TFT_eSprite Screen    = TFT_eSprite(&tft);  // full-screen back buffer, drawn into PSRAM
 TFT_eSprite StatusBar = TFT_eSprite(&tft);
 TFT_eSprite Bottom    = TFT_eSprite(&tft);
@@ -60,6 +62,7 @@ void TFTBootLog(const char* line) {
 
 void TFTInit() {
     tft.init();
+    tft.setRotation(3);
     tft.invertDisplay(1);
     tft.fillScreen(TFT_BLACK);
 
@@ -272,15 +275,21 @@ void TFTDisplayAPInfo(const char* ssid) {
     snprintf(mdns, sizeof(mdns), "%s.local", ssid);
     tft.print(mdns);
 
-    // ── Hint ────────────────────────────────────────────────────────────────
+    // ── Password ─────────────────────────────────────────────────────────────
+    String apPass = GetAPPassword();
     tft.setTextColor(0x4208);
-    tft.setCursor(22, 125);
-    tft.print("No password  |  Scan QR");
+    tft.setTextSize(1);
+    tft.setCursor(22, 118);
+    tft.print("Password");
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(22, 128);
+    tft.print(apPass);
 
     // ── QR code — version 3 (29 modules), scale 3 = 87x87 px ───────────────
     QRCode qrcode;
-    char qrText[72];
-    snprintf(qrText, sizeof(qrText), "WIFI:T:nopass;S:%s;;", ssid);
+    char qrText[96];
+    snprintf(qrText, sizeof(qrText), "WIFI:T:WPA;S:%s;P:%s;;", ssid, apPass.c_str());
     uint8_t qrcodeData[qrcode_getBufferSize(3)];
     qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, qrText);
 

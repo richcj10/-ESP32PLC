@@ -36,6 +36,7 @@ void setup() {
     DisplayLog(" FS ERROR ");
     delay(1000);
   }
+  RemoteStart();
   QueryLocalDevice();
   DisplayLog(" Connecting to WiFi...");
   SetupWiFi();   // retries STA 3x then falls back to AP internally
@@ -72,7 +73,7 @@ void setup() {
 int l =0;
 unsigned long LastSendTime, LastSendTime2, LastSendTime3 = 0;
 char TSChannel = 1;
-char Send,Prect = 0;
+char Prect = 0;
 
 unsigned long LastSendTimeCH1, LastSendTimeCH2, LastSendTimeCH3, LastSendTimeCH4, LastSendTimeCH5 =0;
 char CH1FT, CH2FT, CH3FT, CH4FT, CH5FT = 0;
@@ -100,14 +101,7 @@ void loop() {
   
   if(millis() - LastSendTime2 > 1500){
     LastSendTime2 = millis();
-    if(Send == 0) SendOutsideEnvoroment();
-    if(Send == 1) SendRemoteRTD();
-    if(Send == 2) SendRemoteCurrentSense();
-    Send++;
-    if(Send > 3){
-      Send = 0;
-    }
-    //ReadRemoteWeather();
+    SendRemoteDevices();
   }
 
   if(millis() - LastSendTime3 > 200){

@@ -19,6 +19,11 @@ char ErrorCounter = 0;
 /* Persistent server IP buffer — PubSubClient keeps a pointer, must outlive setServer() */
 static char _mqttServerBuf[40] = {};
 
+/* Base topic: "ESPPLC/<hostname>" — built once at MQTTStart, reused everywhere */
+static char _mqttBase[48] = "ESPPLC";
+
+const char* GetMQTTBaseTopic() { return _mqttBase; }
+
 WiFiClient wclient;
 PubSubClient client(wclient);
 
@@ -36,7 +41,9 @@ static bool _handleRemoteWrite(const char* topic, const char* payload) {
         for (uint8_t gi = 0; gi < dev.groupCount; gi++) {
         for (uint8_t wi = 0; wi < dev.groups[gi].writeCount; wi++) {
             const RemoteWriteGroupCfg_t& wg = dev.groups[gi].writes[wi];
-            if (strcmp(topic, wg.mqttTopic) != 0) continue;
+            char fullTopic[128];
+            snprintf(fullTopic, sizeof(fullTopic), "%s/%s", _mqttBase, wg.mqttTopic);
+            if (strcmp(topic, fullTopic) != 0) continue;
 
             StaticJsonDocument<256> doc;
             if (deserializeJson(doc, payload) != DeserializationError::Ok) {
@@ -76,20 +83,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     Log(NOTIFY, "MQTT rx [%s] %s\r\n", topic, messageTemp.c_str());
 
-    // JSON-configured write groups take priority
     if (_handleRemoteWrite(topic, messageTemp.c_str())) return;
 
-    if (String(topic) == "ESPPLC/Heater") {
+    char t[80];
+    snprintf(t, sizeof(t), "%s/Heater", _mqttBase);
+    if (strcmp(topic, t) == 0) {
         bool on = messageTemp == "on";
         digitalWrite(40, on ? HIGH : LOW);
-        client.publish("ESPPLC/Heater/State", on ? "on" : "off");
+        snprintf(t, sizeof(t), "%s/Heater/State", _mqttBase);
+        client.publish(t, on ? "on" : "off");
+        return;
     }
-    if (String(topic) == "ESPPLC/Lights") {
+    snprintf(t, sizeof(t), "%s/Lights", _mqttBase);
+    if (strcmp(topic, t) == 0) {
         bool on = messageTemp == "on";
         digitalWrite(41, on ? HIGH : LOW);
         digitalWrite(42, on ? HIGH : LOW);
         digitalWrite(39, on ? HIGH : LOW);
-        client.publish("ESPPLC/Lights/State", on ? "on" : "off");
+        snprintf(t, sizeof(t), "%s/Lights/State", _mqttBase);
+        client.publish(t, on ? "on" : "off");
+        return;
     }
 }
 
@@ -118,8 +131,9 @@ void MQTTStart() {
         return;
     }
     strlcpy(_mqttServerBuf, ip.c_str(), sizeof(_mqttServerBuf));
+    snprintf(_mqttBase, sizeof(_mqttBase), "ESPPLC/%s", GetHostName().c_str());
     uint16_t port = GetMQTTPort();
-    Log(LOG, "MQTT: starting — server=%s port=%u\r\n", _mqttServerBuf, port);
+    Log(LOG, "MQTT: starting — server=%s port=%u base=%s\r\n", _mqttServerBuf, port, _mqttBase);
     client.setServer(_mqttServerBuf, port);
     client.setCallback(callback);
 }
@@ -137,7 +151,9 @@ void MQTTreconnect(void) {
         if (client.connect(GetClientId().c_str(), user.c_str(), pass.c_str())) {
             MQTTActive = 1;
             Log(LOG, "MQTT: connected\r\n");
-            client.subscribe("ESPPLC/Heater");
+            char subTopic[128];
+            snprintf(subTopic, sizeof(subTopic), "%s/Heater", _mqttBase);
+            client.subscribe(subTopic);
 
             // Auto-subscribe to all write topics nested inside groups
             const RemoteConfig_t& cfg = GetRemoteConfig();
@@ -147,10 +163,11 @@ void MQTTreconnect(void) {
                     for (uint8_t wi = 0; wi < dev.groups[gi].writeCount; wi++) {
                         const char* t = dev.groups[gi].writes[wi].mqttTopic;
                         if (t[0]) {
-                            client.subscribe(t);
+                            snprintf(subTopic, sizeof(subTopic), "%s/%s", _mqttBase, t);
+                            client.subscribe(subTopic);
                             Log(LOG, "MQTT: subscribed [%s/%s/%s] → %s\r\n",
                                 dev.name, dev.groups[gi].name,
-                                dev.groups[gi].writes[wi].name, t);
+                                dev.groups[gi].writes[wi].name, subTopic);
                         }
                     }
                 }
@@ -182,57 +199,6 @@ void SendDeviceEnviroment() {
     client.publish("home/garage/cf/device/humid", temp);
 }
 
-void SendOutsideEnvoroment() {
-    if (!MQTTActive) return;
-    String report;
-    report = String(GetRemoteDataFromQue(OUTSIDE_TEMP_POS, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Weather/temp", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(OUTSIDE_HUMID_POS, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Weather/humid", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(MC_POS, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Weather/mH", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(WIND_SPEED_POS, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Weather/WindSpeed", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(WIND_DIR_POS, 0));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Weather/windDir", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(RAIN_POS, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Weather/rain", temp)) ErrorCounter++;
-    else ErrorCounter = 0;
-}
-
-void SendRemoteRTD() {
-    if (!MQTTActive) return;
-    String report;
-    report = String(GetRemoteDataFromQue(REMOTE_TEMP_RTD_1, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/UnderRV/RTD1", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(REMOTE_TEMP_RTD_2, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/UnderRV/RTD2", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(REMOTE_TEMP_RTD_3, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/UnderRV/RTD3", temp)) ErrorCounter++;
-}
-
-void SendRemoteCurrentSense() {
-    if (!MQTTActive) return;
-    String report;
-    report = String(GetRemoteDataFromQue(REMOTE_CS_A, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Current/A", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(REMOTE_CS_B, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Current/B", temp)) ErrorCounter++;
-    report = String(GetRemoteDataFromQue(REMOTE_CS_C, 1));
-    report.toCharArray(temp, report.length() + 1);
-    if (!client.publish("Outside/Current/C", temp)) ErrorCounter++;
-}
 
 // ----------------------------------------------------------------
 // SendRemoteDevices — publish all JSON-configured device groups
@@ -259,11 +225,11 @@ void SendRemoteDevices() {
                 ? (float)dev->getRaw(r)
                 : (float)dev->getSigned(r) / grp.scale;
 
-            char topic[96];
+            char topic[128];
             if (grp.regs[r][0])
-                snprintf(topic, sizeof(topic), "%s/%s", grp.mqttTopic, grp.regs[r]);
+                snprintf(topic, sizeof(topic), "%s/%s/%s", _mqttBase, grp.mqttTopic, grp.regs[r]);
             else
-                snprintf(topic, sizeof(topic), "%s/reg%u", grp.mqttTopic, r);
+                snprintf(topic, sizeof(topic), "%s/%s/reg%u", _mqttBase, grp.mqttTopic, r);
 
             char buf[20];
             snprintf(buf, sizeof(buf), "%.2f", val);

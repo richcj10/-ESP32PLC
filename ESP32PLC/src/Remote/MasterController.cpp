@@ -8,9 +8,13 @@
 ModbusMasterController master(Serial1, 38400, 16, 17, 20);
 static RemoteMaster    remoteMaster;
 
-// MQTT publish bridge — called by RemoteMaster for online/offline events
-static void _mqttPublish(const char* topic, const char* payload) {
-    if (GetMQTTStatus()) GetMQTTClient().publish(topic, payload);
+// MQTT publish bridge — called by RemoteMaster for online/offline events.
+// Prepends "ESPPLC/<hostname>/" so device status lands under the same root as all other topics.
+static void _mqttPublish(const char* subTopic, const char* payload) {
+    if (!GetMQTTStatus()) return;
+    char fullTopic[128];
+    snprintf(fullTopic, sizeof(fullTopic), "%s/%s", GetMQTTBaseTopic(), subTopic);
+    GetMQTTClient().publish(fullTopic, payload);
 }
 
 // ----------------------------------------------------------------
@@ -119,3 +123,116 @@ char SetOcupyLED(int Address, unsigned char R, unsigned char G, unsigned char B)
 int   ReadDeviceType(int Address) { (void)Address; return 0; }
 float readDeviceVIN (int Address) { (void)Address; return -1; }
 char  GetRemoteTemp (char TempCH) { (void)TempCH;  return 0; }
+
+// ----------------------------------------------------------------
+// Modbus bus scan — probes each address with a FC3 read (1 register)
+// Runs as a FreeRTOS task so it doesn't block the web server.
+// ----------------------------------------------------------------
+static constexpr uint8_t MB_TX_EN = 20;  // matches master constructor pin
+
+static uint16_t _mbCRC(const uint8_t* b, uint8_t n) {
+    uint16_t c = 0xFFFF;
+    for (uint8_t i = 0; i < n; i++) {
+        c ^= b[i];
+        for (uint8_t j = 0; j < 8; j++)
+            c = (c & 1u) ? (c >> 1) ^ 0xA001u : (c >> 1);
+    }
+    return c;
+}
+
+static bool _probeAddr(uint8_t addr) {
+    uint8_t req[8] = { addr, 0x03, 0x00, 0x00, 0x00, 0x01, 0, 0 };
+    uint16_t crc = _mbCRC(req, 6);
+    req[6] = (uint8_t)(crc & 0xFF);
+    req[7] = (uint8_t)(crc >> 8);
+
+    // 1. Ensure receive mode and clear stale RX bytes
+    digitalWrite(MB_TX_EN, LOW);
+    delay(2);
+    while (Serial1.available()) Serial1.read();
+
+    // 2. Enable driver, brief DE-setup, then send frame
+    digitalWrite(MB_TX_EN, HIGH);
+    delayMicroseconds(200);
+    Serial1.write(req, 8);
+    // Time-based TX wait instead of flush():
+    //   8 bytes × 10 bits / 38400 baud = 2.08 ms → 6 ms gives 3× margin and
+    //   avoids relying on flush() semantics (varies between ESP32 core versions).
+    delay(6);
+    digitalWrite(MB_TX_EN, LOW);
+    delayMicroseconds(500);  // RE enable + Modbus turnaround guard
+
+    // 3. Discard any echo bytes (transceivers that keep RX live during TX)
+    while (Serial1.available()) Serial1.read();
+
+    // 4. Wait for slave response (FC3 normal = 7 B, error = 5 B)
+    unsigned long t = millis();
+    while (Serial1.available() < 4) {
+        if (millis() - t > 200) return false;
+        delay(2);
+    }
+    uint8_t first = (uint8_t)Serial1.read();
+    delay(15);
+    while (Serial1.available()) Serial1.read();  // drain rest of frame
+    return (first == addr);
+}
+
+static volatile bool    _scanRunning = false;
+static volatile uint8_t _scanProg    = 0;
+static volatile uint8_t _scanTotal   = 0;
+static char             _scanResult[1024] = "[]"; // up to 247 addresses × 4 chars each
+
+static struct { uint8_t from; uint8_t to; } _scanArg;
+
+static void _scanTask(void*) {
+    delay(300);  // let any in-flight Modbus transaction drain
+    uint8_t from = _scanArg.from;
+    uint8_t to   = _scanArg.to;
+    _scanTotal   = (uint8_t)(to - from + 1);
+    _scanProg    = 0;
+
+    // Build into a private static buffer so _scanResult (exposed via HTTP)
+    // stays as valid "[]" until the scan is 100% done.  Avoids the browser
+    // seeing unclosed JSON like "[5,10" mid-scan and stopping polling early.
+    static char _build[1024];
+    _build[0] = '[';
+    char* p   = _build + 1;
+    bool first = true;
+
+    for (uint8_t a = from; a <= to; a++) {
+        _scanProg++;
+        if (_probeAddr(a)) {
+            Log(NOTIFY_FORCE, "Scan: addr %u responded\r\n", (unsigned)a);
+            size_t rem = sizeof(_build) - (size_t)(p - _build) - 4;
+            if (!first && rem > 4) *p++ = ',';
+            p += snprintf(p, rem, "%u", (unsigned)a);
+            first = false;
+        }
+        delay(5);
+    }
+    *p++ = ']';
+    *p   = '\0';
+
+    // Now atomically publish the complete result
+    strlcpy(_scanResult, _build, sizeof(_scanResult));
+    Log(NOTIFY_FORCE, "Scan complete: %s\r\n", _scanResult);
+    ResumeRemotePolling();
+    _scanRunning = false;
+    vTaskDelete(nullptr);
+}
+
+void StartBusScan(uint8_t from, uint8_t to) {
+    if (_scanRunning) return;
+    _scanArg     = { from, to };
+    _scanRunning = true;
+    _scanProg    = 0;
+    _scanTotal   = (uint8_t)(to - from + 1);
+    strlcpy(_scanResult, "[]", sizeof(_scanResult));
+    SuspendRemotePolling();
+    xTaskCreate(_scanTask, "mbScan", 3072, nullptr, 1, nullptr);
+}
+
+bool        IsBusScanRunning()  { return _scanRunning; }
+const char* GetBusScanResult()  { return _scanResult;  }
+uint8_t     GetBusScanProgress(){ return _scanProg;    }
+uint8_t     GetBusScanTotal()   { return _scanTotal;   }

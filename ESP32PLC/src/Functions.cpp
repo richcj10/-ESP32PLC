@@ -1,5 +1,6 @@
 #include "Functions.h"
 #include <rom/rtc.h>
+#include <LittleFS.h>
 #include "Display/Oled.h"
 #include "Sensors.h"
 #include "MQTT.h"
@@ -87,7 +88,12 @@ void setup_ota() {
   //ArduinoOTA.setPassword(WiFiSettings.password.c_str());
 
   ArduinoOTA.onStart([]() {
-    Log(NOTIFY_FORCE,"OTA Update!");
+    if (ArduinoOTA.getCommand() == U_SPIFFS) {
+      LittleFS.end();   // must unmount before overwriting the partition
+      Log(NOTIFY_FORCE, "OTA FS Update!");
+    } else {
+      Log(NOTIFY_FORCE, "OTA FW Update!");
+    }
     delay(100);
     DisplayLog(" Getting OTA Update...");
     delay(1000);
