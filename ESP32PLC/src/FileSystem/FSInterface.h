@@ -25,4 +25,9 @@ bool SaveMQTTConfig(bool enabled, const char* ip, uint16_t port, const char* use
 // Remote device config accessor
 const RemoteConfig_t& GetRemoteConfig();
 
+// Config file revision check
+bool        RemoteConfigRevOK();      // false if loaded rev != firmware's expected rev
+const char* RemoteConfigRevGot();     // rev string found in the file
+const char* RemoteConfigRevNeeded();  // rev string this firmware requires
+
 #endif

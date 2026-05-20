@@ -65,37 +65,6 @@ void RemoteRun() {
 }
 
 // ----------------------------------------------------------------
-// GetModuleValue — for PLCModuleDesc_t typed devices
-// ----------------------------------------------------------------
-float GetModuleValue(const PLCModuleInstance_t* inst, uint8_t localIdx) {
-    if (!inst || inst->status != MODULE_VALID || !inst->desc || !inst->device) return 0.0f;
-
-    const PLCModuleDesc_t* desc = inst->desc;
-    for (uint8_t g = 0; g < desc->groupCount; g++) {
-        const RegGroup_t* grp = &desc->groups[g];
-        uint8_t end = grp->startReg + grp->count;
-        if (localIdx < grp->startReg || localIdx >= end) continue;
-        if (grp->type == RTYPE_COIL || grp->type == RTYPE_DISCRETE)
-            return inst->device->getCoil(localIdx) ? 1.0f : 0.0f;
-        if (grp->scale == 1.0f) return (float)inst->device->getRaw(localIdx);
-        return (float)inst->device->getSigned(localIdx) / grp->scale;
-    }
-    return 0.0f;
-}
-
-// ----------------------------------------------------------------
-// LogModuleData
-// ----------------------------------------------------------------
-void LogModuleData(const PLCModuleInstance_t* inst) {
-    if (!inst || !inst->desc) return;
-    const PLCModuleDesc_t* desc = inst->desc;
-    const char* s = inst->status == MODULE_VALID   ? "VALID"   :
-                    inst->status == MODULE_INVALID ? "INVALID" :
-                    inst->status == MODULE_OFFLINE ? "OFFLINE" : "UNKNOWN";
-    Log(LOG, "[%s addr=%u] %s\r\n", desc->name, inst->address, s);
-}
-
-// ----------------------------------------------------------------
 // Occupancy accessors — first group of first device
 // ----------------------------------------------------------------
 bool     GetOccupied()  { return remoteMaster.grpCount() > 0 ? remoteMaster.grpDevice(0)->getRaw(0) != 0 : false; }

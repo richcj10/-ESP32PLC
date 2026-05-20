@@ -579,16 +579,18 @@ void WebStart(){
   server.on("/api/devices/status", HTTP_GET, [](AsyncWebServerRequest *req) {
     const RemoteConfig_t& cfg = GetRemoteConfig();
     AsyncResponseStream *resp = req->beginResponseStream("application/json");
-    resp->print("{");
-    bool first = true;
+    bool revOk = RemoteConfigRevOK();
+    resp->printf("{\"_rev\":%s", revOk ? "true" : "false");
+    if (!revOk)
+        resp->printf(",\"_revGot\":\"%s\",\"_revNeeded\":\"%s\"",
+            RemoteConfigRevGot(), RemoteConfigRevNeeded());
     bool seen[8] = {};  // MAX_REMOTE_DEVICES = 8
     for (uint8_t g = 0; g < RemoteGrpCount(); g++) {
         uint8_t di = RemoteGrpDevIdx(g);
         if (di >= cfg.deviceCount || di >= 8 || seen[di]) continue;
         seen[di] = true;
         ModuleStatus_t st = RemoteDevStatus(di);
-        if (!first) resp->print(",");
-        first = false;
+        resp->print(",");
         if (st == MODULE_INVALID) {
             uint16_t got = RemoteGrpDevice(g)->getRaw(0);  // version always at [0]
             resp->printf("\"%u\":{\"status\":\"invalid\",\"expected\":%u,\"got\":%u}",

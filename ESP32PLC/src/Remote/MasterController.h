@@ -38,12 +38,6 @@ bool     GetOccupied();
 uint16_t GetZoneCount();
 uint16_t GetTimeOnSec();
 
-// Diagnostic log — prints all SCAN_ALWAYS groups for a module
-void LogModuleData(const PLCModuleInstance_t* inst);
-
-// Read a register value using the descriptor's scale factor.
-float GetModuleValue(const PLCModuleInstance_t* inst, uint8_t localIdx);
-
 // Legacy C-style API — unchanged so existing callers compile without modification
 char  ReadRemoteTemp();
 char  ReadRemoteWeather();

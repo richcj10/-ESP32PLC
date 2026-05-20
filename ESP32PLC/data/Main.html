@@ -208,6 +208,8 @@
         <button class="btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="scanBus()">Scan Bus</button>
       </div>
 
+      <div id="dev-rev-warn" style="display:none;background:var(--red);color:#fff;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:13px;"></div>
+
       <div class="card" id="scan-card" style="display:none">
         <div class="card-title">Bus Scan (addr 1–247)</div>
         <div id="scan-status" style="font-size:13px;color:var(--muted);margin-bottom:8px;">—</div>
@@ -706,6 +708,15 @@ function loadDeviceList() {
       fetch('/api/devices/status')
         .then(function(r) { return r.json(); })
         .then(function(status) {
+          var warn = document.getElementById('dev-rev-warn');
+          if (status._rev === false) {
+            warn.style.display = 'block';
+            warn.innerText = 'Config file version mismatch — got "' + (status._revGot || '?') +
+                             '", firmware needs "' + (status._revNeeded || '?') +
+                             '". Upload a compatible Remote.json and reboot.';
+          } else {
+            warn.style.display = 'none';
+          }
           _devList.forEach(function(dev) {
             var val = status[String(dev.address)];
             if (!val) return;

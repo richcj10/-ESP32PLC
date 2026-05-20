@@ -80,6 +80,12 @@ void MqttComfig(struct MQTTConfig* MQC) {
 // Remote device config — static storage + load / save
 // ----------------------------------------------------------------
 static RemoteConfig_t _remoteCfg;
+static bool _remoteRevOk    = true;
+static char _remoteRevGot[8] = {};
+
+bool        RemoteConfigRevOK()     { return _remoteRevOk; }
+const char* RemoteConfigRevGot()    { return _remoteRevGot; }
+const char* RemoteConfigRevNeeded() { return REMOTE_CONFIG_REV; }
 
 const RemoteConfig_t* RemoteGetConfig() { return &_remoteCfg; }
 
@@ -93,6 +99,16 @@ void RemoteComfig() {
     DeserializationError err = deserializeJson(doc, f);
     f.close();
     if (err) { Log(ERROR, "FS: Remote.json parse error: %s\r\n", err.c_str()); return; }
+
+    const char* rev = doc["rev"] | "";
+    strlcpy(_remoteRevGot, rev, sizeof(_remoteRevGot));
+    if (strcmp(rev, REMOTE_CONFIG_REV) != 0) {
+        _remoteRevOk = false;
+        Log(ERROR, "FS: Remote.json rev mismatch — got '%s', need '%s' — config not loaded\r\n",
+            rev, REMOTE_CONFIG_REV);
+        return;
+    }
+    _remoteRevOk = true;
 
     JsonArray devArr = doc["devices"].as<JsonArray>();
     if (devArr.isNull()) { Log(NOTIFY, "FS: Remote.json — no devices array\r\n"); return; }

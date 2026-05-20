@@ -30,4 +30,6 @@
 #define HIGHRSSI 56
 #define LOWRSSI 80
 
+#define REMOTE_CONFIG_REV "2.0"
+
 #endif  /* DEFINE_H */
