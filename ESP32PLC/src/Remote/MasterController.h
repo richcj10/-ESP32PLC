@@ -64,6 +64,7 @@ bool IsRemotePollingActive();
 void        StartBusScan(uint8_t fromAddr = 1, uint8_t toAddr = 247);
 bool        IsBusScanRunning();
 const char* GetBusScanResult();   // JSON array string, e.g. "[5,22]"
+const char* GetBusScanProbe();    // JSON array of {a,v,t} per responding device
 uint8_t     GetBusScanProgress(); // addresses probed so far
 uint8_t     GetBusScanTotal();    // total addresses in range
 

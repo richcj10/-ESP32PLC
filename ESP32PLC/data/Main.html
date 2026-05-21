@@ -71,24 +71,18 @@
       </div>
 
       <div class="card">
-        <div class="card-title">I / O</div>
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          I / O
+          <span id="io-shield-name" style="font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;"></span>
+        </div>
+        <div id="io-error" style="display:none;font-size:12px;color:var(--red);margin-bottom:8px;"></div>
         <div style="margin-bottom:10px;">
           <div class="stat-label">Inputs</div>
-          <div class="dot-row">
-            <span class="dot" id="In1"></span>
-            <span class="dot" id="In2"></span>
-            <span class="dot" id="In3"></span>
-            <span class="dot" id="In4"></span>
-          </div>
+          <div class="dot-row" id="io-inputs"></div>
         </div>
         <div>
           <div class="stat-label">Outputs</div>
-          <div class="dot-row">
-            <span class="dot" id="Out1"></span>
-            <span class="dot" id="Out2"></span>
-            <span class="dot" id="Out3"></span>
-            <span class="dot" id="Out4"></span>
-          </div>
+          <div class="dot-row" id="io-outputs"></div>
         </div>
       </div>
 
@@ -216,6 +210,8 @@
         <div id="scan-result"></div>
       </div>
 
+      <div id="discovery-cards" style="margin-top:12px;"></div>
+
       <div class="card">
         <div class="card-title">Configured Devices</div>
         <table class="data-table">
@@ -225,6 +221,10 @@
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" onclick="addDevice()">+ Add</button>
           <button class="btn-ghost" onclick="loadDeviceList()">Refresh</button>
+          <button class="btn-ghost" onclick="downloadConfig()">Download JSON</button>
+          <button class="btn-ghost" onclick="document.getElementById('cfg-upload').click()">Upload JSON</button>
+          <button class="btn-ghost" onclick="toggleRawEditor()">Edit Raw</button>
+          <input type="file" id="cfg-upload" accept=".json" style="display:none" onchange="uploadConfig(this)">
         </div>
       </div>
 
@@ -238,15 +238,31 @@
           <label>Address</label>
           <input type="number" id="dev-addr" min="1" max="247" placeholder="22">
         </div>
-        <div class="form-row">
-          <label>Type ID</label>
-          <input type="number" id="dev-typeid" min="0" max="255" placeholder="0">
-        </div>
+
+        <div id="dev-mqtt-fields"></div>
         <div class="btn-row">
           <button class="btn" onclick="saveDeviceEdit()">Save</button>
           <button class="btn-ghost" onclick="cancelDeviceEdit()">Cancel</button>
           <span class="status-text" id="dev-form-status"></span>
         </div>
+      </div>
+
+      <div class="card" id="raw-editor-card" style="display:none">
+        <div class="card-title">Raw Config JSON</div>
+        <textarea id="raw-editor-text" style="width:100%;height:280px;font-family:monospace;font-size:12px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;box-sizing:border-box;resize:vertical;"></textarea>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn" onclick="saveRawConfig()">Save</button>
+          <button class="btn-ghost" onclick="toggleRawEditor()">Cancel</button>
+          <span class="status-text" id="raw-editor-status"></span>
+        </div>
+      </div>
+
+      <div class="card" id="live-card" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="card-title" id="live-title" style="margin-bottom:0;">Live Data</div>
+          <button class="btn-ghost" style="font-size:12px;padding:4px 8px;" onclick="closeLiveData()">Close</button>
+        </div>
+        <div id="live-content"></div>
       </div>
     </div>
 
@@ -396,7 +412,8 @@ function showTab(id) {
   });
   _panels[id].classList.add('active');
   _btns[id].classList.add('active');
-  if (id === 'home')    loadHomeStats();
+  if (id === 'home')  { loadHomeStats(); _startIOPoll(); }
+  else                { _stopIOPoll(); }
   if (id === 'wifi')    loadWifiConfig();
   if (id === 'mqtt')    loadMqttConfig();
   if (id === 'devices') loadDeviceList();
@@ -464,6 +481,51 @@ function loadHomeStats() {
     }).catch(function() {});
 }
 loadHomeStats();
+
+/* ── I/O polling (home tab) ─────────────────────────────── */
+var _ioTimer = null;
+
+function _startIOPoll() {
+  if (_ioTimer) return;
+  _fetchIO();
+  _ioTimer = setInterval(_fetchIO, 500);
+}
+function _stopIOPoll() {
+  if (_ioTimer) { clearInterval(_ioTimer); _ioTimer = null; }
+}
+
+function _fetchIO() {
+  fetch('/api/io')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var errEl  = document.getElementById('io-error');
+      var nameEl = document.getElementById('io-shield-name');
+      if (nameEl) nameEl.innerText = d.name || '';
+      if (d.error) {
+        errEl.innerText      = 'Shield: ' + d.error;
+        errEl.style.display  = '';
+      } else {
+        errEl.style.display  = 'none';
+      }
+      _renderDots('io-inputs',  d.inputs  || []);
+      _renderDots('io-outputs', d.outputs || []);
+    }).catch(function() {});
+}
+
+function _renderDots(id, states) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  while (el.children.length < states.length) {
+    var s = document.createElement('span');
+    s.className = 'dot';
+    el.appendChild(s);
+  }
+  while (el.children.length > states.length) el.removeChild(el.lastChild);
+  for (var i = 0; i < states.length; i++)
+    el.children[i].className = 'dot' + (states[i] ? ' on' : '');
+}
+
+_startIOPoll();  // home is the default tab
 
 /* ── WiFi config ────────────────────────────────────────── */
 function loadWifiConfig() {
@@ -698,6 +760,18 @@ function flashFw(slaveId) {
 /* ── Devices tab ────────────────────────────────────────── */
 var _devList = [];   // full devices array (includes groups) from last load
 var _editIdx = -1;   // -1 = new device, >=0 = editing existing
+// GitHub device library — browser fetches directly (zero MCU flash cost).
+// DEVICE_PRESETS is the offline fallback for the three built-in device types.
+var DEVICE_LIBRARY_URL = 'https://raw.githubusercontent.com/richcj10/ESP32PLC-DeviceLibrary/main/devices.json';
+var DEVICE_PRESETS = {
+  2:  { name:'OCC',           typeId:2,  swVersion:4, groups:[{name:'Occupancy',fc:4,startReg:2,count:7,pollMs:1500,scale:100,units:'',regs:['VIN','Temp1','Temp2','Humid1','Humid2','Pres','Lux'],mqttEnable:true,mqttTopic:'remote/OCC',writes:[{name:'LED',fc:16,startReg:0,count:3,regs:[18,'R','GB'],defaults:[18,0,0],mqttTopic:'remote/OCC/led/set'}]}]},
+  5:  { name:'CurrentSensor', typeId:5,  swVersion:2, groups:[{name:'Current',fc:4,startReg:0,count:6,pollMs:1000,scale:100,units:'A',regs:['Version','DevType','VIN','CS1','CS2','CS3'],mqttEnable:true,mqttTopic:'remote/CS',writes:[]}]},
+  13: { name:'WeatherStation',typeId:13, swVersion:3, groups:[{name:'Climate',fc:4,startReg:0,count:8,pollMs:2000,scale:100,units:'',regs:['Version','DevType','Temp','Humid','Pres','WindSpd','WindDir','Rain'],mqttEnable:true,mqttTopic:'remote/WS',writes:[{name:'RainReset',fc:5,startReg:2,count:1,regs:['Reset'],defaults:[0],mqttTopic:'remote/WS/rain/reset'},{name:'WindCal',fc:5,startReg:3,count:1,regs:['Cal'],defaults:[0],mqttTopic:'remote/WS/wind/calibrate'}]},{name:'Lightning',fc:4,startReg:8,count:1,pollMs:2000,scale:1,units:'',regs:['Lightning'],mqttEnable:true,mqttTopic:'remote/WS',writes:[]}]}
+};
+var _githubDevices = null;
+var _lastProbe     = null;
+var _liveAddr      = null;
+var _liveInterval  = null;
 var _scanPoll = null;
 
 function loadDeviceList() {
@@ -759,6 +833,8 @@ function renderDeviceList() {
       '<td style="color:' + sc + ';font-size:12px;">' + stText + '</td>' +
       '<td style="white-space:nowrap;">' +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
+        'onclick="showLiveData(' + (dev.address !== undefined ? dev.address : 'undefined') + ')">Live</button>' +
+        '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
         'onclick="editDevice(' + i + ')">Edit</button>' +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;" ' +
         'onclick="deleteDevice(' + i + ')">Del</button>' +
@@ -770,9 +846,9 @@ function renderDeviceList() {
 function addDevice() {
   _editIdx = -1;
   document.getElementById('dev-form-title').innerText = 'Add Device';
-  document.getElementById('dev-name').value    = '';
-  document.getElementById('dev-addr').value    = '';
-  document.getElementById('dev-typeid').value  = '';
+  document.getElementById('dev-name').value = '';
+  document.getElementById('dev-addr').value = '';
+  document.getElementById('dev-mqtt-fields').innerHTML = '';
   setStatus('dev-form-status', '');
   document.getElementById('dev-form-card').style.display = 'block';
 }
@@ -781,9 +857,22 @@ function editDevice(idx) {
   _editIdx = idx;
   var dev  = _devList[idx];
   document.getElementById('dev-form-title').innerText = 'Edit: ' + (dev.name || '');
-  document.getElementById('dev-name').value   = dev.name    || '';
-  document.getElementById('dev-addr').value   = dev.address !== undefined ? dev.address : '';
-  document.getElementById('dev-typeid').value = dev.typeId  !== undefined ? dev.typeId  : 0;
+  document.getElementById('dev-name').value = dev.name    || '';
+  document.getElementById('dev-addr').value = dev.address !== undefined ? dev.address : '';
+  // MQTT topic fields per group
+  var mf = document.getElementById('dev-mqtt-fields');
+  if (dev.groups && dev.groups.length) {
+    var html = '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">' +
+               '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">MQTT Topics</div>';
+    dev.groups.forEach(function(g, i) {
+      html += '<div class="form-row"><label>' + (g.name || 'Group ' + i) + '</label>' +
+              '<input type="text" id="dev-mqtt-' + i + '" value="' + (g.mqttTopic || '') + '" placeholder="remote/device"></div>';
+    });
+    html += '</div>';
+    mf.innerHTML = html;
+  } else {
+    mf.innerHTML = '';
+  }
   setStatus('dev-form-status', '');
   document.getElementById('dev-form-card').style.display = 'block';
 }
@@ -793,20 +882,24 @@ function cancelDeviceEdit() {
 }
 
 function saveDeviceEdit() {
-  var name   = document.getElementById('dev-name').value.trim();
-  var addr   = parseInt(document.getElementById('dev-addr').value,   10);
-  var typeId = parseInt(document.getElementById('dev-typeid').value, 10);
-  if (!name)                          { setStatus('dev-form-status', 'Name required', true);   return; }
+  var name = document.getElementById('dev-name').value.trim();
+  var addr = parseInt(document.getElementById('dev-addr').value, 10);
+  if (!name)                               { setStatus('dev-form-status', 'Name required',  true); return; }
   if (isNaN(addr) || addr < 1 || addr > 247) { setStatus('dev-form-status', 'Address 1–247', true); return; }
-  if (isNaN(typeId)) typeId = 0;
 
   if (_editIdx >= 0) {
     _devList[_editIdx].name    = name;
     _devList[_editIdx].address = addr;
-    _devList[_editIdx].typeId  = typeId;
-    delete _devList[_editIdx].status;  // strip runtime field before save
+    // typeId is intentionally not updated — use Edit Raw to change device type
+    if (_devList[_editIdx].groups) {
+      _devList[_editIdx].groups.forEach(function(g, i) {
+        var el = document.getElementById('dev-mqtt-' + i);
+        if (el) g.mqttTopic = el.value.trim();
+      });
+    }
+    delete _devList[_editIdx].status;
   } else {
-    _devList.push({ name: name, address: addr, typeId: typeId, groups: [] });
+    _devList.push({ name: name, address: addr, typeId: 0, groups: [] });
   }
 
   setStatus('dev-form-status', 'Saving…');
@@ -821,7 +914,7 @@ function saveDeviceEdit() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       setStatus('dev-form-status', d.ok ? d.msg : 'Error: ' + d.msg, !d.ok);
-      if (d.ok) { renderDeviceList(); document.getElementById('dev-form-card').style.display = 'none'; }
+      if (d.ok) { renderDeviceList(); document.getElementById('dev-form-card').style.display = 'none'; if (d.reboot) showRebootBanner(); }
     })
     .catch(function(e) { setStatus('dev-form-status', 'Error: ' + e, true); });
 }
@@ -838,16 +931,127 @@ function deleteDevice(idx) {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.ok) { renderDeviceList(); }
+      if (d.ok) { renderDeviceList(); if (d.reboot) showRebootBanner(); }
       else { _devList.splice(idx, 0, removed[0]); alert('Delete failed: ' + d.msg); }
     })
     .catch(function(e) { _devList.splice(idx, 0, removed[0]); alert('Error: ' + e); });
+}
+
+function downloadConfig() {
+  fetch('/api/devices')
+    .then(function(r) { return r.blob(); })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      var a   = document.createElement('a');
+      a.href  = url; a.download = 'Remote.json';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })
+    .catch(function(e) { alert('Download failed: ' + e); });
+}
+
+function uploadConfig(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var form = new FormData();
+  form.append('file', file, 'Remote.json');
+  fetch('/api/remote/upload', { method: 'POST', body: form })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { input.value = ''; showRebootBanner(); }
+      else { alert('Upload failed: ' + d.msg); input.value = ''; }
+    })
+    .catch(function(e) { alert('Upload error: ' + e); input.value = ''; });
+}
+
+function toggleRawEditor() {
+  var card = document.getElementById('raw-editor-card');
+  if (card.style.display === 'none') {
+    fetch('/api/devices')
+      .then(function(r) { return r.text(); })
+      .then(function(t) {
+        try { t = JSON.stringify(JSON.parse(t), null, 2); } catch(e) {}
+        document.getElementById('raw-editor-text').value = t;
+        setStatus('raw-editor-status', '');
+        card.style.display = 'block';
+      });
+  } else {
+    card.style.display = 'none';
+  }
+}
+
+function saveRawConfig() {
+  var text = document.getElementById('raw-editor-text').value;
+  var obj;
+  try { obj = JSON.parse(text); } catch(e) {
+    setStatus('raw-editor-status', 'Invalid JSON: ' + e.message, true); return;
+  }
+  setStatus('raw-editor-status', 'Saving…');
+  fetch('/api/devices/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      setStatus('raw-editor-status', d.ok ? d.msg : 'Error: ' + d.msg, !d.ok);
+      if (d.ok) { document.getElementById('raw-editor-card').style.display = 'none'; if (d.reboot) showRebootBanner(); else loadDeviceList(); }
+    })
+    .catch(function(e) { setStatus('raw-editor-status', 'Error: ' + e, true); });
+}
+
+function showLiveData(addr) {
+  if (addr === undefined) return;
+  if (_liveAddr === addr) { closeLiveData(); return; }
+  _liveAddr = addr;
+  var dev = null;
+  for (var i = 0; i < _devList.length; i++) { if (_devList[i].address === addr) { dev = _devList[i]; break; } }
+  document.getElementById('live-title').innerText = 'Live — ' + (dev ? dev.name : 'Addr ' + addr);
+  document.getElementById('live-card').style.display = 'block';
+  document.getElementById('live-content').innerHTML = '<div style="color:var(--muted);font-size:13px;">Loading…</div>';
+  _fetchLiveData();
+  if (_liveInterval) clearInterval(_liveInterval);
+  _liveInterval = setInterval(_fetchLiveData, 2500);
+}
+
+function closeLiveData() {
+  if (_liveInterval) { clearInterval(_liveInterval); _liveInterval = null; }
+  _liveAddr = null;
+  document.getElementById('live-card').style.display = 'none';
+}
+
+function _fetchLiveData() {
+  if (_liveAddr === null) return;
+  fetch('/api/data/live?addr=' + _liveAddr)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (_liveAddr === null) return;
+      var html = '';
+      (d.groups || []).forEach(function(g) {
+        html += '<div style="margin-bottom:12px;">';
+        if (g.name) html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;' +
+                            'text-transform:uppercase;letter-spacing:0.05em;">' + g.name + '</div>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;">';
+        (g.regs || []).forEach(function(r) {
+          var disp = (r.v % 1 === 0) ? r.v.toString() : r.v.toFixed(2);
+          if (g.units) disp += ' ' + g.units;
+          html += '<div style="background:var(--card2);border-radius:5px;padding:6px 8px;">' +
+                  '<div style="font-size:11px;color:var(--muted);">' + r.n + '</div>' +
+                  '<div style="font-size:15px;font-weight:600;">' + disp + '</div></div>';
+        });
+        html += '</div></div>';
+      });
+      document.getElementById('live-content').innerHTML = html ||
+        '<div style="color:var(--muted);font-size:13px;">No data</div>';
+    })
+    .catch(function() {});
 }
 
 function scanBus() {
   document.getElementById('scan-card').style.display = 'block';
   document.getElementById('scan-status').innerText = 'Scanning…';
   document.getElementById('scan-result').innerHTML = '';
+  document.getElementById('discovery-cards').innerHTML = '';
+  _lastProbe = null;
   fetch('/api/devices/scan', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(d) {
@@ -865,9 +1069,9 @@ function pollScanResult() {
       if (d.running === true) {
         document.getElementById('scan-status').innerText =
           'Scanning… ' + d.progress + '/' + d.total;
-        return;  // keep polling
+        return;
       }
-      if (d.running !== false) return;  // unexpected value — keep polling
+      if (d.running !== false) return;
       clearInterval(_scanPoll); _scanPoll = null;
       var addrs = d.addresses || [];
       document.getElementById('scan-status').innerText =
@@ -880,8 +1084,94 @@ function pollScanResult() {
         });
         document.getElementById('scan-result').innerHTML = html + '</div>';
       }
+      if (d.probe && d.probe.length) _showDiscoveryCards(d.probe);
     })
-    .catch(function() {});  // network/parse error — interval keeps running
+    .catch(function() {});
+}
+
+function _showDiscoveryCards(probeArr) {
+  _lastProbe = probeArr;
+  var container = document.getElementById('discovery-cards');
+  container.innerHTML = '';
+  var unconfigured = probeArr.filter(function(p) {
+    return !_devList.some(function(d) { return d.address === p.a; });
+  });
+  if (!unconfigured.length) return;
+  var html = '<div class="card" style="margin-top:0;"><div class="card-title" style="margin-bottom:8px;">New Devices Found</div>';
+  unconfigured.forEach(function(p) {
+    var preset = DEVICE_PRESETS[p.t];
+    var label  = preset ? preset.name : 'Unknown';
+    var tc     = preset ? 'var(--green)' : 'var(--yellow)';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;' +
+            'padding:8px 0;border-bottom:1px solid var(--border);">' +
+            '<div>' +
+              '<span style="font-weight:600;font-size:13px;">Addr ' + p.a + '</span>' +
+              '&nbsp;<span style="color:' + tc + ';font-size:12px;">' + label + '</span>' +
+              '&nbsp;<span style="color:var(--muted);font-size:11px;">v' + p.v + ' · tid ' + p.t + '</span>' +
+            '</div><div style="display:flex;gap:6px;">';
+    if (preset) {
+      html += '<button class="btn" style="font-size:12px;padding:4px 10px;" ' +
+              'onclick="_addDiscoveredDevice(' + p.a + ',' + p.t + ',\'preset\')">Add</button>';
+    } else {
+      html += '<button class="btn-ghost" style="font-size:12px;padding:4px 10px;" ' +
+              'onclick="fetchFromGitHub(this,' + p.a + ',' + p.t + ')">Fetch</button>';
+    }
+    html += '</div></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function _addDiscoveredDevice(addr, typeId, source) {
+  var preset = null;
+  if (source === 'preset') {
+    preset = DEVICE_PRESETS[typeId];
+  } else if (_githubDevices) {
+    for (var i = 0; i < _githubDevices.length; i++) {
+      if (_githubDevices[i].typeId === typeId) { preset = _githubDevices[i]; break; }
+    }
+  }
+  if (!preset) { alert('No config for TypeID ' + typeId); return; }
+  var dev     = JSON.parse(JSON.stringify(preset));
+  dev.address = addr;
+  dev.name    = dev.name + '-' + addr;
+  _devList.push(dev);
+  var body = { rev: '2.0', devices: _devList.map(function(d) {
+    var c = Object.assign({}, d); delete c.status; return c;
+  })};
+  fetch('/api/devices/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { renderDeviceList(); if (d.reboot) { showRebootBanner(); } else if (_lastProbe) _showDiscoveryCards(_lastProbe); }
+      else { _devList.pop(); alert('Save failed: ' + d.msg); }
+    })
+    .catch(function(e) { _devList.pop(); alert('Error: ' + e); });
+}
+
+function fetchFromGitHub(btn, addr, typeId) {
+  btn.innerText = 'Fetching…';
+  btn.disabled  = true;
+  fetch(DEVICE_LIBRARY_URL)
+    .then(function(r) { return r.json(); })
+    .then(function(lib) {
+      _githubDevices = lib.devices || lib;
+      var found = false;
+      for (var i = 0; i < _githubDevices.length; i++) {
+        if (_githubDevices[i].typeId === typeId) { found = true; break; }
+      }
+      if (found) {
+        _addDiscoveredDevice(addr, typeId, 'github');
+      } else {
+        btn.innerText = 'Not found';
+        btn.disabled  = false;
+      }
+    })
+    .catch(function() {
+      btn.innerText = 'Offline';
+      btn.disabled  = false;
+    });
 }
 
 /* ── Fireworks ──────────────────────────────────────────── */
@@ -923,6 +1213,29 @@ function setStatus(id, msg, isErr) {
   var el = document.getElementById(id);
   el.innerText = msg;
   el.className = 'status-text' + (isErr ? ' status-err' : (msg ? ' status-ok' : ''));
+}
+
+function showRebootBanner() {
+  var existing = document.getElementById('reboot-banner');
+  if (existing) return;
+  var banner = document.createElement('div');
+  banner.id = 'reboot-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#e6a817;' +
+    'color:#000;text-align:center;padding:14px 20px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+  document.body.appendChild(banner);
+  var secs = 15;
+  function tick() {
+    banner.innerText = 'Config saved — rebooting. Page reloads in ' + secs + 's…';
+    if (secs-- <= 0) { location.reload(); return; }
+    setTimeout(tick, 1000);
+  }
+  tick();
+  // Poll for device coming back up; reload as soon as it responds
+  var poll = setInterval(function() {
+    fetch('/api/files', { cache: 'no-store' })
+      .then(function(r) { if (r.ok) { clearInterval(poll); location.reload(); } })
+      .catch(function() {});
+  }, 2500);
 }
 
 function setBadge(id, text, color) {

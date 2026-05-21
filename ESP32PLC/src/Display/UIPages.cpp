@@ -374,6 +374,74 @@ void UIPageTestPattern() {
     Screen.pushSprite(0, 0);
 }
 
+// ── Upload status pages ───────────────────────────────────────────────────────
+
+void UIPageUpload(const char* title, uint8_t pct, const char* msg) {
+    _header(title ? title : "UPLOAD");
+    _card();
+
+    /* Percentage — large, centred */
+    char pctStr[6];
+    snprintf(pctStr, sizeof(pctStr), "%u%%", (unsigned)pct);
+    Screen.setTextSize(3);
+    Screen.setTextColor(TFT_CYAN, HDR_BG);
+    int tw = (int)strlen(pctStr) * 18;
+    Screen.setCursor((DISP_W - tw) / 2, CARD_Y + 20);
+    Screen.print(pctStr);
+
+    /* Progress bar */
+    const int barX = CARD_X + 12;
+    const int barW = CARD_W - 24;
+    const int barY = CARD_Y + 78;
+    const int barH = 20;
+    Screen.fillRect(barX, barY, barW, barH, 0x2104);
+    Screen.drawRect(barX - 1, barY - 1, barW + 2, barH + 2, TFT_DARKGREY);
+    int filled = (int)((float)barW * (float)pct / 100.0f);
+    if (filled > 0)
+        Screen.fillRect(barX, barY, filled, barH, TFT_CYAN);
+
+    /* Message */
+    if (msg && msg[0]) {
+        Screen.setTextSize(1);
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        int mw = (int)strlen(msg) * 6;
+        Screen.setCursor((DISP_W - mw) / 2, CARD_Y + 120);
+        Screen.print(msg);
+    }
+
+    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, 18, TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, 17, TFT_WHITE);
+    Screen.pushSprite(0, 0);
+}
+
+void UIPageUploadDone(bool success, const char* msg) {
+    _header(success ? "COMPLETE" : "UPLOAD FAILED");
+    _card();
+
+    uint16_t col       = success ? (uint16_t)TFT_GREEN : (uint16_t)TFT_RED;
+    const char* status = success ? "SUCCESS" : "FAILED";
+
+    Screen.setTextSize(3);
+    Screen.setTextColor(col, HDR_BG);
+    int sw = (int)strlen(status) * 18;
+    Screen.setCursor((DISP_W - sw) / 2, CARD_Y + 30);
+    Screen.print(status);
+
+    if (msg && msg[0]) {
+        Screen.setTextSize(1);
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        int mw = (int)strlen(msg) * 6;
+        int mx = (DISP_W - mw) / 2;
+        if (mx < CARD_X + 4) mx = CARD_X + 4;
+        Screen.setCursor(mx, CARD_Y + 100);
+        Screen.print(msg);
+    }
+
+    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, 18, TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, 17, TFT_WHITE);
+    Screen.pushSprite(0, 0);
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 void UIPageInit() {

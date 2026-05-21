@@ -146,10 +146,49 @@ static bool _probeAddr(uint8_t addr) {
     return (first == addr);
 }
 
+// Read FC4 reg 0 (version) and reg 1 (typeId) — called only for addresses that
+// already responded to _probeAddr(), so the bus is quiet and timing is clean.
+static bool _probeFC4(uint8_t addr, uint16_t* ver, uint16_t* tid) {
+    uint8_t req[8] = { addr, 0x04, 0x00, 0x00, 0x00, 0x02, 0, 0 };
+    uint16_t crc = _mbCRC(req, 6);
+    req[6] = (uint8_t)(crc & 0xFF);
+    req[7] = (uint8_t)(crc >> 8);
+
+    digitalWrite(MB_TX_EN, LOW);
+    delay(2);
+    while (Serial1.available()) Serial1.read();
+
+    digitalWrite(MB_TX_EN, HIGH);
+    delayMicroseconds(200);
+    Serial1.write(req, 8);
+    delay(6);
+    digitalWrite(MB_TX_EN, LOW);
+    delayMicroseconds(500);
+    while (Serial1.available()) Serial1.read();
+
+    unsigned long t = millis();
+    while (Serial1.available() < 9) {
+        if (millis() - t > 200) return false;
+        delay(2);
+    }
+    delay(5);
+    uint8_t resp[16]; uint8_t n = 0;
+    while (Serial1.available() && n < 16) resp[n++] = (uint8_t)Serial1.read();
+
+    if (n < 9 || resp[0] != addr || resp[1] != 0x04 || resp[2] != 4) return false;
+    uint16_t gotCrc = (uint16_t)resp[n-2] | ((uint16_t)resp[n-1] << 8);
+    if (gotCrc != _mbCRC(resp, n-2)) return false;
+
+    *ver = ((uint16_t)resp[3] << 8) | resp[4];
+    *tid = ((uint16_t)resp[5] << 8) | resp[6];
+    return true;
+}
+
 static volatile bool    _scanRunning = false;
 static volatile uint8_t _scanProg    = 0;
 static volatile uint8_t _scanTotal   = 0;
 static char             _scanResult[1024] = "[]"; // up to 247 addresses × 4 chars each
+static char             _probeResult[512] = "[]"; // {a,v,t} per responding device
 
 static struct { uint8_t from; uint8_t to; } _scanArg;
 
@@ -160,13 +199,17 @@ static void _scanTask(void*) {
     _scanTotal   = (uint8_t)(to - from + 1);
     _scanProg    = 0;
 
-    // Build into a private static buffer so _scanResult (exposed via HTTP)
-    // stays as valid "[]" until the scan is 100% done.  Avoids the browser
-    // seeing unclosed JSON like "[5,10" mid-scan and stopping polling early.
+    // Build into private static buffers so the externally-visible strings
+    // stay as "[]" until the scan is fully done (avoids partial JSON in browser).
     static char _build[1024];
     _build[0] = '[';
-    char* p   = _build + 1;
-    bool first = true;
+    char* p    = _build + 1;
+    bool  first = true;
+
+    static char _pbuild[512];
+    _pbuild[0] = '[';
+    char* pp    = _pbuild + 1;
+    bool  pfirst = true;
 
     for (uint8_t a = from; a <= to; a++) {
         _scanProg++;
@@ -176,15 +219,27 @@ static void _scanTask(void*) {
             if (!first && rem > 4) *p++ = ',';
             p += snprintf(p, rem, "%u", (unsigned)a);
             first = false;
+
+            uint16_t ver = 0, tid = 0;
+            if (_probeFC4(a, &ver, &tid)) {
+                size_t prem = sizeof(_pbuild) - (size_t)(pp - _pbuild) - 4;
+                if (prem > 32) {
+                    if (!pfirst) *pp++ = ',';
+                    pp += snprintf(pp, prem, "{\"a\":%u,\"v\":%u,\"t\":%u}",
+                                   (unsigned)a, (unsigned)ver, (unsigned)tid);
+                    pfirst = false;
+                }
+            }
         }
         delay(5);
     }
-    *p++ = ']';
-    *p   = '\0';
+    *p++ = ']'; *p  = '\0';
+    *pp++ = ']'; *pp = '\0';
 
-    // Now atomically publish the complete result
-    strlcpy(_scanResult, _build, sizeof(_scanResult));
-    Log(NOTIFY_FORCE, "Scan complete: %s\r\n", _scanResult);
+    // Atomically publish complete results
+    strlcpy(_scanResult,  _build,  sizeof(_scanResult));
+    strlcpy(_probeResult, _pbuild, sizeof(_probeResult));
+    Log(NOTIFY_FORCE, "Scan complete: %s  probe: %s\r\n", _scanResult, _probeResult);
     ResumeRemotePolling();
     _scanRunning = false;
     vTaskDelete(nullptr);
@@ -196,12 +251,14 @@ void StartBusScan(uint8_t from, uint8_t to) {
     _scanRunning = true;
     _scanProg    = 0;
     _scanTotal   = (uint8_t)(to - from + 1);
-    strlcpy(_scanResult, "[]", sizeof(_scanResult));
+    strlcpy(_scanResult,  "[]", sizeof(_scanResult));
+    strlcpy(_probeResult, "[]", sizeof(_probeResult));
     SuspendRemotePolling();
     xTaskCreate(_scanTask, "mbScan", 3072, nullptr, 1, nullptr);
 }
 
-bool        IsBusScanRunning()  { return _scanRunning; }
-const char* GetBusScanResult()  { return _scanResult;  }
-uint8_t     GetBusScanProgress(){ return _scanProg;    }
-uint8_t     GetBusScanTotal()   { return _scanTotal;   }
+bool        IsBusScanRunning()  { return _scanRunning;  }
+const char* GetBusScanResult()  { return _scanResult;   }
+const char* GetBusScanProbe()   { return _probeResult;  }
+uint8_t     GetBusScanProgress(){ return _scanProg;     }
+uint8_t     GetBusScanTotal()   { return _scanTotal;    }

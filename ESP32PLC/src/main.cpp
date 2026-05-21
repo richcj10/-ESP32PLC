@@ -16,18 +16,21 @@
 #include "Devices/Log.h"
 #include "Remote/MasterController.h"
 #include "Remote/FwUpdater.h"
-
 #include "Display/TFT.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 int BuffSize = 0;
 
 void setup() {
+  yield();
+  Log(DEBUG,">> SystemStart");
   SystemStart();
+  yield();
+  Log(DEBUG,">> SystemStart done");
   Log(ERROR,"Startup Complete");
-  pinMode(2, OUTPUT);
-  pinMode(16,INPUT);
+  pinMode(16, INPUT);
   LEDBoot();
+  Log(DEBUG,">> FileStstemStart");
   if(FileStstemStart()){
     DisplayLog(" FS OK ");
     delay(1000);
@@ -36,38 +39,50 @@ void setup() {
     DisplayLog(" FS ERROR ");
     delay(1000);
   }
-  RemoteStart();
+  yield();
+  Log(DEBUG,">> QueryLocalDevice");
   QueryLocalDevice();
+  Log(DEBUG,">> DigitalStart");
+  DigitalStart();
+  Log(DEBUG,">> IOStart");
+  IOStart();
+  yield();
   DisplayLog(" Connecting to WiFi...");
+  Log(DEBUG,">> SetupWiFi");
+  yield();
   SetupWiFi();   // retries STA 3x then falls back to AP internally
+  yield();
+  Log(DEBUG,">> setup_ota");
   setup_ota();
   DisplayLog(GetIPStr().c_str());
   delay(1000);
+  Log(DEBUG,">> InitSensors");
   InitSensors();
+  yield();
+  Log(DEBUG,">> MQTTStart");
   MQTTStart();
+  Log(DEBUG,">> WebStart");
   WebStart();
+  Log(DEBUG,">> fwUpdater.init");
   fwUpdater.init();
-  //DisplayCenterClear();
-  //GPIOStart();
-  //pinMode(MP1INPUT, INPUT);
-  //I2CScan();
+  Log(DEBUG,">> SetLEDStatus");
   SetLEDStatus(NORMAL,1000);
   Serial.println("Setup Done!");
+  Log(DEBUG,">> DisplayTimeoutReset");
   DisplayTimeoutReset();
+  Log(DEBUG,">> WiFiMode check");
   if (GetWiFiMode() == WIFI_AP_MODE) {
     DisplaySetAPMode(true, GetHostName().c_str());
     DisplayAPInfo(GetHostName().c_str());
   } else {
     DisplaySetAPMode(false, nullptr);
     DisplayClear();
+    Log(DEBUG,">> UIPageInit");
     UIPageInit();
+    Log(DEBUG,">> UIPageDraw");
     UIPageDraw();
   }
-  pinMode(42, OUTPUT);
-  pinMode(41, OUTPUT);
-  pinMode(40, OUTPUT);
-  pinMode(39, OUTPUT);
-  pinMode(38, OUTPUT);
+  Log(DEBUG,">> Setup complete");
 }
 
 int l =0;
@@ -80,6 +95,7 @@ char CH1FT, CH2FT, CH3FT, CH4FT, CH5FT = 0;
 
 void loop() {
   CaptivePortalLoop();
+  ScanIO();
   RemoteRun();
   UIUpdateLoop();
   SensorUpdateLoop();
@@ -102,6 +118,7 @@ void loop() {
   if(millis() - LastSendTime2 > 1500){
     LastSendTime2 = millis();
     SendRemoteDevices();
+    SendLocalIO();
   }
 
   if(millis() - LastSendTime3 > 200){

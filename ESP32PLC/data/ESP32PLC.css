@@ -46,11 +46,14 @@ html, body {
 }
 
 .sidebar .logo {
-  width: 34px;
-  height: 34px;
-  margin-bottom: 14px;
+  width: calc(100% - 8px);
+  height: auto;
+  margin: 6px 4px 14px 4px;
   border-radius: 6px;
   object-fit: contain;
+  background: #000;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
 
 .tab-btn {

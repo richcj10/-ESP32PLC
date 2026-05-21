@@ -15,17 +15,17 @@
 
 #define LED 2
 #define USER_SW 0
-#define MP1INPUT 26
-#define MP2INPUT 14
-//#define MP3INPUT 2
-#define MP4INPUT 3
+#define MP1INPUT 45
+#define MP2INPUT 48
+#define MP3INPUT 13
+#define MP4INPUT 14
 
-#define MP1OUT 34
-#define MP2OUT 12
-#define MP3OUT 39
-#define MP4OUT 27
-#define MP5OUT 36
-#define MP6OUT 35
+#define MP1OUT 39
+#define MP2OUT 41
+#define MP3OUT 42
+#define MP4OUT 40
+#define MP5OUT 38
+#define MP6OUT 12
 
 #define HIGHRSSI 56
 #define LOWRSSI 80

@@ -14,6 +14,8 @@ void SendDeviceEnviroment(void);
 char        GetMQTTStatus(void);
 const char* GetMQTTBaseTopic(void);  // "ESPPLC/<hostname>"
 void SendRemoteDevices();   // publishes all JSON-configured devices per group mqttTopic
+void PublishHADiscovery();  // HA MQTT auto-discovery config topics (called on connect)
+void SendLocalIO();         // publishes current input states to ESPPLC/<host>/io/in/<n>
 void SetMQTTLockout(char Mode);
 
 #endif  /* OLED_H */

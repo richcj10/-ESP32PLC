@@ -11,6 +11,8 @@
 #include "Functions.h"
 #include "Remote/FwUpdater.h"
 #include "Remote/MasterController.h"
+#include "HAL/Digital/Digital.h"
+#include "HAL/DeviceConfig.h"
 
 #include "Devices/Log.h"
 #include <esp_heap_caps.h>
@@ -186,6 +188,12 @@ static void _onFwUpload(AsyncWebServerRequest *req,
     }
 }
 
+/* Spawn a short task to reboot after the HTTP response has been flushed. */
+static void _scheduleReboot() {
+    xTaskCreate([](void*) { vTaskDelay(pdMS_TO_TICKS(800)); ESP.restart(); },
+                "autoReboot", 1024, nullptr, 2, nullptr);
+}
+
 /* ── Remote.json upload context ─────────────────────────────────────────────── */
 
 static struct {
@@ -224,7 +232,7 @@ static void _onRemoteUpload(AsyncWebServerRequest *req,
 
     if (final && !remUp.aborted) {
         remUp.ok = true;
-        strncpy(remUp.msg, "Remote.json saved — reboot to apply", sizeof(remUp.msg) - 1);
+        strncpy(remUp.msg, "Saved — rebooting", sizeof(remUp.msg) - 1);
         Log(NOTIFY, "Web: Remote.json uploaded (%u B)\r\n", (unsigned)(index + len));
     }
 }
@@ -492,10 +500,12 @@ void WebStart(){
   /* POST /api/remote/upload — replace Remote.json; reboot to apply */
   server.on("/api/remote/upload", HTTP_POST,
     [](AsyncWebServerRequest *req) {
-      char resp[120];
-      snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"}",
-               remUp.ok ? "true" : "false", remUp.msg);
+      char resp[140];
+      snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"%s}",
+               remUp.ok ? "true" : "false", remUp.msg,
+               remUp.ok ? ",\"reboot\":true" : "");
       req->send(remUp.ok ? 200 : 400, "application/json", resp);
+      if (remUp.ok) _scheduleReboot();
     },
     _onRemoteUpload
   );
@@ -539,11 +549,12 @@ void WebStart(){
         req->send(200, "application/json", msg);
     } else {
         AsyncResponseStream *resp = req->beginResponseStream("application/json");
-        resp->printf("{\"running\":%s,\"progress\":%u,\"total\":%u,\"addresses\":%s}",
+        resp->printf("{\"running\":%s,\"progress\":%u,\"total\":%u,\"addresses\":%s,\"probe\":%s}",
             IsBusScanRunning() ? "true" : "false",
             (unsigned)GetBusScanProgress(),
             (unsigned)GetBusScanTotal(),
-            GetBusScanResult());
+            GetBusScanResult(),
+            GetBusScanProbe());
         req->send(resp);
     }
   });
@@ -568,7 +579,8 @@ void WebStart(){
         f.write((const uint8_t*)_devBuf, _devBufLen);
         f.close();
         Log(NOTIFY, "Web: Remote.json saved via devices tab (%u B)\r\n", (unsigned)_devBufLen);
-        req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Saved — reboot to apply\"}");
+        req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Saved — rebooting\",\"reboot\":true}");
+        _scheduleReboot();
     },
     nullptr,
     _devBodyHandler
@@ -611,6 +623,60 @@ void WebStart(){
     req->send(resp);
   });
 
+  /* GET /api/data/live?addr=X — current register values for one device */
+  server.on("/api/data/live", HTTP_GET, [](AsyncWebServerRequest *req) {
+    if (!req->hasParam("addr")) {
+        req->send(400, "application/json", "{\"error\":\"addr required\"}");
+        return;
+    }
+    uint8_t addr = (uint8_t)req->getParam("addr")->value().toInt();
+    const RemoteConfig_t& cfg = GetRemoteConfig();
+
+    uint8_t devIdx = 255;
+    for (uint8_t i = 0; i < cfg.deviceCount; i++) {
+        if (cfg.devices[i].address == addr) { devIdx = i; break; }
+    }
+    if (devIdx == 255) {
+        req->send(404, "application/json", "{\"error\":\"not found\"}");
+        return;
+    }
+
+    const RemoteDeviceCfg_t& dcfg = cfg.devices[devIdx];
+    ModuleStatus_t st = RemoteDevStatus(devIdx);
+    const char* stStr = (st == MODULE_VALID)        ? "valid"        :
+                        (st == MODULE_OFFLINE)       ? "offline"      :
+                        (st == MODULE_INVALID)       ? "invalid"      :
+                        (st == MODULE_TYPE_MISMATCH) ? "type_mismatch": "unknown";
+
+    AsyncResponseStream *resp = req->beginResponseStream("application/json");
+    resp->printf("{\"addr\":%u,\"name\":\"%s\",\"status\":\"%s\",\"groups\":[",
+                 (unsigned)addr, dcfg.name, stStr);
+
+    for (uint8_t gi = 0; gi < dcfg.groupCount; gi++) {
+        const RemoteGroupCfg_t& gcfg = dcfg.groups[gi];
+
+        ModbusDevice* dev = nullptr;
+        for (uint8_t g = 0; g < RemoteGrpCount(); g++) {
+            if (RemoteGrpDevIdx(g) == devIdx && RemoteGrpGrpIdx(g) == gi) {
+                dev = RemoteGrpDevice(g); break;
+            }
+        }
+
+        if (gi > 0) resp->print(",");
+        resp->printf("{\"name\":\"%s\",\"units\":\"%s\",\"regs\":[", gcfg.name, gcfg.units);
+        for (uint8_t ri = 0; ri < gcfg.count; ri++) {
+            uint16_t raw = dev ? dev->getRaw(ri) : 0;
+            float val = gcfg.scale > 0.0f ? (float)raw / gcfg.scale : (float)raw;
+            const char* rn = (gcfg.regs[ri][0] != '\0') ? gcfg.regs[ri] : "?";
+            if (ri > 0) resp->print(",");
+            resp->printf("{\"n\":\"%s\",\"v\":%.2f}", rn, val);
+        }
+        resp->print("]}");
+    }
+    resp->print("]}");
+    req->send(resp);
+  });
+
   /* GET /api/devices — serve Remote.json directly; registered last as it prefix-matches all /api/devices/* */
   server.on("/api/devices", HTTP_GET, [](AsyncWebServerRequest *req) {
     if (!LittleFS.exists("/Remote.json")) {
@@ -619,6 +685,62 @@ void WebStart(){
     }
     req->send(LittleFS, "/Remote.json", "application/json");
   });
+
+  /* GET /api/io — current shield I/O state */
+  server.on("/api/io", HTTP_GET, [](AsyncWebServerRequest *req) {
+    int      type   = GetDeviceType();
+    uint8_t  inCnt  = GetInputCount();
+    uint8_t  outCnt = GetOutputCount();
+    bool     noShield = (type == 0 || (inCnt == 0 && outCnt == 0));
+
+    AsyncResponseStream *resp = req->beginResponseStream("application/json");
+    resp->printf("{\"type\":%d,\"name\":\"%s\"", type, GetBoardName().c_str());
+
+    if (noShield) {
+        resp->print(",\"inputs\":[],\"outputs\":[]"
+                    ",\"error\":\"No shield detected or unknown type\"}");
+    } else {
+        resp->print(",\"inputs\":[");
+        for (uint8_t i = 0; i < inCnt; i++) {
+            if (i) resp->print(",");
+            resp->print(GetInput(i) ? "true" : "false");
+        }
+        resp->print("],\"outputs\":[");
+        for (uint8_t i = 0; i < outCnt; i++) {
+            if (i) resp->print(",");
+            resp->print(GetOutput(i) ? "true" : "false");
+        }
+        resp->print("],\"error\":null}");
+    }
+    req->send(resp);
+  });
+
+  /* POST /api/io — set a shield output
+   * Body: {"n":0,"val":1}   val: 1/true = HIGH, 0/false = LOW */
+  server.on("/api/io", HTTP_POST,
+    [](AsyncWebServerRequest *req) {
+        StaticJsonDocument<64> doc;
+        if (deserializeJson(doc, _cfgBuf, _cfgBufLen)) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"invalid JSON\"}");
+            return;
+        }
+        if (!doc.containsKey("n")) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"missing n\"}");
+            return;
+        }
+        uint8_t n   = (uint8_t)(doc["n"].as<int>());
+        bool    val = doc["val"].as<bool>();
+        if (n >= GetOutputCount()) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"out of range\"}");
+            return;
+        }
+        SetOutput(n, val);
+        Log(LOG, "Web: io/out/%u = %s\r\n", (unsigned)n, val ? "on" : "off");
+        req->send(200, "application/json", "{\"ok\":true}");
+    },
+    nullptr,
+    _cfgBodyHandler
+  );
 
   /* GET /api/files — list LittleFS files with sizes + usage stats */
   server.on("/api/files", HTTP_GET, [](AsyncWebServerRequest *req) {

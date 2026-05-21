@@ -8,6 +8,7 @@
 #include "Remote/MasterController.h"
 #include <RemoteDeviceConfig.h>
 #include "Devices/Log.h"
+#include "HAL/Digital/Digital.h"
 
 #define MSG_BUFFER_SIZE 50
 char msg[MSG_BUFFER_SIZE];
@@ -77,6 +78,23 @@ static bool _handleRemoteWrite(const char* topic, const char* payload) {
     return false;
 }
 
+// ----------------------------------------------------------------
+// Local I/O write — handles ESPPLC/<host>/io/out/<n>
+// payload "1"/"on" → HIGH, anything else → LOW
+// ----------------------------------------------------------------
+static bool _handleIOWrite(const char* topic, const char* payload) {
+    char prefix[80];
+    snprintf(prefix, sizeof(prefix), "%s/io/out/", _mqttBase);
+    size_t plen = strlen(prefix);
+    if (strncmp(topic, prefix, plen) != 0) return false;
+    uint8_t n   = (uint8_t)atoi(topic + plen);
+    bool    val = (strcmp(payload, "1") == 0 ||
+                   strcasecmp(payload, "on") == 0);
+    SetOutput(n, val);
+    Log(LOG, "MQTT: io/out/%u = %s\r\n", (unsigned)n, val ? "on" : "off");
+    return true;
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
     String messageTemp;
     for (unsigned int i = 0; i < length; i++) messageTemp += (char)payload[i];
@@ -84,6 +102,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Log(NOTIFY, "MQTT rx [%s] %s\r\n", topic, messageTemp.c_str());
 
     if (_handleRemoteWrite(topic, messageTemp.c_str())) return;
+    if (_handleIOWrite(topic, messageTemp.c_str()))     return;
 
     char t[80];
     snprintf(t, sizeof(t), "%s/Heater", _mqttBase);
@@ -134,6 +153,7 @@ void MQTTStart() {
     snprintf(_mqttBase, sizeof(_mqttBase), "ESPPLC/%s", GetHostName().c_str());
     uint16_t port = GetMQTTPort();
     Log(LOG, "MQTT: starting — server=%s port=%u base=%s\r\n", _mqttServerBuf, port, _mqttBase);
+    client.setBufferSize(512);
     client.setServer(_mqttServerBuf, port);
     client.setCallback(callback);
 }
@@ -155,6 +175,13 @@ void MQTTreconnect(void) {
             snprintf(subTopic, sizeof(subTopic), "%s/Heater", _mqttBase);
             client.subscribe(subTopic);
 
+            /* Subscribe to local I/O output control topics */
+            for (uint8_t n = 0; n < GetOutputCount(); n++) {
+                snprintf(subTopic, sizeof(subTopic), "%s/io/out/%u", _mqttBase, (unsigned)n);
+                client.subscribe(subTopic);
+                Log(LOG, "MQTT: subscribed io/out/%u\r\n", (unsigned)n);
+            }
+
             // Auto-subscribe to all write topics nested inside groups
             const RemoteConfig_t& cfg = GetRemoteConfig();
             for (uint8_t di = 0; di < cfg.deviceCount; di++) {
@@ -172,6 +199,7 @@ void MQTTreconnect(void) {
                     }
                 }
             }
+            PublishHADiscovery();
         }
         counter++;
         if (counter > 5) {
@@ -185,6 +213,76 @@ void MQTTreconnect(void) {
 
 void SetMQTTLockout(char Mode) {
     MQTTLockout = Mode ? 1 : 0;
+}
+
+// ----------------------------------------------------------------
+// HA MQTT Discovery — publishes homeassistant/sensor/<uid>/config
+// for every mqttEnable=true register. Called once after connect.
+// Uses abbreviated HA keys to keep payloads within 512 bytes.
+// ----------------------------------------------------------------
+static void _sanitizeId(const char* in, char* out, size_t len) {
+    size_t i = 0;
+    for (; *in && i < len - 1; in++, i++) {
+        char c = *in;
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        if (c == ' ' || c == '/' || c == '.' || c == '-') c = '_';
+        out[i] = c;
+    }
+    out[i] = '\0';
+}
+
+void PublishHADiscovery() {
+    if (!MQTTActive) return;
+    const RemoteConfig_t& cfg = GetRemoteConfig();
+    if (!cfg.loaded || cfg.deviceCount == 0) return;
+
+    static char hostSafe[24];
+    _sanitizeId(GetHostName().c_str(), hostSafe, sizeof(hostSafe));
+
+    static char payload[512];
+    static char discTopic[128];
+
+    for (uint8_t di = 0; di < cfg.deviceCount; di++) {
+        const RemoteDeviceCfg_t& dev = cfg.devices[di];
+        static char devSafe[24]; _sanitizeId(dev.name, devSafe, sizeof(devSafe));
+        static char devId[52];
+        snprintf(devId, sizeof(devId), "espplc_%s_%s", hostSafe, devSafe);
+
+        for (uint8_t gi = 0; gi < dev.groupCount; gi++) {
+            const RemoteGroupCfg_t& grp = dev.groups[gi];
+            if (!grp.mqttEnable || grp.mqttTopic[0] == '\0') continue;
+
+            for (uint8_t ri = 0; ri < grp.count; ri++) {
+                const char* rname = (grp.regs[ri][0] != '\0') ? grp.regs[ri] : nullptr;
+                if (!rname) continue;
+
+                static char rSafe[24]; _sanitizeId(rname, rSafe, sizeof(rSafe));
+                static char uid[76];
+                snprintf(uid, sizeof(uid), "%s_%s", devId, rSafe);
+
+                static char statTopic[128];
+                snprintf(statTopic, sizeof(statTopic), "%s/%s/%s",
+                         _mqttBase, grp.mqttTopic, rname);
+
+                snprintf(discTopic, sizeof(discTopic),
+                         "homeassistant/sensor/%s/config", uid);
+
+                int n = snprintf(payload, sizeof(payload),
+                    "{\"name\":\"%s\","
+                    "\"stat_t\":\"%s\","
+                    "\"unit_of_meas\":\"%s\","
+                    "\"uniq_id\":\"%s\","
+                    "\"val_tpl\":\"{{value|float}}\","
+                    "\"dev\":{\"ids\":[\"%s\"],\"name\":\"%s\",\"mf\":\"ESP32PLC\"}}",
+                    rname, statTopic, grp.units, uid, devId, dev.name);
+
+                if (n > 0 && n < (int)sizeof(payload)) {
+                    client.publish(discTopic, (const uint8_t*)payload, (unsigned int)n, true);
+                    Log(LOG, "HA disc: %s\r\n", discTopic);
+                }
+            }
+        }
+    }
 }
 
 void SendDeviceEnviroment() {
@@ -241,4 +339,21 @@ void SendRemoteDevices() {
 
 char GetMQTTStatus(void) {
     return MQTTActive;
+}
+
+// ----------------------------------------------------------------
+// SendLocalIO — publishes all shield input states
+// Topic: ESPPLC/<host>/io/in/<n>   Payload: "0" or "1"
+// Call from main loop on a slow timer (e.g. every 2 s).
+// ----------------------------------------------------------------
+void SendLocalIO() {
+    if (!MQTTActive) return;
+    char topic[80];
+    char buf[2];
+    for (uint8_t n = 0; n < GetInputCount(); n++) {
+        snprintf(topic, sizeof(topic), "%s/io/in/%u", _mqttBase, (unsigned)n);
+        buf[0] = GetInput(n) ? '1' : '0';
+        buf[1] = '\0';
+        client.publish(topic, buf);
+    }
 }

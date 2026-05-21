@@ -1,11 +1,14 @@
 #ifndef DEVICECONFIG_H
 #define  DEVICECONFIG_H
 
-int GetDeviceType();
-void SetDeviceType(int value);
-char QueryLocalDevice();
-char GPIOStart();
-void SetIOType(char IOValue, unsigned int IOLocation);
+#include <WString.h>
+
+int    GetDeviceType();
+void   SetDeviceType(int value);
+char   QueryLocalDevice();
+char   GPIOStart();
+void   SetIOType(char IOValue, unsigned int IOLocation);
+String GetBoardName();
 
 #define UNUSED 0
 #define IOINPUT 1

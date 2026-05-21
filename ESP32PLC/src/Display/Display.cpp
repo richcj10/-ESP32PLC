@@ -172,3 +172,17 @@ void DisplaySetAPMode(bool ap, const char* ssid) {
     _apMode = ap;
     if (ap && ssid) strlcpy(_apSsid, ssid, sizeof(_apSsid));
 }
+
+void DisplayUploadStatus(const char* title, uint8_t pct, const char* msg) {
+    DispalySleepControl(0);
+    DisplayMode = 1;
+    _hw_brightness(200);
+    DisplayTimeoutReset();
+    UIPageUpload(title, pct, msg);
+}
+
+void DisplayUploadDone(bool success, const char* msg) {
+    UIPageUploadDone(success, msg);
+    DisplayTimeoutReset();
+    DispalySleepControl(1);
+}

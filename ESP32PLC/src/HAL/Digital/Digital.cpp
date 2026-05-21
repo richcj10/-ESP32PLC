@@ -1,67 +1,112 @@
 #include "Digital.h"
 #include <Arduino.h>
 #include "Define.h"
+#include "../DeviceConfig.h"
+#include "Devices/Log.h"
 
-int mode = 0;
+/* ── Private state ───────────────────────────────────────────────────────── */
 
-bool LastUserSWValue = 0;
-bool UserSWValue = 0;
-bool UserLEDValue = 0;
-unsigned long lastDebounceTime = 0;
+static uint8_t _inPins[8]   = {};
+static uint8_t _inCount     = 0;
+static bool    _inState[8]  = {};
 
-char InputScanArray[22] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-bool InputScanLastValue[22] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-bool InputScanCurrentValue[22] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-unsigned char InputScanCount = 0;
+static uint8_t _outPins[8]  = {};
+static uint8_t _outCount    = 0;
 
-void ScanIO(void){
-    switch (mode){
-    case 1:
-        /* code */
+static bool         _userLED    = false;
+static bool         _swLast     = false;
+static bool         _swVal      = false;
+static unsigned long _swDebounce = 0;
+
+/* ── MCU fixed pins ──────────────────────────────────────────────────────── */
+
+void DigitalStart(void) {
+    pinMode(LED,     OUTPUT);
+    pinMode(USER_SW, INPUT);
+}
+
+/* ── Shield I/O init ─────────────────────────────────────────────────────── */
+
+static void _addInput(uint8_t pin) {
+    if (_inCount < 8) { _inPins[_inCount++] = pin; }
+}
+
+static void _addOutput(uint8_t pin) {
+    if (_outCount < 8) { _outPins[_outCount++] = pin; }
+}
+
+void IOStart(void) {
+    _inCount  = 0;
+    _outCount = 0;
+
+    switch (GetDeviceType()) {
+
+    case 1:  /* ESP32-S3 standard shield */
+        _addInput(MP1INPUT);   /* 45 */
+        _addInput(MP2INPUT);   /* 48 */
+        _addInput(MP3INPUT);   /* 13 */
+        _addInput(MP4INPUT);   /* 14 */
+        _addOutput(MP1OUT);    /* 39 */
+        _addOutput(MP2OUT);    /* 41 */
+        _addOutput(MP3OUT);    /* 42 */
+        _addOutput(MP4OUT);    /* 40 */
+        _addOutput(MP5OUT);    /* 38 */
+        _addOutput(MP6OUT);    /* 12 */
         break;
-    case 2:
-        /* code */
-        break;
-    case 3:
-        /* code */
-        break;   
+
     default:
-        Serial.print("Invalid Config");
         break;
     }
+
+    for (uint8_t i = 0; i < _inCount;  i++) pinMode(_inPins[i],  INPUT);
+    for (uint8_t i = 0; i < _outCount; i++) pinMode(_outPins[i], OUTPUT);
 }
 
-void DigitalStart(void){
-    pinMode(LED,OUTPUT);
-    pinMode(USER_SW,INPUT);
+/* ── Main-loop scan ──────────────────────────────────────────────────────── */
+
+void ScanIO(void) {
+    for (uint8_t i = 0; i < _inCount; i++)
+        _inState[i] = digitalRead(_inPins[i]);
 }
 
-void SetUserLED(bool Value){
-    UserLEDValue = Value;
-    digitalWrite(LED,UserLEDValue);
+/* ── Accessors ───────────────────────────────────────────────────────────── */
+
+uint8_t GetInputCount(void)  { return _inCount; }
+uint8_t GetOutputCount(void) { return _outCount; }
+
+bool GetInput(uint8_t n) {
+    return (n < _inCount) && _inState[n];
 }
 
-void ToggletUserLED(){
-    UserLEDValue = !UserLEDValue;
-    digitalWrite(LED,UserLEDValue);
+bool GetOutput(uint8_t n) {
+    return (n < _outCount) && (bool)digitalRead(_outPins[n]);
 }
 
-void ScanUserInput(void){
-    char Value = digitalRead(USER_SW);
-    if(LastUserSWValue != Value){
-        lastDebounceTime = millis();
-    }
-    if((millis() - lastDebounceTime) > 200){
-        UserSWValue = Value;
-    }
-    LastUserSWValue = Value;
+void SetOutput(uint8_t n, bool val) {
+    if (n < _outCount) digitalWrite(_outPins[n], val ? HIGH : LOW);
 }
 
-bool GetUserSWValue(void){
-    return !UserSWValue;
+/* ── MCU user controls ───────────────────────────────────────────────────── */
+
+void SetUserLED(bool val) {
+    _userLED = val;
+    digitalWrite(LED, _userLED);
 }
 
-void ScanArrayAdd(char IOpin){
-    InputScanCount++;
-    InputScanArray[InputScanCount] = IOpin;
+void ToggletUserLED(void) {
+    _userLED = !_userLED;
+    digitalWrite(LED, _userLED);
 }
+
+void ScanUserInput(void) {
+    bool val = (bool)digitalRead(USER_SW);
+    if (_swLast != val) _swDebounce = millis();
+    if ((millis() - _swDebounce) > 200) _swVal = val;
+    _swLast = val;
+}
+
+bool GetUserSWValue(void) { return !_swVal; }
+
+/* ── Legacy shim ─────────────────────────────────────────────────────────── */
+
+void ScanArrayAdd(char /*pin*/) {}  /* no-op; GPIOStart() path is superseded by IOStart() */

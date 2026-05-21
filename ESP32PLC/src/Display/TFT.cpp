@@ -81,8 +81,8 @@ void TFTInit() {
 
     StatusBar.createSprite(20, 240);
     Bottom.createSprite(30, 240);
-    // Logo centered horizontally (180px wide) at top for boot screen
-    xpos = (320 - 180) / 2;  // = 70
+    // Logo centered horizontally (200px wide) at top for boot screen
+    xpos = (320 - 200) / 2;  // = 60
     ypos = 5;
     TFTLogo();
 }
@@ -181,7 +181,7 @@ void TFTLogo() {
 
 int pngDraw(PNGDRAW *pDraw) {
     uint16_t lineBuffer[MAX_IMAGE_WIDTH];
-    png.getLineAsRGB565(pDraw, lineBuffer, PNG_RGB565_BIG_ENDIAN, 0xffffffff);
+    png.getLineAsRGB565(pDraw, lineBuffer, PNG_RGB565_BIG_ENDIAN, 0xff000000);
     tft.pushImage(xpos, ypos + pDraw->y, pDraw->iWidth, 1, lineBuffer);
     return 1;
 }

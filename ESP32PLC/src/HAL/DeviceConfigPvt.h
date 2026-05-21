@@ -38,7 +38,7 @@ typedef struct{
 
 inventory inv = {
     {
-        {"Defult",0,ONEWIRE,0,IOOUTPUT,IOINPUT,0,UART1TX,UART1RX,IOOUTPUT,NEOPIXEL,IOSDA,IOSCL,0,0,IOINPUT,IOOUTPUT,0,IOOUTPUT,IOOUTPUT,IOOUTPUT,1},  /* init SwordInvent[0] */
+        {"Defult",0,ONEWIRE,0,IOOUTPUT,IOINPUT,0,UNUSED,UNUSED,IOOUTPUT,NEOPIXEL,IOSDA,IOSCL,0,0,IOINPUT,IOOUTPUT,0,IOOUTPUT,IOOUTPUT,IOOUTPUT,1},  /* init SwordInvent[0] */
         {"Inputs",0,ONEWIRE,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},  /* init SwordInvent[1] */
         {"Outputs",0,ONEWIRE,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},  /* init SwordInvent[1] */
         {"Nepixel",0,ONEWIRE,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},  /* init SwordInvent[1] */

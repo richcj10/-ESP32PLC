@@ -12,6 +12,7 @@
 #include "Devices/JoyStick.h"
 #include "Webportal.h"
 #include "Remote/MasterController.h"
+#include "Remote/FwUpdater.h"
 #include "Devices/Log.h"
 #include "Display/TFT.h"
 #include "WifiControl/WifiConfig.h"
@@ -49,9 +50,37 @@ void SystemStart(){
   JoyStickStart();
 }
 
+static bool         _fwDoneShown = false;
+static unsigned long _fwDoneTime  = 0;
+
 void UIUpdateLoop(){
   JoyStickUpdate();
   LEDUpdate();
+
+  const FwUpdater::Status& fws = fwUpdater.getStatus();
+
+  if (fws.running) {
+    /* Device FW flash in progress — take over the display */
+    _fwDoneShown = false;
+    char msg[32];
+    snprintf(msg, sizeof(msg), "Slave 0x%02X", (unsigned)fws.slaveId);
+    DisplayUploadStatus("DEVICE UPDATE", fws.progress, msg);
+    WebHandel();
+    return;
+  }
+
+  if (fws.done && !_fwDoneShown) {
+    /* Show result screen once, hold it for 3 s */
+    _fwDoneShown = true;
+    _fwDoneTime  = millis();
+    DisplayUploadDone(fws.success, fws.message);
+  }
+
+  if (fws.done && (millis() - _fwDoneTime < 3000)) {
+    WebHandel();
+    return;
+  }
+
   DisplayManager();
   WebHandel();
 }
@@ -88,52 +117,33 @@ void setup_ota() {
   //ArduinoOTA.setPassword(WiFiSettings.password.c_str());
 
   ArduinoOTA.onStart([]() {
-    if (ArduinoOTA.getCommand() == U_SPIFFS) {
-      LittleFS.end();   // must unmount before overwriting the partition
+    bool isFS = (ArduinoOTA.getCommand() == U_SPIFFS);
+    if (isFS) {
+      LittleFS.end();
       Log(NOTIFY_FORCE, "OTA FS Update!");
     } else {
       Log(NOTIFY_FORCE, "OTA FW Update!");
     }
-    delay(100);
-    DisplayLog(" Getting OTA Update...");
-    delay(1000);
-    TFTBargraph(1);
+    DisplayUploadStatus(isFS ? "OTA FS" : "OTA UPDATE", 0, "Starting...");
   });
   ArduinoOTA.onEnd([]() {
-    Log(NOTIFY_FORCE,"OTA Update - Complete");
+    Log(NOTIFY_FORCE, "OTA Update - Complete");
+    DisplayUploadDone(true, "Restarting...");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    //if(numb == 0){
-    //  Serial.print(progress);
-    //  Serial.print(" ");
-    //  Serial.println(total);
-    //}
-    //numb = 1;
-    //OTA = String("Progress: %d\r", (progress / (total)));
-    float Precent = ((float)progress / (float)total)*100;
-    Serial.print(" progress = ");
-    Serial.println(progress);
-    Serial.print(" total = ");
-    Serial.println(total);
-    Serial.print(" Precent = ");
-    Serial.println(Precent);
-    TFTBargraphUpdate(Precent);
-    delay(10);
-    //Log(NOTIFY_FORCE,"OTA");
-    //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    bool    isFS = (ArduinoOTA.getCommand() == U_SPIFFS);
+    uint8_t pct  = (total > 0) ? (uint8_t)((float)progress / (float)total * 100.0f) : 0;
+    DisplayUploadStatus(isFS ? "OTA FS" : "OTA UPDATE", pct, "Uploading...");
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR){
-      Log(NOTIFY_FORCE,"Auth Failed");
-      return 0; //Don't restart due to password issue. 
-    }
-    else if (error == OTA_BEGIN_ERROR) Log(NOTIFY_FORCE,"Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Log(NOTIFY_FORCE,"Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Log(NOTIFY_FORCE,"Receive Failed");
-    else if (error == OTA_END_ERROR) Log(NOTIFY_FORCE,"End Failed");
-    ESP.restart();
-    return 0;
+    const char* errMsg = (error == OTA_AUTH_ERROR)    ? "Auth Failed"    :
+                         (error == OTA_BEGIN_ERROR)   ? "Begin Failed"   :
+                         (error == OTA_CONNECT_ERROR) ? "Connect Failed" :
+                         (error == OTA_RECEIVE_ERROR) ? "Receive Failed" :
+                         (error == OTA_END_ERROR)     ? "End Failed"     : "Unknown Error";
+    Log(NOTIFY_FORCE, "OTA Error: %s", errMsg);
+    DisplayUploadDone(false, errMsg);
+    if (error != OTA_AUTH_ERROR) ESP.restart();
   });
 
   ArduinoOTA.begin();

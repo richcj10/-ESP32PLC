@@ -3,7 +3,7 @@
 #include <FastLED.h>
 #include "Devices/Log.h"
 
-#define PIN 3 
+#define PIN 3
 #define NUMPIXELS 1
 char Brightness = 50;
 CRGB leds[NUMPIXELS];
@@ -16,7 +16,7 @@ long LEDUpdateInterval = 100;
 unsigned long LEDcurrentMillis = 0;
 
 void StatusLEDStart(){
-  FastLED.addLeds<NEOPIXEL, PIN>(leds, NUMPIXELS);  // GRB ordering is assumed
+  FastLED.addLeds<NEOPIXEL, PIN>(leds, NUMPIXELS);
 }
 
 void LEDBoot(){
@@ -63,71 +63,43 @@ char GetStatus(){
 
 void WiFiFcn(){
   switch (LEDAnaimation){
-  case 0:
-    FastLED.showColor(CRGB(0, 0, 100));
-    break;
-  case 1:
-    FastLED.showColor(CRGB(0, 0, 150));
-    break;
-  case 2:
-    FastLED.showColor(CRGB(0, 0, 200));
-    break;
-  case 3:
-    FastLED.showColor(CRGB(0, 0, 255));
-    break;
+  case 0: FastLED.showColor(CRGB(0, 0, 100)); break;
+  case 1: FastLED.showColor(CRGB(0, 0, 150)); break;
+  case 2: FastLED.showColor(CRGB(0, 0, 200)); break;
+  case 3: FastLED.showColor(CRGB(0, 0, 255)); break;
   }
   LEDAnaimation++;
-  if(LEDAnaimation > 4){
-    LEDAnaimation = 0;
-  }
+  if(LEDAnaimation > 4) LEDAnaimation = 0;
 }
 
 void NormalFcn(){
   switch (LEDAnaimation){
-    case 0:
-      FastLED.showColor(CRGB(0, 255, 0));
-      break;
-    case 1:
-      FastLED.showColor(CRGB(0, 0, 0));
-      break;
-    default:
-      break;
+  case 0: FastLED.showColor(CRGB(0, 255, 0)); break;
+  case 1: FastLED.showColor(CRGB(0, 0, 0));   break;
   }
   LEDAnaimation++;
-  if(LEDAnaimation > 1){
-    LEDAnaimation = 0;
-  }
+  if(LEDAnaimation > 1) LEDAnaimation = 0;
 }
 
 void MQTTFcn(){
   switch (LEDAnaimation){
-  case 0:
-    FastLED.showColor(CRGB(0, 0, 0));
-    break;
-  case 1:
-    FastLED.showColor(CRGB(0, 0, 10));
-    break;
-  case 2:
-    FastLED.showColor(CRGB(0, 10, 0));
-    break;
-  case 3:
-    FastLED.showColor(CRGB(10, 0, 0));
-    break;
+  case 0: FastLED.showColor(CRGB(0, 0, 0));   break;
+  case 1: FastLED.showColor(CRGB(0, 0, 10));  break;
+  case 2: FastLED.showColor(CRGB(0, 10, 0));  break;
+  case 3: FastLED.showColor(CRGB(10, 0, 0));  break;
   }
   LEDAnaimation++;
-  if(LEDAnaimation > 4){
-    LEDAnaimation = 0;
-  }
+  if(LEDAnaimation > 4) LEDAnaimation = 0;
 }
 
 void LEDUpdate(char Value) {
   color = Value;
-  FastLED.showColor(CHSV(color, 255, Brightness)); 
+  FastLED.showColor(CHSV(color, 255, Brightness));
 }
 
 void LEDBrightness(char Value) {
   Brightness = Value;
-  FastLED.showColor(CHSV(color, 255, Brightness)); 
+  FastLED.showColor(CHSV(color, 255, Brightness));
 }
 
 char LEDGetValue(){
