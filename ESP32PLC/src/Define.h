@@ -25,7 +25,7 @@
 #define MP3OUT 42
 #define MP4OUT 40
 #define MP5OUT 38
-#define MP6OUT 12
+// #define MP6OUT   /* not wired */
 
 #define HIGHRSSI 56
 #define LOWRSSI 80

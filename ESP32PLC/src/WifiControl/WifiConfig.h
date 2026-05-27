@@ -5,6 +5,7 @@
 #define WIFI_AP_MODE 2
 
 char SetupWiFi(void);
+void WiFiRecoveryLoop(void);
 char GetWiFisetupMode(void);
 void SetWiFisetupMode(char value);
 String GetIPStr();

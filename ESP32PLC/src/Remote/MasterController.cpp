@@ -32,7 +32,26 @@ ModuleStatus_t RemoteDevStatus(uint8_t devIdx) { return remoteMaster.devStatus(d
 char RemoteStart() {
     remoteMaster.setPublishCallback(_mqttPublish);
 
-    if (!remoteMaster.begin(master, GetRemoteConfig())) {
+    const RemoteConfig_t& cfg = GetRemoteConfig();
+    Log(NOTIFY, "Remote: config loaded=%s deviceCount=%u\r\n",
+        cfg.loaded ? "yes" : "NO", (unsigned)cfg.deviceCount);
+
+    if (cfg.loaded) {
+        for (uint8_t i = 0; i < cfg.deviceCount; i++) {
+            const RemoteDeviceCfg_t& d = cfg.devices[i];
+            Log(NOTIFY, "Remote:   dev[%u] name=%s addr=%u groups=%u typeId=%u swVer=0x%04X\r\n",
+                i, d.name, (unsigned)d.address, (unsigned)d.groupCount,
+                (unsigned)d.typeId, (unsigned)d.swVersion);
+            for (uint8_t g = 0; g < d.groupCount; g++) {
+                const RemoteGroupCfg_t& gr = d.groups[g];
+                Log(NOTIFY, "Remote:     grp[%u] name=%s fc=%u reg=%u+%u poll=%lums\r\n",
+                    g, gr.name, (unsigned)gr.fc, (unsigned)gr.startReg,
+                    (unsigned)gr.count, (unsigned long)gr.pollMs);
+            }
+        }
+    }
+
+    if (!remoteMaster.begin(master, cfg)) {
         // No JSON config — fall back to hardcoded OCC at address 22
         Log(NOTIFY, "Remote: no JSON config — using hardcoded OCC defaults\r\n");
         ModbusDevice* dev = new ModbusDevice(22, READ_INPUT_REGISTERS, 0, 3);
@@ -40,6 +59,9 @@ char RemoteStart() {
         master.addDevice(*dev);
         master.begin();
     }
+
+    Log(NOTIFY, "Remote: polling started — %u group(s) registered\r\n",
+        (unsigned)remoteMaster.grpCount());
     return 1;
 }
 
@@ -55,6 +77,11 @@ bool IsRemotePollingActive(){ return !remoteMaster.suspended(); }
 // ----------------------------------------------------------------
 uint8_t GetFwDeviceList(FwDeviceInfo *out, uint8_t maxCount) {
     return remoteMaster.getDeviceList(out, maxCount);
+}
+
+bool QueueModbusWriteRegs(uint8_t addr, uint16_t startReg,
+                          const uint16_t *values, uint8_t count) {
+    return master.queueWriteMulti(addr, startReg, values, count);
 }
 
 // ----------------------------------------------------------------

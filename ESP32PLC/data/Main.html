@@ -211,6 +211,7 @@
       </div>
 
       <div id="discovery-cards" style="margin-top:12px;"></div>
+      <div id="discovery-debug" style="display:none;font-size:11px;font-family:monospace;color:var(--muted);background:var(--card2);border-radius:4px;padding:8px;margin-top:6px;word-break:break-all;"></div>
 
       <div class="card">
         <div class="card-title">Configured Devices</div>
@@ -254,6 +255,22 @@
           <button class="btn" onclick="saveRawConfig()">Save</button>
           <button class="btn-ghost" onclick="toggleRawEditor()">Cancel</button>
           <span class="status-text" id="raw-editor-status"></span>
+        </div>
+      </div>
+
+      <div class="card" id="addr-change-card" style="display:none">
+        <div class="card-title">Change Device Address</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+          Current address: <strong id="addr-change-current">—</strong>
+        </div>
+        <div class="form-row">
+          <label>New Address</label>
+          <input type="number" id="addr-change-new" min="1" max="247" placeholder="1–247">
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="sendAddrChange()">Send</button>
+          <button class="btn-ghost" onclick="document.getElementById('addr-change-card').style.display='none'">Cancel</button>
+          <span class="status-text" id="addr-change-status"></span>
         </div>
       </div>
 
@@ -360,10 +377,7 @@
       <div class="card">
         <div class="terminal" id="history"></div>
         <div class="btn-row" style="margin-top:10px;">
-          <input type="text" id="Loginput" placeholder="Send command…"
-            style="flex:1;min-width:0;background:var(--bg);border:1px solid var(--border);
-                   border-radius:5px;color:var(--text);padding:6px 10px;font-size:13px;outline:none;">
-          <button class="btn" id="SendInput">Send</button>
+          <button class="btn" id="ClearLog">Clear</button>
         </div>
       </div>
     </div>
@@ -383,6 +397,12 @@
             <tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">Loading…</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="card">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="fw-skip-trigger">
+          Skip bootloader trigger (device already in BL mode)
+        </label>
       </div>
       <div class="card" id="fw-panel" style="display:none;">
         <div class="card-title">Progress</div>
@@ -733,25 +753,37 @@ function loadFwDeviceList() {
 function uploadFw(slaveId) {
   var file = document.getElementById('fw-file-' + slaveId).files[0];
   if (!file) return;
+  setFwProgress(0);
   document.getElementById('fw-msg').innerText = 'Uploading ' + file.name + '…';
-  document.getElementById('fw-panel').style.display = 'block';
   var form = new FormData();
   form.append('fw', file, file.name);
-  fetch('/fw/upload?id=' + slaveId, { method:'POST', body:form })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      document.getElementById('fw-msg').innerText = d.ok ? 'Upload OK: ' + d.msg : 'Failed: ' + d.msg;
-      if (d.ok) loadFwDeviceList();
-    })
-    .catch(function(e) { document.getElementById('fw-msg').innerText = 'Upload error: ' + e; });
+  var xhr = new XMLHttpRequest();
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) setFwProgress(Math.round(e.loaded / e.total * 100));
+  };
+  xhr.onload = function() {
+    var d;
+    try { d = JSON.parse(xhr.responseText); } catch(ex) { d = { ok: false, msg: xhr.responseText }; }
+    setFwProgress(d.ok ? 100 : 0);
+    document.getElementById('fw-msg').innerText = d.ok ? 'Upload OK: ' + d.msg : 'Failed: ' + d.msg;
+    if (d.ok) loadFwDeviceList();
+  };
+  xhr.onerror = function() { document.getElementById('fw-msg').innerText = 'Upload error'; };
+  xhr.open('POST', '/fw/upload?id=' + slaveId);
+  xhr.send(form);
 }
 
 function flashFw(slaveId) {
-  if (!confirm('Flash firmware to device ID ' + slaveId + '?\nModbus polling pauses during update.')) return;
+  var skipTrigger = document.getElementById('fw-skip-trigger').checked;
+  var msg = 'Flash firmware to device ID ' + slaveId + '?\nModbus polling pauses during update.';
+  if (skipTrigger) msg += '\n\nSKIP TRIGGER: device must already be in bootloader mode.';
+  if (!confirm(msg)) return;
   document.getElementById('fw-panel').style.display = 'block';
-  document.getElementById('fw-msg').innerText = 'Starting flash for slave ' + slaveId + '…';
+  document.getElementById('fw-msg').innerText = 'Starting flash for slave ' + slaveId +
+    (skipTrigger ? ' (skip trigger)' : '') + '…';
   setFwProgress(0);
-  fetch('/fw/flash?id=' + slaveId, { method:'POST' })
+  var url = '/fw/flash?id=' + slaveId + (skipTrigger ? '&skip_trigger=1' : '');
+  fetch(url, { method:'POST' })
     .then(function(r) { return r.json(); })
     .then(function(d) { if (!d.ok) document.getElementById('fw-msg').innerText = 'Error: ' + d.msg; })
     .catch(function(e) { document.getElementById('fw-msg').innerText = 'Flash error: ' + e; });
@@ -760,14 +792,61 @@ function flashFw(slaveId) {
 /* ── Devices tab ────────────────────────────────────────── */
 var _devList = [];   // full devices array (includes groups) from last load
 var _editIdx = -1;   // -1 = new device, >=0 = editing existing
+var _addrChangeIdx = -1;
+
+var MBBP_ADDR_CHANGE_KEY = 0xA5B0;  // matches ModBusBL2000 firmware
+
+function showAddrChange(devIdx) {
+  _addrChangeIdx = devIdx;
+  var dev = _devList[devIdx];
+  document.getElementById('addr-change-current').innerText = dev.address;
+  document.getElementById('addr-change-new').value = '';
+  setStatus('addr-change-status', '');
+  document.getElementById('addr-change-card').style.display = 'block';
+}
+
+function sendAddrChange() {
+  var dev     = _devList[_addrChangeIdx];
+  var newAddr = parseInt(document.getElementById('addr-change-new').value, 10);
+  if (isNaN(newAddr) || newAddr < 1 || newAddr > 247) {
+    setStatus('addr-change-status', 'Address must be 1–247', true); return;
+  }
+  setStatus('addr-change-status', 'Sending…');
+  fetch('/api/modbus/write-regs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ addr: dev.address, startReg: 0,
+                           values: [newAddr, MBBP_ADDR_CHANGE_KEY] })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok) { setStatus('addr-change-status', 'Write failed: ' + (d.msg || ''), true); return; }
+    setStatus('addr-change-status', 'Sent — updating config…');
+    setTimeout(function() {
+      dev.address = newAddr;
+      var body = { rev: '2.0', devices: _devList.map(function(d) {
+        var c = Object.assign({}, d); delete c.status; delete c.statusDetail; return c;
+      })};
+      fetch('/api/devices/save', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          document.getElementById('addr-change-card').style.display = 'none';
+          loadDeviceList();
+        } else {
+          setStatus('addr-change-status', 'Config save failed: ' + (d.msg || ''), true);
+        }
+      })
+      .catch(function(e) { setStatus('addr-change-status', 'Save error: ' + e, true); });
+    }, 1500);
+  })
+  .catch(function(e) { setStatus('addr-change-status', 'Error: ' + e, true); });
+}
 // GitHub device library — browser fetches directly (zero MCU flash cost).
-// DEVICE_PRESETS is the offline fallback for the three built-in device types.
 var DEVICE_LIBRARY_URL = 'https://raw.githubusercontent.com/richcj10/ESP32PLC-DeviceLibrary/main/devices.json';
-var DEVICE_PRESETS = {
-  2:  { name:'OCC',           typeId:2,  swVersion:4, groups:[{name:'Occupancy',fc:4,startReg:2,count:7,pollMs:1500,scale:100,units:'',regs:['VIN','Temp1','Temp2','Humid1','Humid2','Pres','Lux'],mqttEnable:true,mqttTopic:'remote/OCC',writes:[{name:'LED',fc:16,startReg:0,count:3,regs:[18,'R','GB'],defaults:[18,0,0],mqttTopic:'remote/OCC/led/set'}]}]},
-  5:  { name:'CurrentSensor', typeId:5,  swVersion:2, groups:[{name:'Current',fc:4,startReg:0,count:6,pollMs:1000,scale:100,units:'A',regs:['Version','DevType','VIN','CS1','CS2','CS3'],mqttEnable:true,mqttTopic:'remote/CS',writes:[]}]},
-  13: { name:'WeatherStation',typeId:13, swVersion:3, groups:[{name:'Climate',fc:4,startReg:0,count:8,pollMs:2000,scale:100,units:'',regs:['Version','DevType','Temp','Humid','Pres','WindSpd','WindDir','Rain'],mqttEnable:true,mqttTopic:'remote/WS',writes:[{name:'RainReset',fc:5,startReg:2,count:1,regs:['Reset'],defaults:[0],mqttTopic:'remote/WS/rain/reset'},{name:'WindCal',fc:5,startReg:3,count:1,regs:['Cal'],defaults:[0],mqttTopic:'remote/WS/wind/calibrate'}]},{name:'Lightning',fc:4,startReg:8,count:1,pollMs:2000,scale:1,units:'',regs:['Lightning'],mqttEnable:true,mqttTopic:'remote/WS',writes:[]}]}
-};
 var _githubDevices = null;
 var _lastProbe     = null;
 var _liveAddr      = null;
@@ -836,6 +915,9 @@ function renderDeviceList() {
         'onclick="showLiveData(' + (dev.address !== undefined ? dev.address : 'undefined') + ')">Live</button>' +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
         'onclick="editDevice(' + i + ')">Edit</button>' +
+        (dev.status === 'valid' ?
+          '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
+          'onclick="showAddrChange(' + i + ')">Addr</button>' : '') +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;" ' +
         'onclick="deleteDevice(' + i + ')">Del</button>' +
       '</td>' +
@@ -1033,7 +1115,7 @@ function _fetchLiveData() {
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;">';
         (g.regs || []).forEach(function(r) {
           var disp = (r.v % 1 === 0) ? r.v.toString() : r.v.toFixed(2);
-          if (g.units) disp += ' ' + g.units;
+          if (r.u) disp += ' ' + r.u;
           html += '<div style="background:var(--card2);border-radius:5px;padding:6px 8px;">' +
                   '<div style="font-size:11px;color:var(--muted);">' + r.n + '</div>' +
                   '<div style="font-size:15px;font-weight:600;">' + disp + '</div></div>';
@@ -1099,9 +1181,14 @@ function _showDiscoveryCards(probeArr) {
   if (!unconfigured.length) return;
   var html = '<div class="card" style="margin-top:0;"><div class="card-title" style="margin-bottom:8px;">New Devices Found</div>';
   unconfigured.forEach(function(p) {
-    var preset = DEVICE_PRESETS[p.t];
-    var label  = preset ? preset.name : 'Unknown';
-    var tc     = preset ? 'var(--green)' : 'var(--yellow)';
+    var known = null;
+    if (_githubDevices) {
+      for (var i = 0; i < _githubDevices.length; i++) {
+        if (_githubDevices[i].typeId === p.t) { known = _githubDevices[i]; break; }
+      }
+    }
+    var label = known ? known.name : ('TypeID ' + p.t);
+    var tc    = known ? 'var(--green)' : 'var(--yellow)';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;' +
             'padding:8px 0;border-bottom:1px solid var(--border);">' +
             '<div>' +
@@ -1109,9 +1196,9 @@ function _showDiscoveryCards(probeArr) {
               '&nbsp;<span style="color:' + tc + ';font-size:12px;">' + label + '</span>' +
               '&nbsp;<span style="color:var(--muted);font-size:11px;">v' + p.v + ' · tid ' + p.t + '</span>' +
             '</div><div style="display:flex;gap:6px;">';
-    if (preset) {
+    if (known) {
       html += '<button class="btn" style="font-size:12px;padding:4px 10px;" ' +
-              'onclick="_addDiscoveredDevice(' + p.a + ',' + p.t + ',\'preset\')">Add</button>';
+              'onclick="_addDiscoveredDevice(' + p.a + ',' + p.t + ')">Add</button>';
     } else {
       html += '<button class="btn-ghost" style="font-size:12px;padding:4px 10px;" ' +
               'onclick="fetchFromGitHub(this,' + p.a + ',' + p.t + ')">Fetch</button>';
@@ -1122,11 +1209,9 @@ function _showDiscoveryCards(probeArr) {
   container.innerHTML = html;
 }
 
-function _addDiscoveredDevice(addr, typeId, source) {
+function _addDiscoveredDevice(addr, typeId) {
   var preset = null;
-  if (source === 'preset') {
-    preset = DEVICE_PRESETS[typeId];
-  } else if (_githubDevices) {
+  if (_githubDevices) {
     for (var i = 0; i < _githubDevices.length; i++) {
       if (_githubDevices[i].typeId === typeId) { preset = _githubDevices[i]; break; }
     }
@@ -1150,25 +1235,40 @@ function _addDiscoveredDevice(addr, typeId, source) {
     .catch(function(e) { _devList.pop(); alert('Error: ' + e); });
 }
 
+function _dbg(msg) {
+  var el = document.getElementById('discovery-debug');
+  el.style.display = 'block';
+  el.innerText = msg;
+}
+
 function fetchFromGitHub(btn, addr, typeId) {
+  if (_githubDevices) { _addDiscoveredDevice(addr, typeId); return; }
   btn.innerText = 'Fetching…';
   btn.disabled  = true;
   fetch(DEVICE_LIBRARY_URL)
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+      return r.json();
+    })
     .then(function(lib) {
       _githubDevices = lib.devices || lib;
-      var found = false;
-      for (var i = 0; i < _githubDevices.length; i++) {
-        if (_githubDevices[i].typeId === typeId) { found = true; break; }
+      if (!Array.isArray(_githubDevices)) {
+        _dbg('Bad library format: ' + JSON.stringify(lib).slice(0, 100));
+        btn.innerText = 'Bad format'; btn.disabled = false; return;
       }
+      var found = _githubDevices.some(function(d) { return d.typeId === typeId; });
       if (found) {
-        _addDiscoveredDevice(addr, typeId, 'github');
+        if (_lastProbe) _showDiscoveryCards(_lastProbe);
+        _addDiscoveredDevice(addr, typeId);
       } else {
+        _dbg('TypeID ' + typeId + ' not in library. Available: ' +
+             _githubDevices.map(function(d) { return d.typeId; }).join(', '));
         btn.innerText = 'Not found';
         btn.disabled  = false;
       }
     })
-    .catch(function() {
+    .catch(function(e) {
+      _dbg('Fetch error: ' + e.message);
       btn.innerText = 'Offline';
       btn.disabled  = false;
     });
@@ -1194,11 +1294,8 @@ function appendLog(data) {
   el.scrollTop = el.scrollHeight;
 }
 
-document.getElementById('SendInput').addEventListener('click', function() {
-  var input = document.getElementById('Loginput');
-  var val = input.value.trim();
-  if (!val) { alert("Input can't be empty!"); return; }
-  appendLog(val + '\n');
+document.getElementById('ClearLog').addEventListener('click', function() {
+  document.getElementById('history').innerText = '';
 });
 
 /* ── Helpers ────────────────────────────────────────────── */

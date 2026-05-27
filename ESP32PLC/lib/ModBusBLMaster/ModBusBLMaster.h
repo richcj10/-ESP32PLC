@@ -34,9 +34,11 @@ public:
     /* Step 3: stream firmware binary, verify CRC, jump. */
     bool flashFirmware(uint8_t slaveId, const uint8_t *firmware, uint32_t firmwareSize);
 
-    /* Convenience: trigger → connect → flash. */
+    /* Convenience: trigger → connect → flash.
+     * Set skipTrigger=true if the device is already in bootloader mode. */
     bool updateFirmware(uint8_t slaveId, const uint8_t *firmware,
-                        uint32_t firmwareSize, uint8_t connectRetries = 5);
+                        uint32_t firmwareSize, uint8_t connectRetries = 5,
+                        bool skipTrigger = false);
 
     void setProgressCallback(void (*cb)(uint8_t percent)) { _progressCb = cb; }
     const char *lastError() const { return _lastError; }

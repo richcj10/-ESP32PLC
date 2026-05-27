@@ -22,43 +22,26 @@
 int BuffSize = 0;
 
 void setup() {
-  yield();
-  Log(DEBUG,">> SystemStart");
   SystemStart();
-  yield();
+   delay(1);
   Log(DEBUG,">> SystemStart done");
-  Log(ERROR,"Startup Complete");
   pinMode(16, INPUT);
   LEDBoot();
-  Log(DEBUG,">> FileStstemStart");
-  if(FileStstemStart()){
-    DisplayLog(" FS OK ");
-    delay(1000);
-  }
-  else{
-    DisplayLog(" FS ERROR ");
-    delay(1000);
-  }
-  yield();
   Log(DEBUG,">> QueryLocalDevice");
   QueryLocalDevice();
   Log(DEBUG,">> DigitalStart");
   DigitalStart();
   Log(DEBUG,">> IOStart");
   IOStart();
-  yield();
   DisplayLog(" Connecting to WiFi...");
   Log(DEBUG,">> SetupWiFi");
-  yield();
   SetupWiFi();   // retries STA 3x then falls back to AP internally
-  yield();
   Log(DEBUG,">> setup_ota");
   setup_ota();
   DisplayLog(GetIPStr().c_str());
-  delay(1000);
+  delay(1);
   Log(DEBUG,">> InitSensors");
   InitSensors();
-  yield();
   Log(DEBUG,">> MQTTStart");
   MQTTStart();
   Log(DEBUG,">> WebStart");
@@ -94,6 +77,7 @@ unsigned long LastSendTimeCH1, LastSendTimeCH2, LastSendTimeCH3, LastSendTimeCH4
 char CH1FT, CH2FT, CH3FT, CH4FT, CH5FT = 0;
 
 void loop() {
+  WiFiRecoveryLoop();
   CaptivePortalLoop();
   ScanIO();
   RemoteRun();

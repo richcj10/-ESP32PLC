@@ -2,51 +2,33 @@
   "rev": "2.0",
   "devices": [
     {
-      "name": "OCC-TOL",
-      "address": 22,
-      "typeId": 2,
-      "swVersion": 4,
-      "groups": [
-        {
-          "name": "Occupancy",
-          "fc": 4,
-          "startReg": 2,
-          "count": 7,
-          "pollMs": 1500,
-          "scale": 100,
-          "units": "",
-          "regs": ["VIN", "Temp1", "Temp2", "Humid1", "Humid2", "Pres", "Lux"],
-          "mqttEnable": true,
-          "mqttTopic": "remote/OCC-Desk",
-          "writes": [
-            {
-              "name": "LED",
-              "fc": 16,
-              "startReg": 0,
-              "count": 3,
-              "regs": [18, "R", "GB"],
-              "defaults": [18, 0, 0],
-              "mqttTopic": "/remote/OCC-Desk/led/set"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "CurrentSensor",
-      "address": 5,
-      "typeId": 5,
+      "name": "CurrentSensor1",
+      "address": 12,
+      "typeId": 30,
       "swVersion": 2,
       "groups": [
         {
-          "name": "Current",
+          "name": "Device",
           "fc": 4,
           "startReg": 0,
-          "count": 6,
+          "count": 2,
+          "pollMs": 30000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Version", "DevType"],
+          "mqttEnable": false,
+          "mqttTopic": "remote/CS/diag",
+          "writes": []
+        },
+        {
+          "name": "Current",
+          "fc": 4,
+          "startReg": 2,
+          "count": 4,
           "pollMs": 1000,
           "scale": 100,
-          "units": "A",
-          "regs": ["Version", "DevType", "VIN", "CS1", "CS2", "CS3"],
+          "units": ["V", "A", "A", "A"],
+          "regs": ["VIN", "CS1", "CS2", "CS3"],
           "mqttEnable": true,
           "mqttTopic": "remote/CS",
           "writes": []
@@ -55,19 +37,19 @@
     },
     {
       "name": "Weather Station",
-      "address": 10,
+      "address": 40,
       "typeId": 13,
       "swVersion": 3,
       "groups": [
         {
           "name": "Climate",
           "fc": 4,
-          "startReg": 0,
-          "count": 8,
+          "startReg": 2,
+          "count": 7,
           "pollMs": 2000,
           "scale": 100,
-          "units": "",
-          "regs": ["Version", "DevType", "Temp", "Humid", "Pres", "WindSpd", "WindDir", "Rain"],
+          "units": ["V", "°F", "%", "kPa", "mph", "°", "in"],
+          "regs": ["VIN", "Temp", "Humid", "Pres", "WindSpd", "WindDir", "Rain"],
           "mqttEnable": true,
           "mqttTopic": "remote/WS",
           "writes": [
@@ -92,9 +74,22 @@
           ]
         },
         {
+          "name": "Device",
+          "fc": 4,
+          "startReg": 0,
+          "count": 2,
+          "pollMs": 5000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Version", "DevType"],
+          "mqttEnable": false,
+          "mqttTopic": "remote/WS/diag",
+          "writes": []
+        },
+        {
           "name": "Lightning",
           "fc": 4,
-          "startReg": 8,
+          "startReg": 9,
           "count": 1,
           "pollMs": 2000,
           "scale": 1,
@@ -102,6 +97,19 @@
           "regs": ["Lightning"],
           "mqttEnable": true,
           "mqttTopic": "remote/WS",
+          "writes": []
+        },
+        {
+          "name": "Diagnostics",
+          "fc": 4,
+          "startReg": 10,
+          "count": 3,
+          "pollMs": 5000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Heartbeat", "ErrCount", "UptimeMin"],
+          "mqttEnable": false,
+          "mqttTopic": "remote/WS/diag",
           "writes": []
         }
       ]

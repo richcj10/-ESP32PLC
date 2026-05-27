@@ -74,4 +74,8 @@ using FwDeviceInfo = RemoteMaster::DeviceInfo;
 /* Fills 'out' with up to maxCount entries. Returns actual count. */
 uint8_t GetFwDeviceList(FwDeviceInfo *out, uint8_t maxCount);
 
+/* ── Ad-hoc Modbus write (FC16 multiple holding registers) ─────────────── */
+bool QueueModbusWriteRegs(uint8_t addr, uint16_t startReg,
+                          const uint16_t *values, uint8_t count);
+
 #endif

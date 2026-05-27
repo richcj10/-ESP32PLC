@@ -16,6 +16,7 @@
 #include "Devices/Log.h"
 #include "Display/TFT.h"
 #include "WifiControl/WifiConfig.h"
+#include "FileSystem/FSInterface.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -32,13 +33,22 @@ void print_reset_reason(RESET_REASON reason);
 void SystemStart(){
   StatusLEDStart();
   Serial.begin(115200);
-  LogSetup(NOTIFY,1);
+  LogSetup(DEBUG,1);
   LogRingInit();
   SaveResetReason();
   ClientIdCreation();
   Log(DEBUG,"LED Start-");
   LEDBoot();
   Log(DEBUG,"TFT Start-");
+  Log(DEBUG,">> FileStstemStart");
+  if(FileStstemStart()){
+    DisplayLog(" FS OK ");
+    delay(1000);
+  }
+  else{
+    DisplayLog(" FS ERROR ");
+    delay(1000);
+  }
   DispalyConfigSet(TFT);
   DisplaySetup();
   DisplayBrightnes(75);
@@ -133,7 +143,11 @@ void setup_ota() {
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     bool    isFS = (ArduinoOTA.getCommand() == U_SPIFFS);
     uint8_t pct  = (total > 0) ? (uint8_t)((float)progress / (float)total * 100.0f) : 0;
-    DisplayUploadStatus(isFS ? "OTA FS" : "OTA UPDATE", pct, "Uploading...");
+    static uint8_t lastPct = 0xFF;
+    if (pct != lastPct) {
+        lastPct = pct;
+        DisplayUploadStatus(isFS ? "OTA FS" : "OTA UPDATE", pct, "Uploading...");
+    }
   });
   ArduinoOTA.onError([](ota_error_t error) {
     const char* errMsg = (error == OTA_AUTH_ERROR)    ? "Auth Failed"    :

@@ -28,8 +28,9 @@ public:
      */
     bool storeFirmware(uint8_t slaveId, const uint8_t *data, size_t len, bool isHex);
 
-    /* Start the OTA flash task (non-blocking, FreeRTOS task). */
-    bool startUpdate(uint8_t slaveId);
+    /* Start the OTA flash task (non-blocking, FreeRTOS task).
+     * skipTrigger=true skips the FC65 reboot command (device already in BL mode). */
+    bool startUpdate(uint8_t slaveId, bool skipTrigger = false);
 
     bool     hasFirmware(uint8_t slaveId);
     uint32_t firmwareSize(uint8_t slaveId);

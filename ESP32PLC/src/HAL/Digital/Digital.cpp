@@ -51,7 +51,6 @@ void IOStart(void) {
         _addOutput(MP3OUT);    /* 42 */
         _addOutput(MP4OUT);    /* 40 */
         _addOutput(MP5OUT);    /* 38 */
-        _addOutput(MP6OUT);    /* 12 */
         break;
 
     default:

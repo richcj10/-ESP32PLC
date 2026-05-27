@@ -91,7 +91,9 @@ void DisplayManager() {
 void DisplaySaver() {
     if (DisplaySleepEn == 1) {
         unsigned long timeout = _apMode ? AP_SCREEN_TIMEOUT : SREENTIMEOUT;
-        if ((millis() - DisplayOnTime) > timeout) {
+        unsigned long elapsed = millis() - DisplayOnTime;
+        if (elapsed > timeout) {
+            Log(NOTIFY_FORCE, "DisplaySaver: SLEEP elapsed=%lu timeout=%lu\r\n", elapsed, timeout);
             DisplayMode = 0;
             _hw_clear();
             _hw_brightness(0);

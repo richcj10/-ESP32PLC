@@ -1,5 +1,6 @@
 #include "UIPages.h"
 #include "TFT.h"
+#include "Devices/Log.h"
 #include <WiFi.h>
 #include "Functions.h"
 #include "Sensors.h"
@@ -449,6 +450,7 @@ void UIPageInit() {
 }
 
 void UIPageDraw() {
+    Log(NOTIFY_FORCE, "UIPageDraw: page=%d\r\n", (int)_page);
 #ifdef UI_TEST_PATTERN
     UIPageTestPattern();
     return;
@@ -460,10 +462,11 @@ void UIPageDraw() {
         case 3: _drawMQTT();    break;
     }
     _dots();
-    // White border: follows visible window — left=VIS_LEFT(20), right=VIS_RIGHT(300)
     Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, 18, TFT_WHITE);
     Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, 17, TFT_WHITE);
+    Log(NOTIFY_FORCE, "UIPageDraw: pushSprite\r\n");
     Screen.pushSprite(0, 0);
+    Log(NOTIFY_FORCE, "UIPageDraw: done\r\n");
 }
 
 void UIPageNext() {

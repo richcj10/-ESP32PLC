@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0e0c14;
+    font-family: 'Segoe UI', sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    gap:24px; padding:24px;
+  }
+  h2 { color:#c8a840; font-size:13px; letter-spacing:3px; text-transform:uppercase; }
+
+  /* ICON 400x400 */
+  .icon {
+    width:400px; height:400px;
+    background: linear-gradient(135deg, #1a1520 0%, #12101a 50%, #0e0c16 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative; overflow:hidden;
+    border:2px solid #c8a84044;
+    box-shadow: 0 0 40px #c8a84022, inset 0 0 40px #00000066;
+  }
+  .icon::before {
+    content:''; position:absolute; inset:0;
+    background-image: radial-gradient(circle, rgba(200,168,64,0.13) 1px, transparent 1px);
+    background-size:22px 22px;
+  }
+  .line-t, .line-b {
+    position:absolute; left:8%; right:8%; height:1px;
+    background: linear-gradient(90deg, transparent, #c8a840aa, #c8a840cc, #c8a840aa, transparent);
+  }
+  .line-t { top:70px; }
+  .line-b { bottom:70px; }
+  .icon img {
+    width:280px; position:relative; z-index:2;
+    filter: drop-shadow(0 4px 16px rgba(200,168,40,0.4));
+  }
+  .icon .tag {
+    font-size:12px; letter-spacing:10px; font-weight:300; text-transform:uppercase;
+    background: linear-gradient(90deg, #a07820, #f0d060, #c89828, #f0d060, #a07820);
+    background-size:200%;
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation: shimmer 3s linear infinite;
+    position:relative; z-index:2; margin-top:10px;
+  }
+  @keyframes shimmer { 0%{background-position:200%} 100%{background-position:-200%} }
+
+  /* BANNER 800x200 */
+  .banner {
+    width:800px; height:200px;
+    background: linear-gradient(135deg, #1a1520 0%, #12101a 50%, #0e0c16 100%);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 40px;
+    position:relative; overflow:hidden;
+    border:1px solid #c8a84044;
+    box-shadow: 0 0 30px #c8a84022;
+  }
+  .banner::before {
+    content:''; position:absolute; inset:0;
+    background-image: radial-gradient(circle, rgba(200,168,64,0.09) 1px, transparent 1px);
+    background-size:22px 22px;
+  }
+  .vert { position:absolute; left:50%; top:8%; bottom:8%; width:1px; background:linear-gradient(180deg,transparent,#c8a84055,transparent); }
+  .banner img { width:200px; position:relative; z-index:2; filter: drop-shadow(0 4px 14px rgba(200,168,40,0.35)); }
+  .banner .right { display:flex; flex-direction:column; gap:8px; position:relative; z-index:2; }
+  .banner .right h1 {
+    font-size:32px; font-weight:700; letter-spacing:3px;
+    background: linear-gradient(90deg, #a07820, #f0d060, #c89828, #f0d060, #a07820);
+    background-size:200%;
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation: shimmer 4s linear infinite;
+  }
+  .banner .right p { font-size:11px; color:#8870a8; letter-spacing:4px; font-weight:300; text-transform:uppercase; }
+  .banner .divider { width:200px; height:1px; background:linear-gradient(90deg,#c8a840aa,transparent); }
+</style>
+</head>
+<body>
+  <h2>Rendition 3 — Premium Gold</h2>
+  <div class="icon">
+    <div class="line-t"></div><div class="line-b"></div>
+    <img src="logo.png">
+    <div class="tag">ESP-PLC Labs</div>
+  </div>
+  <h2>Banner</h2>
+  <div class="banner">
+    <div class="vert"></div>
+    <img src="logo.png">
+    <div class="right">
+      <h1>ESP-PLC Labs</h1>
+      <div class="divider"></div>
+      <p>Open-Source PLC for the Real World</p>
+    </div>
+  </div>
+</body>
+</html>

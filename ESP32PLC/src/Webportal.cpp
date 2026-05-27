@@ -118,12 +118,18 @@ static void _onFwUpload(AsyncWebServerRequest *req,
         fwUp.hexLen   = 0;
         fwUp.msg[0]   = '\0';
 
+        Log(LOG, "FwUpload: start — file=%s id=%u type=%s contentLen=%u\r\n",
+            filename.c_str(), (unsigned)fwUp.slaveId,
+            fwUp.isHex ? "HEX" : "BIN",
+            (unsigned)req->contentLength());
+
         /* Size guard for raw binary — hex files are parsed after receipt */
         if (!fwUp.isHex && req->contentLength() > FW_MAX_BIN_SIZE) {
             fwUp.aborted = true;
             snprintf(fwUp.msg, sizeof(fwUp.msg),
                      "File too large (%u B, max %u B)",
                      (unsigned)req->contentLength(), FW_MAX_BIN_SIZE);
+            Log(ERROR, "FwUpload: %s\r\n", fwUp.msg);
             return;
         }
 
@@ -136,11 +142,16 @@ static void _onFwUpload(AsyncWebServerRequest *req,
             if (!fwUp.hexBuf) {
                 fwUp.aborted = true;
                 strncpy(fwUp.msg, "Buffer alloc failed", sizeof(fwUp.msg) - 1);
+                Log(ERROR, "FwUpload: HEX buffer alloc failed (heap=%u PSRAM=%u)\r\n",
+                    (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
                 return;
             }
+            Log(LOG, "FwUpload: HEX buffer ready cap=%u\r\n", (unsigned)fwUp.hexCap);
         } else {
             fwUpdater.init();
             if (fwUp.hexBuf) { free(fwUp.hexBuf); fwUp.hexBuf = nullptr; }
+            Log(LOG, "FwUpload: BIN mode — writing to %s\r\n",
+                FwUpdater::fwPath(fwUp.slaveId).c_str());
         }
     }
 
@@ -150,30 +161,43 @@ static void _onFwUpload(AsyncWebServerRequest *req,
         if (fwUp.hexBuf && fwUp.hexLen + len <= fwUp.hexCap) {
             memcpy(fwUp.hexBuf + fwUp.hexLen, data, len);
             fwUp.hexLen += len;
+        } else if (fwUp.hexBuf) {
+            Log(ERROR, "FwUpload: HEX buffer overflow — hexLen=%u len=%u cap=%u\r\n",
+                (unsigned)fwUp.hexLen, (unsigned)len, (unsigned)fwUp.hexCap);
         }
     } else {
         File f = LittleFS.open(FwUpdater::fwPath(fwUp.slaveId),
                                index == 0 ? "w" : "a");
         if (!f) {
+            Log(ERROR, "FwUpload: LittleFS open failed at index=%u\r\n", (unsigned)index);
             fwUp.writeOk = false;
         } else {
-            if (f.write(data, len) != len) fwUp.writeOk = false;
+            size_t written = f.write(data, len);
+            if (written != len) {
+                Log(ERROR, "FwUpload: short write — wanted=%u got=%u\r\n",
+                    (unsigned)len, (unsigned)written);
+                fwUp.writeOk = false;
+            }
             f.close();
         }
     }
 
     if (final) {
         if (fwUp.aborted) {
-            /* msg already set in index==0 */
+            Log(ERROR, "FwUpload: aborted — %s\r\n", fwUp.msg);
         } else if (fwUp.isHex) {
+            Log(LOG, "FwUpload: HEX received %u bytes — parsing\r\n", (unsigned)fwUp.hexLen);
             if (fwUp.hexBuf && fwUp.hexLen > 0) {
                 fwUpdater.init();
                 fwUp.ok = fwUpdater.storeFirmware(fwUp.slaveId, fwUp.hexBuf,
                                                    fwUp.hexLen, true);
                 snprintf(fwUp.msg, sizeof(fwUp.msg),
                          fwUp.ok ? "HEX converted and stored" : "HEX parse failed");
+                Log(fwUp.ok ? LOG : ERROR, "FwUpload: %s\r\n", fwUp.msg);
             } else {
                 strncpy(fwUp.msg, "No HEX data received", sizeof(fwUp.msg) - 1);
+                Log(ERROR, "FwUpload: no HEX data (hexBuf=%s hexLen=%u)\r\n",
+                    fwUp.hexBuf ? "ok" : "null", (unsigned)fwUp.hexLen);
             }
         } else {
             fwUp.ok = fwUp.writeOk && fwUpdater.hasFirmware(fwUp.slaveId);
@@ -184,6 +208,7 @@ static void _onFwUpload(AsyncWebServerRequest *req,
                 strncpy(fwUp.msg, "Write error — LittleFS full?", sizeof(fwUp.msg) - 1);
             else
                 strncpy(fwUp.msg, "Write failed", sizeof(fwUp.msg) - 1);
+            Log(fwUp.ok ? LOG : ERROR, "FwUpload: BIN final — %s\r\n", fwUp.msg);
         }
     }
 }
@@ -513,19 +538,34 @@ void WebStart(){
   /* POST /fw/flash?id=<slaveId> — trigger OTA flash task */
   server.on("/fw/flash", HTTP_POST, [](AsyncWebServerRequest *req) {
     if (!req->hasParam("id")) {
+      Log(ERROR, "FwFlash: missing id param\r\n");
       req->send(400, "application/json", "{\"ok\":false,\"msg\":\"missing id\"}");
       return;
     }
-    uint8_t slaveId = (uint8_t)req->getParam("id")->value().toInt();
+    uint8_t slaveId     = (uint8_t)req->getParam("id")->value().toInt();
+    bool skipTrigger    = req->hasParam("skip_trigger") &&
+                          req->getParam("skip_trigger")->value() == "1";
+    Log(LOG, "FwFlash: request for slave %u%s\r\n",
+        (unsigned)slaveId, skipTrigger ? " (skip trigger)" : "");
     if (fwUpdater.getStatus().running) {
+      Log(ERROR, "FwFlash: rejected — update already running for slave %u\r\n",
+          (unsigned)fwUpdater.getStatus().slaveId);
       req->send(409, "application/json", "{\"ok\":false,\"msg\":\"update already running\"}");
       return;
     }
-    bool ok = fwUpdater.startUpdate(slaveId);
+    if (!fwUpdater.hasFirmware(slaveId)) {
+      Log(ERROR, "FwFlash: no firmware stored for slave %u\r\n", (unsigned)slaveId);
+      req->send(400, "application/json", "{\"ok\":false,\"msg\":\"no firmware stored\"}");
+      return;
+    }
+    Log(LOG, "FwFlash: firmware size=%lu B — starting update\r\n",
+        (unsigned long)fwUpdater.firmwareSize(slaveId));
+    bool ok = fwUpdater.startUpdate(slaveId, skipTrigger);
     char resp[80];
     snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"}",
              ok ? "true" : "false",
              ok ? "Update started" : "Failed to start update");
+    Log(ok ? LOG : ERROR, "FwFlash: startUpdate returned %s\r\n", ok ? "ok" : "fail");
     req->send(200, "application/json", resp);
   });
 
@@ -558,6 +598,34 @@ void WebStart(){
         req->send(resp);
     }
   });
+
+  /* POST /api/modbus/write-regs — queue a FC16 write to any slave.
+   * Body: {"addr":22,"startReg":0,"values":[10,5]}               */
+  server.on("/api/modbus/write-regs", HTTP_POST,
+    [](AsyncWebServerRequest *req) {
+        if (!_devBuf || _devBufLen == 0) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"no body\"}");
+            return;
+        }
+        StaticJsonDocument<256> doc;
+        if (deserializeJson(doc, (const char*)_devBuf, _devBufLen)) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"JSON error\"}");
+            return;
+        }
+        uint8_t  addr     = doc["addr"]     | (uint8_t)0;
+        uint16_t startReg = doc["startReg"] | (uint16_t)0;
+        JsonArray vArr    = doc["values"].as<JsonArray>();
+        if (!addr || vArr.isNull() || vArr.size() == 0 || vArr.size() > 8) {
+            req->send(400, "application/json", "{\"ok\":false,\"msg\":\"invalid params\"}");
+            return;
+        }
+        uint16_t vals[8]; uint8_t n = 0;
+        for (JsonVariant v : vArr) vals[n++] = (uint16_t)v.as<int>();
+        bool ok = QueueModbusWriteRegs(addr, startReg, vals, n);
+        req->send(200, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false,\"msg\":\"queue full\"}");
+    },
+    nullptr, _devBodyHandler
+  );
 
   /* POST /api/devices/save — registered BEFORE /api/devices to win prefix match. */
   server.on("/api/devices/save", HTTP_POST,
@@ -603,16 +671,30 @@ void WebStart(){
         seen[di] = true;
         ModuleStatus_t st = RemoteDevStatus(di);
         resp->print(",");
-        if (st == MODULE_INVALID) {
-            uint16_t got = RemoteGrpDevice(g)->getRaw(0);  // version always at [0]
-            resp->printf("\"%u\":{\"status\":\"invalid\",\"expected\":%u,\"got\":%u}",
-                (unsigned)cfg.devices[di].address,
-                (unsigned)cfg.devices[di].swVersion, (unsigned)got);
-        } else if (st == MODULE_TYPE_MISMATCH) {
-            uint16_t got = RemoteGrpDevice(g)->getRaw(1);  // typeId always at [1]
-            resp->printf("\"%u\":{\"status\":\"type_mismatch\",\"expected\":%u,\"got\":%u}",
-                (unsigned)cfg.devices[di].address,
-                (unsigned)cfg.devices[di].typeId, (unsigned)got);
+        if (st == MODULE_INVALID || st == MODULE_TYPE_MISMATCH) {
+            // Find the group that polls from register 0 (version=reg0, typeId=reg1)
+            ModbusDevice* verDev = nullptr;
+            for (uint8_t gg = 0; gg < RemoteGrpCount(); gg++) {
+                if (RemoteGrpDevIdx(gg) != di) continue;
+                uint8_t gcfgIdx = RemoteGrpGrpIdx(gg);
+                if (gcfgIdx < cfg.devices[di].groupCount &&
+                    cfg.devices[di].groups[gcfgIdx].startReg == 0 &&
+                    cfg.devices[di].groups[gcfgIdx].count >= 2) {
+                    verDev = RemoteGrpDevice(gg);
+                    break;
+                }
+            }
+            if (st == MODULE_INVALID) {
+                uint16_t got = verDev ? verDev->getRaw(0) : 0;
+                resp->printf("\"%u\":{\"status\":\"invalid\",\"expected\":%u,\"got\":%u}",
+                    (unsigned)cfg.devices[di].address,
+                    (unsigned)cfg.devices[di].swVersion, (unsigned)got);
+            } else {
+                uint16_t got = verDev ? verDev->getRaw(1) : 0;
+                resp->printf("\"%u\":{\"status\":\"type_mismatch\",\"expected\":%u,\"got\":%u}",
+                    (unsigned)cfg.devices[di].address,
+                    (unsigned)cfg.devices[di].typeId, (unsigned)got);
+            }
         } else {
             const char* s = (st == MODULE_VALID)  ? "valid"   :
                             (st == MODULE_OFFLINE) ? "offline" : "unknown";
@@ -652,8 +734,10 @@ void WebStart(){
     resp->printf("{\"addr\":%u,\"name\":\"%s\",\"status\":\"%s\",\"groups\":[",
                  (unsigned)addr, dcfg.name, stStr);
 
+    bool firstGrp = true;
     for (uint8_t gi = 0; gi < dcfg.groupCount; gi++) {
         const RemoteGroupCfg_t& gcfg = dcfg.groups[gi];
+        if (!gcfg.mqttEnable) continue;
 
         ModbusDevice* dev = nullptr;
         for (uint8_t g = 0; g < RemoteGrpCount(); g++) {
@@ -662,14 +746,15 @@ void WebStart(){
             }
         }
 
-        if (gi > 0) resp->print(",");
-        resp->printf("{\"name\":\"%s\",\"units\":\"%s\",\"regs\":[", gcfg.name, gcfg.units);
+        if (!firstGrp) resp->print(",");
+        firstGrp = false;
+        resp->printf("{\"name\":\"%s\",\"regs\":[", gcfg.name);
         for (uint8_t ri = 0; ri < gcfg.count; ri++) {
             uint16_t raw = dev ? dev->getRaw(ri) : 0;
             float val = gcfg.scale > 0.0f ? (float)raw / gcfg.scale : (float)raw;
             const char* rn = (gcfg.regs[ri][0] != '\0') ? gcfg.regs[ri] : "?";
             if (ri > 0) resp->print(",");
-            resp->printf("{\"n\":\"%s\",\"v\":%.2f}", rn, val);
+            resp->printf("{\"n\":\"%s\",\"v\":%.2f,\"u\":\"%s\"}", rn, val, gcfg.units[ri]);
         }
         resp->print("]}");
     }
@@ -755,7 +840,9 @@ void WebStart(){
     while (f) {
       if (!f.isDirectory()) {
         if (!first) json += ",";
-        json += "{\"name\":\"" + String(f.name()) +
+        String fname = String(f.name());
+        if (!fname.startsWith("/")) fname = "/" + fname;
+        json += "{\"name\":\"" + fname +
                 "\",\"size\":"  + String(f.size()) + "}";
         first = false;
       }
@@ -772,6 +859,7 @@ void WebStart(){
       return;
     }
     String name = req->getParam("name")->value();
+    if (!name.startsWith("/")) name = "/" + name;
     bool ok = LittleFS.remove(name);
     char resp[80];
     snprintf(resp, sizeof(resp), "{\"ok\":%s,\"msg\":\"%s\"}",

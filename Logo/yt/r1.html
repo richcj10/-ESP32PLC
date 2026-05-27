@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#040810;
+    font-family: 'Segoe UI', sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    gap:24px; padding:24px;
+  }
+  h2 { color:#7ab0ff; font-size:13px; letter-spacing:3px; text-transform:uppercase; }
+
+  /* ICON 400x400 */
+  .icon {
+    width:400px; height:400px;
+    background: radial-gradient(ellipse at center, #0d1a3a 0%, #050c1e 70%, #020610 100%);
+    border:2px solid #1a3a7a;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative; overflow:hidden;
+    box-shadow: 0 0 40px #0a2a6a66, inset 0 0 60px #00000088;
+  }
+  .icon::before {
+    content:''; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(30,80,180,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,80,180,0.08) 1px, transparent 1px);
+    background-size:24px 24px;
+  }
+  .corner { position:absolute; width:28px; height:28px; border-color:#1e5abb; border-style:solid; }
+  .tl { top:10px; left:10px; border-width:2px 0 0 2px; }
+  .tr { top:10px; right:10px; border-width:2px 2px 0 0; }
+  .bl { bottom:10px; left:10px; border-width:0 0 2px 2px; }
+  .br { bottom:10px; right:10px; border-width:0 2px 2px 0; }
+  .icon img { width:300px; position:relative; z-index:2; filter: drop-shadow(0 0 12px #1a4acc88); }
+  .icon .tag {
+    color:#c8a840; font-size:13px; letter-spacing:6px; font-weight:300;
+    text-transform:uppercase; position:relative; z-index:2; margin-top:6px;
+    text-shadow: 0 0 14px #c8a84055;
+  }
+
+  /* BANNER 800x200 */
+  .banner {
+    width:800px; height:200px;
+    background: radial-gradient(ellipse at 30% 50%, #0d1a3a 0%, #050c1e 60%, #020610 100%);
+    border:2px solid #1a3a7a;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 40px;
+    position:relative; overflow:hidden;
+    box-shadow: 0 0 30px #0a2a6a66;
+  }
+  .banner::before {
+    content:''; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(30,80,180,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,80,180,0.06) 1px, transparent 1px);
+    background-size:24px 24px;
+  }
+  .banner img { width:200px; position:relative; z-index:2; filter: drop-shadow(0 0 10px #1a4acc66); }
+  .banner .right { display:flex; flex-direction:column; gap:8px; position:relative; z-index:2; }
+  .banner .right h1 {
+    font-size:32px; font-weight:700; letter-spacing:3px;
+    background: linear-gradient(135deg, #d4a020, #f0d060, #c89010);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .banner .right p { font-size:11px; color:#7ab0ff; letter-spacing:3px; font-weight:300; text-transform:uppercase; }
+  .banner .divider { width:200px; height:1px; background:linear-gradient(90deg, #1e5abb, transparent); }
+</style>
+</head>
+<body>
+  <h2>Rendition 1 — Deep Space Navy</h2>
+  <div class="icon">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img src="logo.png">
+    <div class="tag">ESP-PLC Labs</div>
+  </div>
+  <h2>Banner</h2>
+  <div class="banner">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img src="logo.png">
+    <div class="right">
+      <h1>ESP-PLC Labs</h1>
+      <div class="divider"></div>
+      <p>Open-Source PLC for the Real World</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -133,7 +133,22 @@ void RemoteComfig() {
             g.count      = grp["count"]      | (uint8_t)1;
             g.pollMs     = grp["pollMs"]     | (uint32_t)1000;
             g.scale      = grp["scale"]      | 1.0f;
-            strlcpy(g.units,     grp["units"]      | "",      sizeof(g.units));
+            {
+                JsonVariant uv = grp["units"];
+                if (uv.is<JsonArray>()) {
+                    uint8_t ui = 0;
+                    for (JsonVariant u : uv.as<JsonArray>()) {
+                        if (ui >= MAX_REGS_PER_GROUP) break;
+                        const char* s = u.as<const char*>();
+                        strlcpy(g.units[ui++], s ? s : "", UNITS_LEN);
+                    }
+                } else {
+                    const char* s = uv.as<const char*>();
+                    if (!s) s = "";
+                    for (uint8_t ui = 0; ui < MAX_REGS_PER_GROUP; ui++)
+                        strlcpy(g.units[ui], s, UNITS_LEN);
+                }
+            }
             g.mqttEnable = grp["mqttEnable"] | false;
             strlcpy(g.mqttTopic, grp["mqttTopic"]  | "",      sizeof(g.mqttTopic));
 
@@ -208,7 +223,18 @@ void RemoteSaveConfig(const RemoteConfig_t* cfg) {
             go["count"]      = grp.count;
             go["pollMs"]     = grp.pollMs;
             go["scale"]      = grp.scale;
-            go["units"]      = grp.units;
+            {
+                bool allSame = true;
+                for (uint8_t r = 1; r < grp.count && r < MAX_REGS_PER_GROUP; r++)
+                    if (strcmp(grp.units[r], grp.units[0]) != 0) { allSame = false; break; }
+                if (allSame) {
+                    go["units"] = grp.units[0];
+                } else {
+                    JsonArray ua = go.createNestedArray("units");
+                    for (uint8_t r = 0; r < grp.count && r < MAX_REGS_PER_GROUP; r++)
+                        ua.add(grp.units[r]);
+                }
+            }
             go["mqttEnable"] = grp.mqttEnable;
             go["mqttTopic"]  = grp.mqttTopic;
             JsonArray regs = go.createNestedArray("regs");

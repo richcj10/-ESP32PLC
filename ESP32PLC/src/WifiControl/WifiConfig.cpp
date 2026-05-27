@@ -12,10 +12,13 @@
 
 static String IpAddress2String(const IPAddress& ipAddress);
 
-#define WIFI_STA_ATTEMPTS   3
-#define WIFI_STA_TIMEOUT_MS 4000   // per attempt
+#define WIFI_STA_TIMEOUT_MS     30000UL              // 30s total STA connect window
+#define WIFI_AP_RECOVERY_MS     (5UL * 60UL * 1000UL) // 5 min AP before retrying STA
 
-static void startAP();
+static bool          _inAPRecovery    = false;
+static unsigned long _apRecoveryStart = 0;
+
+static void startAP(bool recovery);
 
 char SetupWiFi(void) {
     char mode = (char)GetWiFiMode();
@@ -26,55 +29,68 @@ char SetupWiFi(void) {
 
         if (ssid.length() == 0) {
             Log(ERROR, "WiFi: STA mode but no SSID configured — falling back to AP\r\n");
-            startAP();
+            startAP(false);
             return 1;
         }
 
-        WiFi.disconnect(true);
-        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+        WiFi.disconnect(true, true);
+        delay(1000);
+        WiFi.mode(WIFI_OFF);
+        delay(1000);
+        WiFi.mode(WIFI_STA);
         WiFi.setHostname(GetHostName().c_str());
         SetLEDStatus(WIFI_CONNECTING, 250);
 
-        for (int attempt = 1; attempt <= WIFI_STA_ATTEMPTS; attempt++) {
-            Log(LOG, "WiFi: connecting to %s (attempt %d/%d)\r\n",
-                ssid.c_str(), attempt, WIFI_STA_ATTEMPTS);
-            DisplayWiFiConnect();
-            //WiFi.begin(ssid.c_str(), pass.c_str());
-            WiFi.begin("JWM-SD", "SDWifiPswrd18");
+        Log(LOG, "WiFi: connecting to %s (30s timeout)\r\n", ssid.c_str());
+        DisplayWiFiConnect();
+        WiFi.begin(ssid.c_str(), pass.c_str());
 
-            unsigned long t = millis();
-            while (WiFi.status() != WL_CONNECTED) {
-                LEDUpdate();
-                delay(20);
-                if (millis() - t > WIFI_STA_TIMEOUT_MS) break;
-            }
-
-            if (WiFi.status() == WL_CONNECTED) {
-                Log(LOG, "WiFi: connected — IP %s\r\n", WiFi.localIP().toString().c_str());
-                if (MDNS.begin(GetHostName().c_str())) {
-                    MDNS.addService("http", "tcp", 80);
-                    Log(LOG, "WiFi: mDNS — http://%s.local\r\n", GetHostName().c_str());
-                } else {
-                    Log(ERROR, "WiFi: mDNS failed\r\n");
-                }
-                WiFiOK();
-                return 1;
-            }
-
-            Log(ERROR, "WiFi: attempt %d failed\r\n", attempt);
-            WiFi.disconnect(true);
-            delay(500);
+        unsigned long t = millis();
+        while (WiFi.status() != WL_CONNECTED) {
+            LEDUpdate();
+            delay(20);
+            if (millis() - t > WIFI_STA_TIMEOUT_MS) break;
         }
 
-        Log(ERROR, "WiFi: all %d attempts failed — switching to AP mode\r\n", WIFI_STA_ATTEMPTS);
+        if (WiFi.status() == WL_CONNECTED) {
+            Log(LOG, "WiFi: connected — IP %s\r\n", WiFi.localIP().toString().c_str());
+            if (MDNS.begin(GetHostName().c_str())) {
+                MDNS.addService("http", "tcp", 80);
+                Log(LOG, "WiFi: mDNS — http://%s.local\r\n", GetHostName().c_str());
+            } else {
+                Log(ERROR, "WiFi: mDNS failed\r\n");
+            }
+            WiFiOK();
+            return 1;
+        }
+
+        Log(ERROR, "WiFi: STA timed out after 30s — switching to AP recovery mode\r\n");
         DisplayLog("WiFi failed — AP mode");
+        startAP(true);
+        return 1;
     }
 
-    startAP();
+    startAP(false);
     return 1;
 }
 
-static void startAP() {
+void WiFiRecoveryLoop(void) {
+    if (!_inAPRecovery) return;
+    /* Reset timeout while a client is connected so config session isn't interrupted */
+    if (WiFi.softAPgetStationNum() > 0) {
+        _apRecoveryStart = millis();
+        return;
+    }
+    if (millis() - _apRecoveryStart > WIFI_AP_RECOVERY_MS) {
+        Log(NOTIFY, "WiFi: AP recovery timeout — no clients, restarting to retry STA\r\n");
+        delay(100);
+        ESP.restart();
+    }
+}
+
+static void startAP(bool recovery) {
+    _inAPRecovery    = recovery;
+    _apRecoveryStart = millis();
     SetMQTTLockout(true);
     String apSsid = GetHostName();
     Log(LOG, "WiFi: AP mode — SSID=%s\r\n", apSsid.c_str());

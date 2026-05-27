@@ -11,6 +11,7 @@ static FwUpdater *g_activeUpdater = nullptr;
 struct FwTaskParam {
     FwUpdater *self;
     uint8_t    slaveId;
+    bool       skipTrigger;
 };
 
 /* ── Constructor / init ─────────────────────────────────────────────────── */
@@ -158,47 +159,58 @@ void FwUpdater::_progressCb(uint8_t pct) {
 /* ── FreeRTOS update task ───────────────────────────────────────────────── */
 
 void FwUpdater::_updateTask(void *vParam) {
-    auto  *p       = (FwTaskParam *)vParam;
-    FwUpdater *self = p->self;
-    uint8_t slaveId = p->slaveId;
+    auto  *p          = (FwTaskParam *)vParam;
+    FwUpdater *self   = p->self;
+    uint8_t slaveId   = p->slaveId;
+    bool skipTrigger  = p->skipTrigger;
     delete p;
 
     /* Read firmware from LittleFS into PSRAM */
     String path = fwPath(slaveId);
+    Log(LOG, "FwTask: opening %s\r\n", path.c_str());
     File f = LittleFS.open(path, "r");
     if (!f) {
+        Log(ERROR, "FwTask: file not found — %s\r\n", path.c_str());
         strncpy(self->_status.message, "FW file not found", 63);
         goto done_fail;
     }
     {
         uint32_t fwSize = f.size();
+        Log(LOG, "FwTask: firmware size=%lu B — allocating buffer\r\n", (unsigned long)fwSize);
         uint8_t *fwBuf  = (uint8_t *)ps_malloc(fwSize);
         if (!fwBuf)  fwBuf = (uint8_t *)malloc(fwSize);
         if (!fwBuf) {
             f.close();
+            Log(ERROR, "FwTask: buffer alloc failed (heap=%u PSRAM=%u)\r\n",
+                (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
             strncpy(self->_status.message, "Buffer alloc failed", 63);
             goto done_fail;
         }
-        f.read(fwBuf, fwSize);
+        size_t rd = f.read(fwBuf, fwSize);
         f.close();
+        Log(LOG, "FwTask: read %u of %lu bytes from LittleFS\r\n", (unsigned)rd, (unsigned long)fwSize);
 
         /* Pause normal Modbus polling so we have exclusive RS-485 access */
+        Log(LOG, "FwTask: suspending Modbus polling\r\n");
         SuspendRemotePolling();
         vTaskDelay(pdMS_TO_TICKS(600));
 
         /* Run the flash sequence */
+        Log(LOG, "FwTask: starting bl.updateFirmware for slave %u\r\n", (unsigned)slaveId);
         g_activeUpdater = self;
         ModBusBLMaster bl(self->_serial, self->_dirPin);
         bl.begin(38400);
         bl.setProgressCallback(FwUpdater::_progressCb);
 
-        bool ok = bl.updateFirmware(slaveId, fwBuf, fwSize);
+        bool ok = bl.updateFirmware(slaveId, fwBuf, fwSize, 5, skipTrigger);
 
         g_activeUpdater = nullptr;
         free(fwBuf);
+        Log(LOG, "FwTask: resuming Modbus polling\r\n");
         ResumeRemotePolling();
 
         if (ok) {
+            Log(LOG, "FwTask: update complete for slave %u\r\n", (unsigned)slaveId);
             strncpy(self->_status.message, "Update complete", 63);
             self->_status.success  = true;
             self->_status.progress = 100;
@@ -206,6 +218,8 @@ void FwUpdater::_updateTask(void *vParam) {
             self->_status.running  = false;
             WebFwProgressSend(100, true, true, "Update complete");
         } else {
+            Log(ERROR, "FwTask: update FAILED for slave %u — %s\r\n",
+                (unsigned)slaveId, bl.lastError());
             strncpy(self->_status.message, bl.lastError(), 63);
             self->_status.success = false;
             self->_status.done    = true;
@@ -218,6 +232,7 @@ void FwUpdater::_updateTask(void *vParam) {
     }
 
 done_fail:
+    Log(ERROR, "FwTask: done_fail — %s\r\n", self->_status.message);
     self->_status.success  = false;
     self->_status.done     = true;
     self->_status.running  = false;
@@ -228,7 +243,7 @@ done_fail:
 
 /* ── startUpdate ────────────────────────────────────────────────────────── */
 
-bool FwUpdater::startUpdate(uint8_t slaveId) {
+bool FwUpdater::startUpdate(uint8_t slaveId, bool skipTrigger) {
     if (_status.running) {
         Log(ERROR, "FwUpdater: update already in progress\r\n");
         return false;
@@ -243,9 +258,10 @@ bool FwUpdater::startUpdate(uint8_t slaveId) {
     _status.success  = false;
     _status.progress = 0;
     _status.slaveId  = slaveId;
-    snprintf(_status.message, sizeof(_status.message), "Starting update for slave %u", slaveId);
+    snprintf(_status.message, sizeof(_status.message),
+             "Starting update for slave %u%s", slaveId, skipTrigger ? " (skip trigger)" : "");
 
-    auto *param    = new FwTaskParam{ this, slaveId };
+    auto *param    = new FwTaskParam{ this, slaveId, skipTrigger };
     BaseType_t rc  = xTaskCreate(_updateTask, "fwUpdate", 8192, param, 1, &_taskHandle);
     if (rc != pdPASS) {
         delete param;

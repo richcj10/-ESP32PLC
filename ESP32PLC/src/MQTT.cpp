@@ -271,10 +271,11 @@ void PublishHADiscovery() {
                     "{\"name\":\"%s\","
                     "\"stat_t\":\"%s\","
                     "\"unit_of_meas\":\"%s\","
+                    "\"state_class\":\"measurement\","
                     "\"uniq_id\":\"%s\","
                     "\"val_tpl\":\"{{value|float}}\","
                     "\"dev\":{\"ids\":[\"%s\"],\"name\":\"%s\",\"mf\":\"ESP32PLC\"}}",
-                    rname, statTopic, grp.units, uid, devId, dev.name);
+                    rname, statTopic, grp.units[ri], uid, devId, dev.name);
 
                 if (n > 0 && n < (int)sizeof(payload)) {
                     client.publish(discTopic, (const uint8_t*)payload, (unsigned int)n, true);
