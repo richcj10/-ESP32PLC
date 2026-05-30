@@ -1,0 +1,311 @@
+/* ESP32PLC — dark theme, matches TFT display palette */
+:root {
+  --bg:      #0f0f0f;
+  --surface: #1a1a1a;
+  --border:  #2c2c2c;
+  --cyan:    #00bcd4;
+  --green:   #4caf50;
+  --red:     #f44336;
+  --yellow:  #ffc107;
+  --text:    #e0e0e0;
+  --muted:   #5a5a5a;
+  --sidebar: 58px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Layout ──────────────────────────────────────────────── */
+.shell { display: flex; height: 100vh; }
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 22px;
+  max-width: 680px;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  flex-shrink: 0;
+}
+
+.sidebar .logo {
+  width: calc(100% - 8px);
+  height: auto;
+  margin: 6px 4px 14px 4px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #000;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+.tab-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0;
+  transition: background 0.15s, color 0.15s;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tab-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: var(--muted);
+  transition: fill 0.15s;
+}
+.tab-btn:hover { background: var(--border); }
+.tab-btn:hover svg { fill: var(--text); }
+.tab-btn.active { background: rgba(0,188,212,0.12); color: var(--cyan); }
+.tab-btn.active svg { fill: var(--cyan); }
+
+/* ── Page header ─────────────────────────────────────────── */
+.page-header {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cyan);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Panels ──────────────────────────────────────────────── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  margin-bottom: 12px;
+}
+
+/* ── Stat grid (home dashboard) ──────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+}
+.stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat-val   { font-size: 15px; font-weight: 600; color: var(--text); margin-top: 2px; word-break: break-all; }
+
+/* ── I/O dots ────────────────────────────────────────────── */
+.dot-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #222;
+  border: 2px solid var(--border);
+  transition: background 0.2s, border-color 0.2s;
+}
+.dot.on  { background: var(--green); border-color: var(--green); box-shadow: 0 0 6px rgba(76,175,80,0.5); }
+
+/* ── Forms ───────────────────────────────────────────────── */
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+.form-row label {
+  width: 86px;
+  color: var(--muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.form-row input[type=text],
+.form-row input[type=password],
+.form-row input[type=number],
+.form-row select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-row input:focus,
+.form-row select:focus { border-color: var(--cyan); }
+.form-row input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--cyan); cursor: pointer; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+  background: var(--cyan);
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-red { background: var(--red); color: #fff; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 6px 13px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* ── Status text ─────────────────────────────────────────── */
+.status-text { font-size: 12px; font-style: italic; color: var(--muted); }
+.status-ok   { color: var(--green) !important; font-style: normal; }
+.status-err  { color: var(--red)   !important; font-style: normal; }
+
+/* ── Badges ──────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-green  { background: rgba(76,175,80,0.18);   color: var(--green); }
+.badge-red    { background: rgba(244,67,54,0.18);    color: var(--red); }
+.badge-yellow { background: rgba(255,193,7,0.18);    color: var(--yellow); }
+.badge-grey   { background: rgba(90,90,90,0.25);     color: var(--muted); }
+
+/* ── Terminal ────────────────────────────────────────────── */
+.terminal {
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: #00e676;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 10px;
+  height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Progress bar ────────────────────────────────────────── */
+.prog-bg {
+  background: var(--border);
+  border-radius: 4px;
+  height: 14px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.prog-fill {
+  height: 100%;
+  background: var(--cyan);
+  border-radius: 4px;
+  transition: width 0.3s;
+  width: 0%;
+}
+
+/* ── Table ───────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th {
+  text-align: left;
+  padding: 7px 8px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+
+/* ── Fireworks channels ──────────────────────────────────── */
+.fw-ch {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.fw-ch:last-child { border-bottom: none; }
+.fw-ch-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 56px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.fw-ch-label input[type=checkbox] { accent-color: var(--cyan); width: 16px; height: 16px; }
+.fw-ch-slider { display: flex; align-items: center; gap: 10px; flex: 1; }
+.fw-ch-slider input[type=range] { flex: 1; accent-color: var(--cyan); }
+.fw-ch-slider output { min-width: 26px; text-align: right; color: var(--muted); font-size: 12px; }
+
+/* ── Service row (home tab) ──────────────────────────────── */
+.svc-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.svc-item { }
+.svc-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .content { padding: 14px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  :root { --sidebar: 50px; }
+}

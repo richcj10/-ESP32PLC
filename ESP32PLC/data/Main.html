@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESP32PLC</title>
+<link rel="stylesheet" href="/ESP32PLC.css">
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar nav ───────────────────────────────────── -->
+  <nav class="sidebar">
+    <img class="logo" src="/Logo.png" alt="PLC">
+    <!-- House -->
+    <button class="tab-btn active" data-tab="home" title="Home">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M511.8 287.6H543.8c17 0 32-14.1 32-32.1 1.1-9-3-17-11-24L564.8 185V64c0-17.67-14.3-32-32-32h-32c-17.7 0-32 14.33-32 32v36.7L309.5 7.014C303.4 2.004 295.4 0 288.4 0c-7 0-15 1.002-22 8.016L10.01 231.5C3.004 238.5 0 246.5 0 255.5c0 18 14.02 32.1 32.05 32.1H64v69.6c-.06.9-.09 1.9-.09 2.8V472c0 22.09 17.91 40 40 40h16c1.2 0 2.4-.09 3.6-.1 1.5.1 3 .1 4.5.1H184c22.1 0 40-17.9 40-40V384c0-17.7 14.3-32 32-32h64c17.7 0 32 14.3 32 32v88c0 22.1 17.9 40 40 40h56.5c1.4 0 2.8-.09 4.2-.1 1.1.09 2.2.1 3.3.1H472c22.1 0 40-17.9 40-40V455.8c.3-2.7.5-5.3.5-8.1L511.8 287.6z"/></svg>
+    </button>
+    <!-- WiFi -->
+    <button class="tab-btn" data-tab="wifi" title="WiFi">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path d="M634.91 154.88C457.74-8.99 182.19-8.93 5.09 154.88c-6.66 6.16-6.79 16.59-.35 22.98l34.24 33.97c6.14 6.1 16.02 6.23 22.4.38 145.92-133.68 371.3-133.71 517.25 0 6.38 5.85 16.26 5.71 22.4-.38l34.24-33.97c6.43-6.39 6.3-16.82-.36-22.98zM320 352c-35.35 0-64 28.65-64 64s28.65 64 64 64 64-28.65 64-64-28.65-64-64-64zm202.67-83.59c-115.26-101.93-290.21-101.82-405.34 0-6.9 6.1-7.12 16.69-.57 23.15l34.44 33.99c6 5.92 15.66 6.32 22.05.8 83.95-72.57 209.74-72.41 293.49 0 6.39 5.52 16.05 5.13 22.05-.8l34.44-33.99c6.56-6.46 6.33-17.06-.56-23.15z"/></svg>
+    </button>
+    <!-- MQTT / Server -->
+    <button class="tab-btn" data-tab="mqtt" title="MQTT">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M480 160H32c-17.673 0-32-14.327-32-32V64c0-17.673 14.327-32 32-32h448c17.673 0 32 14.327 32 32v64c0 17.673-14.327 32-32 32zm-48-88c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm-64 0c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm112 248H32c-17.673 0-32-14.327-32-32v-64c0-17.673 14.327-32 32-32h448c17.673 0 32 14.327 32 32v64c0 17.673-14.327 32-32 32zm-48-88c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm-64 0c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm112 248H32c-17.673 0-32-14.327-32-32v-64c0-17.673 14.327-32 32-32h448c17.673 0 32 14.327 32 32v64c0 17.673-14.327 32-32 32zm-48-88c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24zm-64 0c-13.255 0-24 10.745-24 24s10.745 24 24 24 24-10.745 24-24-10.745-24-24-24z"/></svg>
+    </button>
+    <!-- Devices / Bus -->
+    <button class="tab-btn" data-tab="devices" title="Devices">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M384 0H96C70.34 0 48 22.34 48 48v16H16C7.16 64 0 71.16 0 80s7.16 16 16 16h32v64H16c-8.84 0-16 7.16-16 16s7.16 16 16 16h32v64H16c-8.84 0-16 7.16-16 16s7.16 16 16 16h32v16c0 25.66 22.34 48 48 48h288c25.66 0 48-22.34 48-48v-16h32c8.84 0 16-7.16 16-16s-7.16-16-16-16h-32v-64h32c8.84 0 16-7.16 16-16s-7.16-16-16-16h-32v-64h32c8.84 0 16-7.16 16-16s-7.16-16-16-16h-32V48c0-25.66-22.34-48-48-48zM96 384V128h320v256H96zm48-168v80h224v-80H144z"/></svg>
+    </button>
+    <!-- Cogs / I/O -->
+    <button class="tab-btn" data-tab="io" title="I/O">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M444.788 291.1l42.616 24.599c4.867 2.809 7.126 8.618 5.459 13.985-11.07 35.642-29.97 67.842-54.689 94.586a12.016 12.016 0 01-14.832 2.254l-42.584-24.595a191.576 191.576 0 01-60.759 35.13v49.182a12.01 12.01 0 01-9.377 11.718c-34.956 7.85-72.499 8.256-109.219.007-5.49-1.233-9.403-6.096-9.403-11.725v-49.184a191.555 191.555 0 01-60.759-35.13l-42.584 24.595a12.016 12.016 0 01-14.832-2.254c-24.718-26.744-43.619-58.944-54.689-94.586-1.667-5.366.592-11.175 5.459-13.985L67.212 291.1a193.48 193.48 0 010-70.199l-42.616-24.599c-4.867-2.809-7.126-8.618-5.459-13.985 11.07-35.642 29.97-67.842 54.689-94.586a12.016 12.016 0 0114.832-2.254l42.584 24.595a191.576 191.576 0 0160.759-35.13V25.759a12.01 12.01 0 019.377-11.718c34.956-7.85 72.499-8.256 109.219-.007 5.49 1.233 9.403 6.096 9.403 11.725v49.184a191.555 191.555 0 0160.759 35.13l42.584-24.595a12.016 12.016 0 0114.832 2.254c24.718 26.744 43.619 58.944 54.689 94.586 1.667 5.366-.592 11.175-5.459 13.985L444.788 220.9a193.485 193.485 0 010 70.2zM336 256c0-44.112-35.888-80-80-80s-80 35.888-80 80 35.888 80 80 80 80-35.888 80-80z"/></svg>
+    </button>
+    <!-- Files -->
+    <button class="tab-btn" data-tab="files" title="Files">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 5H11.72l-.32-1A3 3 0 008.56 2H3A3 3 0 000 5v14a3 3 0 003 3h18a3 3 0 003-3V8a3 3 0 00-3-3zm1 14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1h5.56a1 1 0 01.95.68L10.28 7H21a1 1 0 011 1z"/></svg>
+    </button>
+    <!-- Log / Terminal -->
+    <button class="tab-btn" data-tab="log" title="Log">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 3H4a1 1 0 00-1 1v16a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1zm-1 16H5V5h14v14zM7.293 9.707l2.147 2.146-2.147 2.147 1.414 1.414L12.267 12l-3.56-3.56-1.414 1.267zM13 15h4v-2h-4v2z"/></svg>
+    </button>
+    <!-- FW text label -->
+    <button class="tab-btn" data-tab="fw" title="FW Update">FW</button>
+  </nav>
+
+  <!-- ── Content ───────────────────────────────────────── -->
+  <main class="content">
+
+    <!-- Home ──────────────────────────────────────────── -->
+    <div class="panel active" id="tab-home">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
+        Dashboard
+        <button class="btn btn-red" style="font-size:12px;padding:5px 12px;" onclick="rebootDevice()">Reboot</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Mode</div><div class="stat-val" id="h-mode">—</div></div>
+        <div class="stat"><div class="stat-label">SSID</div><div class="stat-val" id="h-ssid">—</div></div>
+        <div class="stat"><div class="stat-label">IP</div><div class="stat-val" id="h-ip">—</div></div>
+        <div class="stat"><div class="stat-label">Host</div><div class="stat-val" id="h-host">—</div></div>
+        <div class="stat"><div class="stat-label">NVS Creds</div><div class="stat-val" id="h-nvs">—</div></div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="card-title">Environment</div>
+        <div class="stat-grid">
+          <div class="stat"><div class="stat-label">Temperature</div><div class="stat-val" id="h-temp">—</div></div>
+          <div class="stat"><div class="stat-label">Humidity</div><div class="stat-val" id="h-humid">—</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          I / O
+          <span id="io-shield-name" style="font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;"></span>
+        </div>
+        <div id="io-error" style="display:none;font-size:12px;color:var(--red);margin-bottom:8px;"></div>
+        <div style="margin-bottom:10px;">
+          <div class="stat-label">Inputs</div>
+          <div class="dot-row" id="io-inputs"></div>
+        </div>
+        <div>
+          <div class="stat-label">Outputs</div>
+          <div class="dot-row" id="io-outputs"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Services</div>
+        <div class="svc-row">
+          <div class="svc-item">
+            <div class="svc-label">MQTT</div>
+            <span class="badge badge-grey" id="h-mqtt">—</span>
+          </div>
+          <div class="svc-item">
+            <div class="svc-label">WebSocket</div>
+            <span class="badge badge-yellow" id="h-ws">Connecting</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WiFi ──────────────────────────────────────────── -->
+    <div class="panel" id="tab-wifi">
+      <div class="page-header">WiFi Config</div>
+      <div class="card">
+        <div class="card-title">Connection</div>
+        <div class="form-row">
+          <label>Mode</label>
+          <select id="wifiMode">
+            <option value="2">Access Point (AP)</option>
+            <option value="1">Station (STA)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>SSID</label>
+          <input type="text" id="SSIDIn" placeholder="Network SSID (STA mode)">
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input type="password" id="PWDin" placeholder="Password">
+          <button class="btn-ghost" onclick="togglePwd('PWDin',this)" title="Show/hide">&#128065;</button>
+        </div>
+        <div class="form-row">
+          <label>Hostname</label>
+          <input type="text" id="HostIn" placeholder="ESP32PLC">
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="saveWifiConfig()">Save &amp; Restart</button>
+          <span class="status-text" id="wifi-status"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Backup / Restore</div>
+        <div class="btn-row">
+          <a href="/config/backup" download style="text-decoration:none;">
+            <button class="btn-ghost" type="button">&#11123; Download Config</button>
+          </a>
+          <input type="file" id="wifiJsonFile" accept=".json" style="display:none" onchange="importWifiJson(this)">
+          <button class="btn-ghost" onclick="document.getElementById('wifiJsonFile').click()">&#128194; Load Config JSON</button>
+        </div>
+        <div style="margin-top:8px;"><span class="status-text" id="wifi-import-status"></span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current Status</div>
+        <div class="stat-grid">
+          <div class="stat"><div class="stat-label">IP</div><div class="stat-val" id="dIP">—</div></div>
+          <div class="stat"><div class="stat-label">Mode</div><div class="stat-val" id="dCon2">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MQTT ──────────────────────────────────────────── -->
+    <div class="panel" id="tab-mqtt">
+      <div class="page-header">MQTT Config</div>
+      <div class="card">
+        <div class="card-title">Broker</div>
+        <div class="form-row">
+          <label>Enabled</label>
+          <input type="checkbox" id="mqttEn">
+        </div>
+        <div class="form-row">
+          <label>Server IP</label>
+          <input type="text" id="mqttIP" placeholder="192.168.x.x">
+        </div>
+        <div class="form-row">
+          <label>Port</label>
+          <input type="number" id="mqttPort" value="1883" min="1" max="65535" style="max-width:90px;flex:none;">
+        </div>
+        <div class="form-row">
+          <label>Username</label>
+          <input type="text" id="mqttUser" placeholder="esp32plc">
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input type="password" id="mqttPass">
+          <button class="btn-ghost" onclick="togglePwd('mqttPass',this)" title="Show/hide">&#128065;</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="saveMqttConfig()">Save &amp; Restart</button>
+          <span class="status-text" id="mqtt-status"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Backup / Restore</div>
+        <div class="btn-row">
+          <a href="/config/backup" download style="text-decoration:none;">
+            <button class="btn-ghost" type="button">&#11123; Download Config</button>
+          </a>
+          <input type="file" id="mqttJsonFile" accept=".json" style="display:none" onchange="importMqttJson(this)">
+          <button class="btn-ghost" onclick="document.getElementById('mqttJsonFile').click()">&#128194; Load Config JSON</button>
+        </div>
+        <div style="margin-top:8px;"><span class="status-text" id="mqtt-import-status"></span></div>
+      </div>
+    </div>
+
+    <!-- Devices ──────────────────────────────────────── -->
+    <div class="panel" id="tab-devices">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
+        Remote Devices
+        <button class="btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="scanBus()">Scan Bus</button>
+      </div>
+
+      <div id="dev-rev-warn" style="display:none;background:var(--red);color:#fff;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:13px;"></div>
+
+      <div class="card" id="scan-card" style="display:none">
+        <div class="card-title">Bus Scan (addr 1–247)</div>
+        <div id="scan-status" style="font-size:13px;color:var(--muted);margin-bottom:8px;">—</div>
+        <div id="scan-result"></div>
+      </div>
+
+      <div id="discovery-cards" style="margin-top:12px;"></div>
+      <div id="discovery-debug" style="display:none;font-size:11px;font-family:monospace;color:var(--muted);background:var(--card2);border-radius:4px;padding:8px;margin-top:6px;word-break:break-all;"></div>
+
+      <div class="card">
+        <div class="card-title">Configured Devices</div>
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Addr</th><th>Type</th><th>Status</th><th></th></tr></thead>
+          <tbody id="dev-list"><tr><td colspan="5" style="color:var(--muted);padding:10px;">Loading…</td></tr></tbody>
+        </table>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn" onclick="addDevice()">+ Add</button>
+          <button class="btn-ghost" onclick="loadDeviceList()">Refresh</button>
+          <button class="btn-ghost" onclick="downloadConfig()">Download JSON</button>
+          <button class="btn-ghost" onclick="document.getElementById('cfg-upload').click()">Upload JSON</button>
+          <button class="btn-ghost" onclick="toggleRawEditor()">Edit Raw</button>
+          <input type="file" id="cfg-upload" accept=".json" style="display:none" onchange="uploadConfig(this)">
+        </div>
+      </div>
+
+      <div class="card" id="dev-form-card" style="display:none">
+        <div class="card-title" id="dev-form-title">Add Device</div>
+        <div class="form-row">
+          <label>Name</label>
+          <input type="text" id="dev-name" placeholder="OCC-TOL">
+        </div>
+        <div class="form-row">
+          <label>Address</label>
+          <input type="number" id="dev-addr" min="1" max="247" placeholder="22">
+        </div>
+
+        <div id="dev-mqtt-fields"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="saveDeviceEdit()">Save</button>
+          <button class="btn-ghost" onclick="cancelDeviceEdit()">Cancel</button>
+          <span class="status-text" id="dev-form-status"></span>
+        </div>
+      </div>
+
+      <div class="card" id="raw-editor-card" style="display:none">
+        <div class="card-title">Raw Config JSON</div>
+        <textarea id="raw-editor-text" style="width:100%;height:280px;font-family:monospace;font-size:12px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;box-sizing:border-box;resize:vertical;"></textarea>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn" onclick="saveRawConfig()">Save</button>
+          <button class="btn-ghost" onclick="toggleRawEditor()">Cancel</button>
+          <span class="status-text" id="raw-editor-status"></span>
+        </div>
+      </div>
+
+      <div class="card" id="addr-change-card" style="display:none">
+        <div class="card-title">Change Device Address</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+          Current address: <strong id="addr-change-current">—</strong>
+        </div>
+        <div class="form-row">
+          <label>New Address</label>
+          <input type="number" id="addr-change-new" min="1" max="247" placeholder="1–247">
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="sendAddrChange()">Send</button>
+          <button class="btn-ghost" onclick="document.getElementById('addr-change-card').style.display='none'">Cancel</button>
+          <span class="status-text" id="addr-change-status"></span>
+        </div>
+      </div>
+
+      <div class="card" id="live-card" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="card-title" id="live-title" style="margin-bottom:0;">Live Data</div>
+          <button class="btn-ghost" style="font-size:12px;padding:4px 8px;" onclick="closeLiveData()">Close</button>
+        </div>
+        <div id="live-content"></div>
+      </div>
+    </div>
+
+    <!-- I/O / Fireworks ───────────────────────────────── -->
+    <div class="panel" id="tab-io">
+      <div class="page-header">Fireworks</div>
+      <div class="card">
+        <div class="card-title">Channels</div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework1en"> CH 1</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH1TD" min="0" max="50" value="10" oninput="document.getElementById('o1').value=this.value">
+            <output id="o1">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework2en"> CH 2</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH2TD" min="0" max="50" value="10" oninput="document.getElementById('o2').value=this.value">
+            <output id="o2">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework3en"> CH 3</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH3TD" min="0" max="50" value="10" oninput="document.getElementById('o3').value=this.value">
+            <output id="o3">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework4en"> CH 4</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH4TD" min="0" max="50" value="10" oninput="document.getElementById('o4').value=this.value">
+            <output id="o4">10</output>
+          </div>
+        </div>
+        <div class="fw-ch">
+          <label class="fw-ch-label"><input type="checkbox" id="firework5en"> CH 5</label>
+          <div class="fw-ch-slider">
+            <input type="range" id="CH5TD" min="0" max="50" value="10" oninput="document.getElementById('o5').value=this.value">
+            <output id="o5">10</output>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-red" id="FWFire">&#128293; FIRE</button>
+      </div>
+    </div>
+
+    <!-- Files ─────────────────────────────────────────── -->
+    <div class="panel" id="tab-files">
+      <div class="page-header">Files</div>
+
+      <div class="card">
+        <div class="card-title">Storage</div>
+        <div class="stat-grid">
+          <div class="stat"><div class="stat-label">Total</div><div class="stat-val" id="fs-total">—</div></div>
+          <div class="stat"><div class="stat-label">Used</div><div class="stat-val" id="fs-used">—</div></div>
+          <div class="stat"><div class="stat-label">Free</div><div class="stat-val" id="fs-free">—</div></div>
+        </div>
+        <div class="prog-bg" style="margin-top:10px;"><div class="prog-fill" id="fs-bar" style="background:var(--cyan);"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Upload File</div>
+        <div class="form-row">
+          <label>Dest name</label>
+          <input type="text" id="up-name" placeholder="/Remote.json" style="font-family:monospace;">
+        </div>
+        <div class="form-row">
+          <label>File</label>
+          <input type="file" id="up-file" style="flex:1;color:var(--text);">
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="uploadFile()">Upload</button>
+          <span class="status-text" id="up-status"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">LittleFS Files</div>
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Size</th><th></th></tr></thead>
+          <tbody id="file-list"><tr><td colspan="3" style="color:var(--muted);padding:10px;">Loading…</td></tr></tbody>
+        </table>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn-ghost" onclick="loadFileList()">Refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log ───────────────────────────────────────────── -->
+    <div class="panel" id="tab-log">
+      <div class="page-header">System Log</div>
+      <div class="card">
+        <div class="terminal" id="history"></div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn" id="ClearLog">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FW Update ─────────────────────────────────────── -->
+    <div class="panel" id="tab-fw">
+      <div class="page-header">Remote FW Update</div>
+      <div class="card">
+        <div class="card-title">Devices</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Device</th><th>ID</th><th>Stored FW</th><th>Upload</th><th>Flash</th>
+            </tr>
+          </thead>
+          <tbody id="fw-body">
+            <tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="fw-skip-trigger">
+          Skip bootloader trigger (device already in BL mode)
+        </label>
+      </div>
+      <div class="card" id="fw-panel" style="display:none;">
+        <div class="card-title">Progress</div>
+        <p id="fw-msg" style="font-size:13px;margin-bottom:6px;">Idle</p>
+        <div class="prog-bg"><div class="prog-fill" id="fw-bar"></div></div>
+        <p id="fw-pct" style="font-size:12px;color:var(--muted);margin-top:4px;">0%</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ── Tab switching (no jQuery) ──────────────────────────── */
+var _panels = {}, _btns = {};
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  var id = btn.dataset.tab;
+  _btns[id]   = btn;
+  _panels[id] = document.getElementById('tab-' + id);
+  btn.addEventListener('click', function() { showTab(id); });
+});
+
+function showTab(id) {
+  Object.keys(_panels).forEach(function(k) {
+    _panels[k].classList.remove('active');
+    _btns[k].classList.remove('active');
+  });
+  _panels[id].classList.add('active');
+  _btns[id].classList.add('active');
+  if (id === 'home')  { loadHomeStats(); _startIOPoll(); }
+  else                { _stopIOPoll(); }
+  if (id === 'wifi')    loadWifiConfig();
+  if (id === 'mqtt')    loadMqttConfig();
+  if (id === 'devices') loadDeviceList();
+  if (id === 'files')   loadFileList();
+  if (id === 'fw')      loadFwDeviceList();
+}
+
+/* ── WebSocket ──────────────────────────────────────────── */
+var socket = new WebSocket(
+  (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+
+socket.addEventListener('open', function() {
+  socket.send('CNT');
+  setBadge('h-ws', 'Connected', 'green');
+});
+socket.addEventListener('close', function() {
+  setBadge('h-ws', 'Disconnected', 'red');
+});
+socket.addEventListener('error', function() {
+  setBadge('h-ws', 'Error', 'red');
+});
+socket.addEventListener('message', function(ev) {
+  var obj = JSON.parse(ev.data);
+  if (!obj) return;
+  if (obj.Type === 10) appendLog(obj.LOG);
+  if (obj.Type === 20) {
+    setFwProgress(obj.FW_PROG || 0);
+    if (obj.FW_MSG) document.getElementById('fw-msg').innerText = obj.FW_MSG;
+    if (obj.FW_DONE) {
+      document.getElementById('fw-msg').innerText =
+        obj.FW_OK ? 'Update successful!' : 'FAILED: ' + (obj.FW_MSG || 'unknown');
+      loadFwDeviceList();
+    }
+  }
+});
+
+/* ── Home tab ───────────────────────────────────────────── */
+function rebootDevice() {
+  if (!confirm('Reboot device?')) return;
+  fetch('/api/reboot', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function() { alert('Rebooting — reconnect in a few seconds.'); })
+    .catch(function() { alert('Rebooting…'); });
+}
+
+function loadHomeStats() {
+  fetch('/config/wifi')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('h-mode').innerText = d.mode == 1 ? 'STA' : 'AP';
+      document.getElementById('h-ssid').innerText = d.ssid || '—';
+      document.getElementById('h-ip').innerText   = d.ip   || '—';
+      document.getElementById('h-host').innerText = d.host || '—';
+      var nvs = document.getElementById('h-nvs');
+      nvs.innerText = d.nvs ? 'NVS' : 'LittleFS';
+      nvs.style.color = d.nvs ? 'var(--green)' : 'var(--yellow)';
+    }).catch(function() {});
+  fetch('/config/mqtt')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.enabled)
+        setBadge('h-mqtt', 'Disabled', 'grey');
+      else
+        setBadge('h-mqtt', d.enabled ? 'Enabled' : 'Disabled', d.enabled ? 'green' : 'grey');
+    }).catch(function() {});
+}
+loadHomeStats();
+
+/* ── I/O polling (home tab) ─────────────────────────────── */
+var _ioTimer = null;
+
+function _startIOPoll() {
+  if (_ioTimer) return;
+  _fetchIO();
+  _ioTimer = setInterval(_fetchIO, 500);
+}
+function _stopIOPoll() {
+  if (_ioTimer) { clearInterval(_ioTimer); _ioTimer = null; }
+}
+
+function _fetchIO() {
+  fetch('/api/io')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var errEl  = document.getElementById('io-error');
+      var nameEl = document.getElementById('io-shield-name');
+      if (nameEl) nameEl.innerText = d.name || '';
+      if (d.error) {
+        errEl.innerText      = 'Shield: ' + d.error;
+        errEl.style.display  = '';
+      } else {
+        errEl.style.display  = 'none';
+      }
+      _renderDots('io-inputs',  d.inputs  || []);
+      _renderDots('io-outputs', d.outputs || []);
+    }).catch(function() {});
+}
+
+function _renderDots(id, states) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  while (el.children.length < states.length) {
+    var s = document.createElement('span');
+    s.className = 'dot';
+    el.appendChild(s);
+  }
+  while (el.children.length > states.length) el.removeChild(el.lastChild);
+  for (var i = 0; i < states.length; i++)
+    el.children[i].className = 'dot' + (states[i] ? ' on' : '');
+}
+
+_startIOPoll();  // home is the default tab
+
+/* ── WiFi config ────────────────────────────────────────── */
+function loadWifiConfig() {
+  fetch('/config/wifi')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('wifiMode').value  = d.mode || 2;
+      document.getElementById('SSIDIn').value    = d.ssid || '';
+      document.getElementById('HostIn').value    = d.host || '';
+      document.getElementById('dIP').innerText   = d.ip   || '—';
+      document.getElementById('dCon2').innerText = d.mode == 1 ? 'STA' : 'AP';
+      setStatus('wifi-status', '');
+    }).catch(function(e) { setStatus('wifi-status', 'Load error: ' + e, true); });
+}
+
+function saveWifiConfig() {
+  var body = {
+    mode: parseInt(document.getElementById('wifiMode').value, 10),
+    ssid: document.getElementById('SSIDIn').value.trim(),
+    pass: document.getElementById('PWDin').value,
+    host: document.getElementById('HostIn').value.trim()
+  };
+  setStatus('wifi-status', 'Saving…');
+  fetch('/config/wifi', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { setStatus('wifi-status', d.ok ? d.msg : 'Error: ' + d.error, !d.ok); })
+    .catch(function(e) { setStatus('wifi-status', 'Save error: ' + e, true); });
+}
+
+/* ── MQTT config ────────────────────────────────────────── */
+function loadMqttConfig() {
+  fetch('/config/mqtt')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('mqttEn').checked   = d.enabled === true;
+      document.getElementById('mqttIP').value     = d.ip   || '';
+      document.getElementById('mqttPort').value   = d.port || 1883;
+      document.getElementById('mqttUser').value   = d.user || '';
+      setStatus('mqtt-status', '');
+    }).catch(function(e) { setStatus('mqtt-status', 'Load error: ' + e, true); });
+}
+
+function saveMqttConfig() {
+  var body = {
+    enabled: document.getElementById('mqttEn').checked,
+    ip:   document.getElementById('mqttIP').value.trim(),
+    port: parseInt(document.getElementById('mqttPort').value, 10),
+    user: document.getElementById('mqttUser').value.trim(),
+    pass: document.getElementById('mqttPass').value
+  };
+  setStatus('mqtt-status', 'Saving…');
+  fetch('/config/mqtt', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { setStatus('mqtt-status', d.ok ? d.msg : 'Error: ' + d.error, !d.ok); })
+    .catch(function(e) { setStatus('mqtt-status', 'Save error: ' + e, true); });
+}
+
+/* ── Config import (wifi or full backup) ────────────────── */
+function importWifiJson(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var st = 'wifi-import-status';
+  setStatus(st, 'Reading…');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var root = JSON.parse(e.target.result);
+      var o = root.wifi || root;
+      var mode = o.mode !== undefined ? o.mode : (o.WIFIMode !== undefined ? o.WIFIMode : null);
+      if (mode === null) { setStatus(st, 'No wifi config in file', true); return; }
+      document.getElementById('wifiMode').value = mode;
+      document.getElementById('SSIDIn').value   = o.ssid || o.SSID     || '';
+      document.getElementById('PWDin').value    = o.pass || o.Passcode || '';
+      document.getElementById('HostIn').value   = o.host || o.Host     || '';
+      setStatus(st, 'Loaded — review then Save & Restart');
+      setStatus('wifi-status', '');
+    } catch(err) { setStatus(st, 'Invalid JSON: ' + err.message, true); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function importMqttJson(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var st = 'mqtt-import-status';
+  setStatus(st, 'Reading…');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var root = JSON.parse(e.target.result);
+      var o = root.mqtt || root;
+      document.getElementById('mqttEn').checked = !!(o.enabled !== undefined ? o.enabled : o.MQTTEnabble);
+      document.getElementById('mqttIP').value   = o.ip   || o.MQTTIP       || '';
+      document.getElementById('mqttPort').value = o.port || o.MQTTPort     || 1883;
+      document.getElementById('mqttUser').value = o.user || o.MQTTUser     || '';
+      document.getElementById('mqttPass').value = o.pass || o.MQTTPassword || '';
+      setStatus(st, 'Loaded — review then Save & Restart');
+      setStatus('mqtt-status', '');
+    } catch(err) { setStatus(st, 'Invalid JSON: ' + err.message, true); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ── FW Update ──────────────────────────────────────────── */
+function setFwProgress(pct) {
+  document.getElementById('fw-panel').style.display = 'block';
+  document.getElementById('fw-bar').style.width = pct + '%';
+  document.getElementById('fw-pct').innerText = pct + '%';
+}
+
+/* ── Files tab ──────────────────────────────────────────── */
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+
+function loadFileList() {
+  fetch('/api/files')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('fs-total').innerText = fmtBytes(d.total);
+      document.getElementById('fs-used').innerText  = fmtBytes(d.used);
+      document.getElementById('fs-free').innerText  = fmtBytes(d.total - d.used);
+      document.getElementById('fs-bar').style.width = Math.round(d.used / d.total * 100) + '%';
+      var tbody = document.getElementById('file-list');
+      tbody.innerHTML = '';
+      if (!d.files || !d.files.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);padding:10px;">No files</td></tr>';
+        return;
+      }
+      d.files.forEach(function(f) {
+        tbody.innerHTML +=
+          '<tr>' +
+          '<td style="font-family:monospace;font-size:12px;">' + f.name + '</td>' +
+          '<td style="color:var(--muted);">' + fmtBytes(f.size) + '</td>' +
+          '<td><button class="btn-ghost" style="padding:3px 10px;font-size:12px;" onclick="deleteFile(\'' + f.name + '\')">Delete</button></td>' +
+          '</tr>';
+      });
+    })
+    .catch(function(e) { document.getElementById('file-list').innerHTML = '<tr><td colspan="3" style="color:var(--red);">Error: ' + e.message + '</td></tr>'; });
+}
+
+function deleteFile(name) {
+  if (!confirm('Delete ' + name + '?')) return;
+  fetch('/api/files?name=' + encodeURIComponent(name), { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.ok) loadFileList(); else alert('Failed: ' + d.msg); })
+    .catch(function(e) { alert('Error: ' + e); });
+}
+
+function uploadFile() {
+  var file = document.getElementById('up-file').files[0];
+  if (!file) { alert('Choose a file first'); return; }
+  var name = document.getElementById('up-name').value.trim() || ('/' + file.name);
+  if (!name.startsWith('/')) name = '/' + name;
+  var st = document.getElementById('up-status');
+  st.className = 'status-text';
+  st.innerText = 'Uploading…';
+  var form = new FormData();
+  form.append('file', file, file.name);
+  fetch('/api/files/upload?name=' + encodeURIComponent(name), { method: 'POST', body: form })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      st.className = d.ok ? 'status-text status-ok' : 'status-text status-err';
+      st.innerText = d.msg;
+      if (d.ok) loadFileList();
+    })
+    .catch(function(e) { st.className = 'status-text status-err'; st.innerText = 'Error: ' + e; });
+}
+
+function loadFwDeviceList() {
+  fetch('/fw/list')
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(data) {
+      var body = document.getElementById('fw-body');
+      body.innerHTML = '';
+      if (!data.devices || !data.devices.length) {
+        body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">No devices configured</td></tr>';
+        return;
+      }
+      data.devices.forEach(function(dev) {
+        var fwInfo  = dev.hasFw ? (dev.fwSize / 1024).toFixed(1) + ' KB' : '<em style="color:var(--muted)">None</em>';
+        var flashOk = dev.hasFw && !data.updating;
+        body.innerHTML +=
+          '<tr>' +
+          '<td>' + dev.name + '</td>' +
+          '<td>' + dev.id + '</td>' +
+          '<td id="fw-size-' + dev.id + '">' + fwInfo + '</td>' +
+          '<td><input type="file" id="fw-file-' + dev.id + '" accept=".bin,.hex" style="display:none" onchange="uploadFw(' + dev.id + ')">' +
+              '<button class="btn-ghost" onclick="document.getElementById(\'fw-file-' + dev.id + '\').click()">Upload</button></td>' +
+          '<td><button class="btn-ghost" id="fw-flash-' + dev.id + '" ' + (flashOk ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"') +
+              ' onclick="flashFw(' + dev.id + ')">Flash</button></td>' +
+          '</tr>';
+      });
+    })
+    .catch(function(e) {
+      document.getElementById('fw-body').innerHTML =
+        '<tr><td colspan="5" style="color:var(--red);padding:10px 8px;">Error: ' + e.message + '</td></tr>';
+    });
+}
+
+function uploadFw(slaveId) {
+  var file = document.getElementById('fw-file-' + slaveId).files[0];
+  if (!file) return;
+  setFwProgress(0);
+  document.getElementById('fw-msg').innerText = 'Uploading ' + file.name + '…';
+  var form = new FormData();
+  form.append('fw', file, file.name);
+  var xhr = new XMLHttpRequest();
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) setFwProgress(Math.round(e.loaded / e.total * 100));
+  };
+  xhr.onload = function() {
+    var d;
+    try { d = JSON.parse(xhr.responseText); } catch(ex) { d = { ok: false, msg: xhr.responseText }; }
+    setFwProgress(d.ok ? 100 : 0);
+    document.getElementById('fw-msg').innerText = d.ok ? 'Upload OK: ' + d.msg : 'Failed: ' + d.msg;
+    if (d.ok) loadFwDeviceList();
+  };
+  xhr.onerror = function() { document.getElementById('fw-msg').innerText = 'Upload error'; };
+  xhr.open('POST', '/fw/upload?id=' + slaveId);
+  xhr.send(form);
+}
+
+function flashFw(slaveId) {
+  var skipTrigger = document.getElementById('fw-skip-trigger').checked;
+  var msg = 'Flash firmware to device ID ' + slaveId + '?\nModbus polling pauses during update.';
+  if (skipTrigger) msg += '\n\nSKIP TRIGGER: device must already be in bootloader mode.';
+  if (!confirm(msg)) return;
+  document.getElementById('fw-panel').style.display = 'block';
+  document.getElementById('fw-msg').innerText = 'Starting flash for slave ' + slaveId +
+    (skipTrigger ? ' (skip trigger)' : '') + '…';
+  setFwProgress(0);
+  var url = '/fw/flash?id=' + slaveId + (skipTrigger ? '&skip_trigger=1' : '');
+  fetch(url, { method:'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (!d.ok) document.getElementById('fw-msg').innerText = 'Error: ' + d.msg; })
+    .catch(function(e) { document.getElementById('fw-msg').innerText = 'Flash error: ' + e; });
+}
+
+/* ── Devices tab ────────────────────────────────────────── */
+var _devList = [];   // full devices array (includes groups) from last load
+var _editIdx = -1;   // -1 = new device, >=0 = editing existing
+var _addrChangeIdx = -1;
+
+var MBBP_ADDR_CHANGE_KEY = 0xA5B0;  // matches ModBusBL2000 firmware
+
+function showAddrChange(devIdx) {
+  _addrChangeIdx = devIdx;
+  var dev = _devList[devIdx];
+  document.getElementById('addr-change-current').innerText = dev.address;
+  document.getElementById('addr-change-new').value = '';
+  setStatus('addr-change-status', '');
+  document.getElementById('addr-change-card').style.display = 'block';
+}
+
+function sendAddrChange() {
+  var dev     = _devList[_addrChangeIdx];
+  var newAddr = parseInt(document.getElementById('addr-change-new').value, 10);
+  if (isNaN(newAddr) || newAddr < 1 || newAddr > 247) {
+    setStatus('addr-change-status', 'Address must be 1–247', true); return;
+  }
+  setStatus('addr-change-status', 'Sending…');
+  fetch('/api/modbus/write-regs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ addr: dev.address, startReg: 0,
+                           values: [newAddr, MBBP_ADDR_CHANGE_KEY] })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok) { setStatus('addr-change-status', 'Write failed: ' + (d.msg || ''), true); return; }
+    setStatus('addr-change-status', 'Sent — updating config…');
+    setTimeout(function() {
+      dev.address = newAddr;
+      var body = { rev: '2.0', devices: _devList.map(function(d) {
+        var c = Object.assign({}, d); delete c.status; delete c.statusDetail; return c;
+      })};
+      fetch('/api/devices/save', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          document.getElementById('addr-change-card').style.display = 'none';
+          loadDeviceList();
+        } else {
+          setStatus('addr-change-status', 'Config save failed: ' + (d.msg || ''), true);
+        }
+      })
+      .catch(function(e) { setStatus('addr-change-status', 'Save error: ' + e, true); });
+    }, 1500);
+  })
+  .catch(function(e) { setStatus('addr-change-status', 'Error: ' + e, true); });
+}
+// GitHub device library — browser fetches directly (zero MCU flash cost).
+var DEVICE_LIBRARY_URL = 'https://raw.githubusercontent.com/richcj10/ESP32PLC-DeviceLibrary/main/devices.json';
+var _githubDevices = null;
+var _lastProbe     = null;
+var _liveAddr      = null;
+var _liveInterval  = null;
+var _scanPoll = null;
+
+function loadDeviceList() {
+  fetch('/api/devices')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      _devList = d.devices || [];
+      fetch('/api/devices/status')
+        .then(function(r) { return r.json(); })
+        .then(function(status) {
+          var warn = document.getElementById('dev-rev-warn');
+          if (status._rev === false) {
+            warn.style.display = 'block';
+            warn.innerText = 'Config file version mismatch — got "' + (status._revGot || '?') +
+                             '", firmware needs "' + (status._revNeeded || '?') +
+                             '". Upload a compatible Remote.json and reboot.';
+          } else {
+            warn.style.display = 'none';
+          }
+          _devList.forEach(function(dev) {
+            var val = status[String(dev.address)];
+            if (!val) return;
+            if (typeof val === 'object') {
+              dev.status = val.status;
+              dev.statusDetail = val.status === 'type_mismatch' ? 'id err' : 'ver err';
+            } else {
+              dev.status = val;
+              dev.statusDetail = null;
+            }
+          });
+          renderDeviceList();
+        })
+        .catch(function() { renderDeviceList(); });
+    })
+    .catch(function(e) {
+      document.getElementById('dev-list').innerHTML =
+        '<tr><td colspan="5" style="color:var(--red);padding:10px;">Error: ' + e.message + '</td></tr>';
+    });
+}
+
+function renderDeviceList() {
+  var tbody = document.getElementById('dev-list');
+  tbody.innerHTML = '';
+  if (!_devList.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:10px;">No devices configured</td></tr>';
+    return;
+  }
+  _devList.forEach(function(dev, i) {
+    var sc = dev.status === 'valid'          ? 'var(--green)'  :
+             dev.status === 'invalid'        ? 'var(--yellow)' :
+             dev.status === 'type_mismatch'  ? 'var(--yellow)' :
+             dev.status === 'offline'        ? 'var(--red)'    : 'var(--muted)';
+    var stText = dev.statusDetail || dev.status || '—';
+    tbody.innerHTML +=
+      '<tr>' +
+      '<td>' + (dev.name || '—') + '</td>' +
+      '<td>' + (dev.address !== undefined ? dev.address : '—') + '</td>' +
+      '<td>' + (dev.typeId !== undefined ? dev.typeId : '—') + '</td>' +
+      '<td style="color:' + sc + ';font-size:12px;">' + stText + '</td>' +
+      '<td style="white-space:nowrap;">' +
+        '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
+        'onclick="showLiveData(' + (dev.address !== undefined ? dev.address : 'undefined') + ')">Live</button>' +
+        '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
+        'onclick="editDevice(' + i + ')">Edit</button>' +
+        (dev.status === 'valid' ?
+          '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
+          'onclick="showAddrChange(' + i + ')">Addr</button>' : '') +
+        '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;" ' +
+        'onclick="deleteDevice(' + i + ')">Del</button>' +
+      '</td>' +
+      '</tr>';
+  });
+}
+
+function addDevice() {
+  _editIdx = -1;
+  document.getElementById('dev-form-title').innerText = 'Add Device';
+  document.getElementById('dev-name').value = '';
+  document.getElementById('dev-addr').value = '';
+  document.getElementById('dev-mqtt-fields').innerHTML = '';
+  setStatus('dev-form-status', '');
+  document.getElementById('dev-form-card').style.display = 'block';
+}
+
+function editDevice(idx) {
+  _editIdx = idx;
+  var dev  = _devList[idx];
+  document.getElementById('dev-form-title').innerText = 'Edit: ' + (dev.name || '');
+  document.getElementById('dev-name').value = dev.name    || '';
+  document.getElementById('dev-addr').value = dev.address !== undefined ? dev.address : '';
+  // MQTT topic fields per group
+  var mf = document.getElementById('dev-mqtt-fields');
+  if (dev.groups && dev.groups.length) {
+    var html = '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">' +
+               '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">MQTT Topics</div>';
+    dev.groups.forEach(function(g, i) {
+      html += '<div class="form-row"><label>' + (g.name || 'Group ' + i) + '</label>' +
+              '<input type="text" id="dev-mqtt-' + i + '" value="' + (g.mqttTopic || '') + '" placeholder="remote/device"></div>';
+    });
+    html += '</div>';
+    mf.innerHTML = html;
+  } else {
+    mf.innerHTML = '';
+  }
+  setStatus('dev-form-status', '');
+  document.getElementById('dev-form-card').style.display = 'block';
+}
+
+function cancelDeviceEdit() {
+  document.getElementById('dev-form-card').style.display = 'none';
+}
+
+function saveDeviceEdit() {
+  var name = document.getElementById('dev-name').value.trim();
+  var addr = parseInt(document.getElementById('dev-addr').value, 10);
+  if (!name)                               { setStatus('dev-form-status', 'Name required',  true); return; }
+  if (isNaN(addr) || addr < 1 || addr > 247) { setStatus('dev-form-status', 'Address 1–247', true); return; }
+
+  if (_editIdx >= 0) {
+    _devList[_editIdx].name    = name;
+    _devList[_editIdx].address = addr;
+    // typeId is intentionally not updated — use Edit Raw to change device type
+    if (_devList[_editIdx].groups) {
+      _devList[_editIdx].groups.forEach(function(g, i) {
+        var el = document.getElementById('dev-mqtt-' + i);
+        if (el) g.mqttTopic = el.value.trim();
+      });
+    }
+    delete _devList[_editIdx].status;
+  } else {
+    _devList.push({ name: name, address: addr, typeId: 0, groups: [] });
+  }
+
+  setStatus('dev-form-status', 'Saving…');
+  var body = { rev: '2.0', devices: _devList.map(function(d) {
+    var c = Object.assign({}, d); delete c.status; return c;
+  })};
+  fetch('/api/devices/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      setStatus('dev-form-status', d.ok ? d.msg : 'Error: ' + d.msg, !d.ok);
+      if (d.ok) { renderDeviceList(); document.getElementById('dev-form-card').style.display = 'none'; if (d.reboot) showRebootBanner(); }
+    })
+    .catch(function(e) { setStatus('dev-form-status', 'Error: ' + e, true); });
+}
+
+function deleteDevice(idx) {
+  var dev = _devList[idx];
+  if (!confirm('Delete "' + (dev.name || 'device ' + idx) + '"?')) return;
+  var removed = _devList.splice(idx, 1);
+  var body = { rev: '2.0', devices: _devList.map(function(d) {
+    var c = Object.assign({}, d); delete c.status; return c;
+  })};
+  fetch('/api/devices/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { renderDeviceList(); if (d.reboot) showRebootBanner(); }
+      else { _devList.splice(idx, 0, removed[0]); alert('Delete failed: ' + d.msg); }
+    })
+    .catch(function(e) { _devList.splice(idx, 0, removed[0]); alert('Error: ' + e); });
+}
+
+function downloadConfig() {
+  fetch('/api/devices')
+    .then(function(r) { return r.blob(); })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      var a   = document.createElement('a');
+      a.href  = url; a.download = 'Remote.json';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })
+    .catch(function(e) { alert('Download failed: ' + e); });
+}
+
+function uploadConfig(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var form = new FormData();
+  form.append('file', file, 'Remote.json');
+  fetch('/api/remote/upload', { method: 'POST', body: form })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { input.value = ''; showRebootBanner(); }
+      else { alert('Upload failed: ' + d.msg); input.value = ''; }
+    })
+    .catch(function(e) { alert('Upload error: ' + e); input.value = ''; });
+}
+
+function toggleRawEditor() {
+  var card = document.getElementById('raw-editor-card');
+  if (card.style.display === 'none') {
+    fetch('/api/devices')
+      .then(function(r) { return r.text(); })
+      .then(function(t) {
+        try { t = JSON.stringify(JSON.parse(t), null, 2); } catch(e) {}
+        document.getElementById('raw-editor-text').value = t;
+        setStatus('raw-editor-status', '');
+        card.style.display = 'block';
+      });
+  } else {
+    card.style.display = 'none';
+  }
+}
+
+function saveRawConfig() {
+  var text = document.getElementById('raw-editor-text').value;
+  var obj;
+  try { obj = JSON.parse(text); } catch(e) {
+    setStatus('raw-editor-status', 'Invalid JSON: ' + e.message, true); return;
+  }
+  setStatus('raw-editor-status', 'Saving…');
+  fetch('/api/devices/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      setStatus('raw-editor-status', d.ok ? d.msg : 'Error: ' + d.msg, !d.ok);
+      if (d.ok) { document.getElementById('raw-editor-card').style.display = 'none'; if (d.reboot) showRebootBanner(); else loadDeviceList(); }
+    })
+    .catch(function(e) { setStatus('raw-editor-status', 'Error: ' + e, true); });
+}
+
+function showLiveData(addr) {
+  if (addr === undefined) return;
+  if (_liveAddr === addr) { closeLiveData(); return; }
+  _liveAddr = addr;
+  var dev = null;
+  for (var i = 0; i < _devList.length; i++) { if (_devList[i].address === addr) { dev = _devList[i]; break; } }
+  document.getElementById('live-title').innerText = 'Live — ' + (dev ? dev.name : 'Addr ' + addr);
+  document.getElementById('live-card').style.display = 'block';
+  document.getElementById('live-content').innerHTML = '<div style="color:var(--muted);font-size:13px;">Loading…</div>';
+  _fetchLiveData();
+  if (_liveInterval) clearInterval(_liveInterval);
+  _liveInterval = setInterval(_fetchLiveData, 2500);
+}
+
+function closeLiveData() {
+  if (_liveInterval) { clearInterval(_liveInterval); _liveInterval = null; }
+  _liveAddr = null;
+  document.getElementById('live-card').style.display = 'none';
+}
+
+function _fetchLiveData() {
+  if (_liveAddr === null) return;
+  fetch('/api/data/live?addr=' + _liveAddr)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (_liveAddr === null) return;
+      var html = '';
+      (d.groups || []).forEach(function(g) {
+        html += '<div style="margin-bottom:12px;">';
+        if (g.name) html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;' +
+                            'text-transform:uppercase;letter-spacing:0.05em;">' + g.name + '</div>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;">';
+        (g.regs || []).forEach(function(r) {
+          var disp = (r.v % 1 === 0) ? r.v.toString() : r.v.toFixed(2);
+          if (r.u) disp += ' ' + r.u;
+          html += '<div style="background:var(--card2);border-radius:5px;padding:6px 8px;">' +
+                  '<div style="font-size:11px;color:var(--muted);">' + r.n + '</div>' +
+                  '<div style="font-size:15px;font-weight:600;">' + disp + '</div></div>';
+        });
+        html += '</div></div>';
+      });
+      document.getElementById('live-content').innerHTML = html ||
+        '<div style="color:var(--muted);font-size:13px;">No data</div>';
+    })
+    .catch(function() {});
+}
+
+function scanBus() {
+  document.getElementById('scan-card').style.display = 'block';
+  document.getElementById('scan-status').innerText = 'Scanning…';
+  document.getElementById('scan-result').innerHTML = '';
+  document.getElementById('discovery-cards').innerHTML = '';
+  _lastProbe = null;
+  fetch('/api/devices/scan', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { document.getElementById('scan-status').innerText = 'Failed: ' + d.msg; return; }
+      if (_scanPoll) clearInterval(_scanPoll);
+      _scanPoll = setInterval(pollScanResult, 1000);
+    })
+    .catch(function(e) { document.getElementById('scan-status').innerText = 'Error: ' + e; });
+}
+
+function pollScanResult() {
+  fetch('/api/devices/scan')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.running === true) {
+        document.getElementById('scan-status').innerText =
+          'Scanning… ' + d.progress + '/' + d.total;
+        return;
+      }
+      if (d.running !== false) return;
+      clearInterval(_scanPoll); _scanPoll = null;
+      var addrs = d.addresses || [];
+      document.getElementById('scan-status').innerText =
+        addrs.length ? addrs.length + ' device(s) found' : 'No devices responded';
+      if (addrs.length) {
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
+        addrs.forEach(function(a) {
+          html += '<span style="background:var(--card2);border-radius:4px;padding:4px 10px;' +
+                  'font-size:13px;color:var(--green);">Addr ' + a + '</span>';
+        });
+        document.getElementById('scan-result').innerHTML = html + '</div>';
+      }
+      if (d.probe && d.probe.length) _showDiscoveryCards(d.probe);
+    })
+    .catch(function() {});
+}
+
+function _showDiscoveryCards(probeArr) {
+  _lastProbe = probeArr;
+  var container = document.getElementById('discovery-cards');
+  container.innerHTML = '';
+  var unconfigured = probeArr.filter(function(p) {
+    return !_devList.some(function(d) { return d.address === p.a; });
+  });
+  if (!unconfigured.length) return;
+  var html = '<div class="card" style="margin-top:0;"><div class="card-title" style="margin-bottom:8px;">New Devices Found</div>';
+  unconfigured.forEach(function(p) {
+    var known = null;
+    if (_githubDevices) {
+      for (var i = 0; i < _githubDevices.length; i++) {
+        if (_githubDevices[i].typeId === p.t) { known = _githubDevices[i]; break; }
+      }
+    }
+    var label = known ? known.name : ('TypeID ' + p.t);
+    var tc    = known ? 'var(--green)' : 'var(--yellow)';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;' +
+            'padding:8px 0;border-bottom:1px solid var(--border);">' +
+            '<div>' +
+              '<span style="font-weight:600;font-size:13px;">Addr ' + p.a + '</span>' +
+              '&nbsp;<span style="color:' + tc + ';font-size:12px;">' + label + '</span>' +
+              '&nbsp;<span style="color:var(--muted);font-size:11px;">v' + p.v + ' · tid ' + p.t + '</span>' +
+            '</div><div style="display:flex;gap:6px;">';
+    if (known) {
+      html += '<button class="btn" style="font-size:12px;padding:4px 10px;" ' +
+              'onclick="_addDiscoveredDevice(' + p.a + ',' + p.t + ')">Add</button>';
+    } else {
+      html += '<button class="btn-ghost" style="font-size:12px;padding:4px 10px;" ' +
+              'onclick="fetchFromGitHub(this,' + p.a + ',' + p.t + ')">Fetch</button>';
+    }
+    html += '</div></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function _addDiscoveredDevice(addr, typeId) {
+  var preset = null;
+  if (_githubDevices) {
+    for (var i = 0; i < _githubDevices.length; i++) {
+      if (_githubDevices[i].typeId === typeId) { preset = _githubDevices[i]; break; }
+    }
+  }
+  if (!preset) { alert('No config for TypeID ' + typeId); return; }
+  var dev     = JSON.parse(JSON.stringify(preset));
+  dev.address = addr;
+  dev.name    = dev.name + '-' + addr;
+  _devList.push(dev);
+  var body = { rev: '2.0', devices: _devList.map(function(d) {
+    var c = Object.assign({}, d); delete c.status; return c;
+  })};
+  fetch('/api/devices/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { renderDeviceList(); if (d.reboot) { showRebootBanner(); } else if (_lastProbe) _showDiscoveryCards(_lastProbe); }
+      else { _devList.pop(); alert('Save failed: ' + d.msg); }
+    })
+    .catch(function(e) { _devList.pop(); alert('Error: ' + e); });
+}
+
+function _dbg(msg) {
+  var el = document.getElementById('discovery-debug');
+  el.style.display = 'block';
+  el.innerText = msg;
+}
+
+function fetchFromGitHub(btn, addr, typeId) {
+  if (_githubDevices) { _addDiscoveredDevice(addr, typeId); return; }
+  btn.innerText = 'Fetching…';
+  btn.disabled  = true;
+  fetch(DEVICE_LIBRARY_URL)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+      return r.json();
+    })
+    .then(function(lib) {
+      _githubDevices = lib.devices || lib;
+      if (!Array.isArray(_githubDevices)) {
+        _dbg('Bad library format: ' + JSON.stringify(lib).slice(0, 100));
+        btn.innerText = 'Bad format'; btn.disabled = false; return;
+      }
+      var found = _githubDevices.some(function(d) { return d.typeId === typeId; });
+      if (found) {
+        if (_lastProbe) _showDiscoveryCards(_lastProbe);
+        _addDiscoveredDevice(addr, typeId);
+      } else {
+        _dbg('TypeID ' + typeId + ' not in library. Available: ' +
+             _githubDevices.map(function(d) { return d.typeId; }).join(', '));
+        btn.innerText = 'Not found';
+        btn.disabled  = false;
+      }
+    })
+    .catch(function(e) {
+      _dbg('Fetch error: ' + e.message);
+      btn.innerText = 'Offline';
+      btn.disabled  = false;
+    });
+}
+
+/* ── Fireworks ──────────────────────────────────────────── */
+document.getElementById('FWFire').addEventListener('click', function() {
+  if (!confirm('OK TO FIRE?')) { alert('Did not activate!'); return; }
+  var ids = [1,2,3,4,5];
+  var payload = { Mode: 'FW' };
+  ids.forEach(function(i) {
+    payload['CH' + i]  = document.getElementById('firework' + i + 'en').checked ? 1 : 0;
+    payload['CH' + i + 'T'] = parseInt(document.getElementById('CH' + i + 'TD').value, 10);
+  });
+  socket.send(JSON.stringify(payload));
+  alert('Fire   Fire   Fire');
+});
+
+/* ── Log ────────────────────────────────────────────────── */
+function appendLog(data) {
+  var el = document.getElementById('history');
+  el.innerText += data;
+  el.scrollTop = el.scrollHeight;
+}
+
+document.getElementById('ClearLog').addEventListener('click', function() {
+  document.getElementById('history').innerText = '';
+});
+
+/* ── Helpers ────────────────────────────────────────────── */
+function togglePwd(id, btn) {
+  var f = document.getElementById(id);
+  var show = f.type === 'password';
+  f.type = show ? 'text' : 'password';
+  btn.style.opacity = show ? '1' : '0.45';
+}
+
+function setStatus(id, msg, isErr) {
+  var el = document.getElementById(id);
+  el.innerText = msg;
+  el.className = 'status-text' + (isErr ? ' status-err' : (msg ? ' status-ok' : ''));
+}
+
+function showRebootBanner() {
+  var existing = document.getElementById('reboot-banner');
+  if (existing) return;
+  var banner = document.createElement('div');
+  banner.id = 'reboot-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#e6a817;' +
+    'color:#000;text-align:center;padding:14px 20px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+  document.body.appendChild(banner);
+  var secs = 15;
+  function tick() {
+    banner.innerText = 'Config saved — rebooting. Page reloads in ' + secs + 's…';
+    if (secs-- <= 0) { location.reload(); return; }
+    setTimeout(tick, 1000);
+  }
+  tick();
+  // Poll for device coming back up; reload as soon as it responds
+  var poll = setInterval(function() {
+    fetch('/api/files', { cache: 'no-store' })
+      .then(function(r) { if (r.ok) { clearInterval(poll); location.reload(); } })
+      .catch(function() {});
+  }, 2500);
+}
+
+function setBadge(id, text, color) {
+  var el = document.getElementById(id);
+  el.innerText = text;
+  el.className = 'badge badge-' + (color || 'grey');
+}
+</script>
+</body>
+</html>

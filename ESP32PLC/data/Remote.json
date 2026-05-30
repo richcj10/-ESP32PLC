@@ -1,0 +1,118 @@
+{
+  "rev": "2.0",
+  "devices": [
+    {
+      "name": "CurrentSensor1",
+      "address": 12,
+      "typeId": 30,
+      "swVersion": 2,
+      "groups": [
+        {
+          "name": "Device",
+          "fc": 4,
+          "startReg": 0,
+          "count": 2,
+          "pollMs": 30000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Version", "DevType"],
+          "mqttEnable": false,
+          "mqttTopic": "remote/CS/diag",
+          "writes": []
+        },
+        {
+          "name": "Current",
+          "fc": 4,
+          "startReg": 2,
+          "count": 4,
+          "pollMs": 1000,
+          "scale": 100,
+          "units": ["V", "A", "A", "A"],
+          "regs": ["VIN", "CS1", "CS2", "CS3"],
+          "mqttEnable": true,
+          "mqttTopic": "remote/CS",
+          "writes": []
+        }
+      ]
+    },
+    {
+      "name": "Weather Station",
+      "address": 40,
+      "typeId": 13,
+      "swVersion": 3,
+      "groups": [
+        {
+          "name": "Climate",
+          "fc": 4,
+          "startReg": 2,
+          "count": 7,
+          "pollMs": 2000,
+          "scale": 100,
+          "units": ["V", "°F", "%", "kPa", "mph", "°", "in"],
+          "regs": ["VIN", "Temp", "Humid", "Pres", "WindSpd", "WindDir", "Rain"],
+          "mqttEnable": true,
+          "mqttTopic": "remote/WS",
+          "writes": [
+            {
+              "name": "RainReset",
+              "fc": 5,
+              "startReg": 2,
+              "count": 1,
+              "regs": ["Reset"],
+              "defaults": [0],
+              "mqttTopic": "remote/WS/rain/reset"
+            },
+            {
+              "name": "WindCal",
+              "fc": 5,
+              "startReg": 3,
+              "count": 1,
+              "regs": ["Cal"],
+              "defaults": [0],
+              "mqttTopic": "remote/WS/wind/calibrate"
+            }
+          ]
+        },
+        {
+          "name": "Device",
+          "fc": 4,
+          "startReg": 0,
+          "count": 2,
+          "pollMs": 5000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Version", "DevType"],
+          "mqttEnable": false,
+          "mqttTopic": "remote/WS/diag",
+          "writes": []
+        },
+        {
+          "name": "Lightning",
+          "fc": 4,
+          "startReg": 9,
+          "count": 1,
+          "pollMs": 2000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Lightning"],
+          "mqttEnable": true,
+          "mqttTopic": "remote/WS",
+          "writes": []
+        },
+        {
+          "name": "Diagnostics",
+          "fc": 4,
+          "startReg": 10,
+          "count": 3,
+          "pollMs": 5000,
+          "scale": 1,
+          "units": "",
+          "regs": ["Heartbeat", "ErrCount", "UptimeMin"],
+          "mqttEnable": false,
+          "mqttTopic": "remote/WS/diag",
+          "writes": []
+        }
+      ]
+    }
+  ]
+}

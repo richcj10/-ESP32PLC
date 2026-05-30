@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a0a;
+    font-family: 'Segoe UI', sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    gap:24px; padding:24px;
+  }
+  h2 { color:#00c8ff; font-size:13px; letter-spacing:3px; text-transform:uppercase; }
+
+  /* ICON 400x400 */
+  .icon {
+    width:400px; height:400px;
+    background:#000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative; overflow:hidden;
+    border:1px solid rgba(0,200,255,0.25);
+    box-shadow: 0 0 30px rgba(0,200,255,0.15), inset 0 0 40px rgba(0,200,255,0.05);
+  }
+  .icon::before {
+    content:''; position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,200,255,0.04) 3px, rgba(0,200,255,0.04) 4px
+    );
+    pointer-events:none; z-index:3;
+  }
+  .icon img {
+    width:280px; position:relative; z-index:2;
+    filter: drop-shadow(0 0 6px #00c8ff) drop-shadow(0 0 18px #00a0e077) drop-shadow(0 0 35px #0060c044);
+  }
+  .icon .tag {
+    font-size:13px; letter-spacing:8px; font-weight:200; text-transform:uppercase;
+    color:#00c8ff;
+    text-shadow: 0 0 8px #00c8ff, 0 0 20px #00a0e0;
+    position:relative; z-index:2; margin-top:10px;
+  }
+
+  /* BANNER 800x200 */
+  .banner {
+    width:800px; height:200px;
+    background:#000;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 40px;
+    position:relative; overflow:hidden;
+    border:1px solid rgba(0,200,255,0.2);
+    box-shadow: 0 0 25px rgba(0,200,255,0.12);
+  }
+  .banner::before {
+    content:''; position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,200,255,0.025) 3px, rgba(0,200,255,0.025) 4px
+    );
+    z-index:0;
+  }
+  .glow-l { position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,transparent,#00c8ff88,transparent); box-shadow:0 0 20px 6px #00c8ff33; z-index:1; }
+  .glow-r { position:absolute; right:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,transparent,#00c8ff88,transparent); box-shadow:0 0 20px 6px #00c8ff33; z-index:1; }
+  .banner img {
+    width:200px; position:relative; z-index:2;
+    filter: drop-shadow(0 0 8px #00c8ff) drop-shadow(0 0 20px #00a0e077);
+  }
+  .banner .right { display:flex; flex-direction:column; gap:8px; position:relative; z-index:2; }
+  .banner .right h1 {
+    font-size:32px; font-weight:700; letter-spacing:3px;
+    background: linear-gradient(135deg, #d4a020, #f0d060, #c89010);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .banner .right p { font-size:11px; color:#00c8ff; letter-spacing:3px; font-weight:200; text-transform:uppercase; text-shadow:0 0 6px #00c8ff55; }
+  .banner .divider { width:200px; height:1px; background:linear-gradient(90deg,#00c8ff88,transparent); }
+</style>
+</head>
+<body>
+  <h2>Rendition 2 — Electric Storm</h2>
+  <div class="icon">
+    <img src="logo.png">
+    <div class="tag">ESP-PLC Labs</div>
+  </div>
+  <h2>Banner</h2>
+  <div class="banner">
+    <div class="glow-l"></div><div class="glow-r"></div>
+    <img src="logo.png">
+    <div class="right">
+      <h1>ESP-PLC Labs</h1>
+      <div class="divider"></div>
+      <p>Open-Source PLC for the Real World</p>
+    </div>
+  </div>
+</body>
+</html>
