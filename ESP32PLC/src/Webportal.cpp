@@ -6,6 +6,7 @@
 #include <DNSServer.h>
 #include "FileSystem/FSInterface.h"
 #include "WifiControl/WifiConfig.h"
+#include <ESPmDNS.h>
 #include "Sensors.h"
 #include "Define.h"
 #include "Functions.h"
@@ -961,6 +962,54 @@ void WebStart(){
       }
     }
   );
+
+  /* GET /api/label  — read device label from LittleFS */
+  server.on("/api/label", HTTP_GET, [](AsyncWebServerRequest* req) {
+    String label = "";
+    if (LittleFS.exists("/label.txt")) {
+      File f = LittleFS.open("/label.txt", "r");
+      if (f) { label = f.readString(); f.close(); }
+    }
+    req->send(200, "application/json", "{\"label\":\"" + label + "\"}");
+  });
+
+  /* POST /api/label  — save device label to LittleFS */
+  server.on("/api/label", HTTP_POST, [](AsyncWebServerRequest*){},
+    nullptr,
+    [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+      StaticJsonDocument<128> doc;
+      if (deserializeJson(doc, data, len) != DeserializationError::Ok) { req->send(400); return; }
+      const char* label = doc["label"] | "";
+      File f = LittleFS.open("/label.txt", "w");
+      if (f) { f.print(label); f.close(); }
+      req->send(200, "application/json", "{\"ok\":true}");
+    }
+  );
+
+  /* GET /api/neighbors  — return cached mDNS peer list */
+  server.on("/api/neighbors", HTTP_GET, [](AsyncWebServerRequest* req) {
+    String json = "[";
+    for (int i = 0; i < NeighborCount(); i++) {
+      const NeighborEntry* e = NeighborGet(i);
+      if (i > 0) json += ",";
+      json += "{\"name\":\"" + String(e->name) + "\",\"ip\":\"" + String(e->ip) + "\"}";
+    }
+    json += "]";
+    req->send(200, "application/json", json);
+  });
+
+  /* POST /api/neighbors/scan  — trigger live mDNS scan, return results */
+  server.on("/api/neighbors/scan", HTTP_POST, [](AsyncWebServerRequest* req) {
+    NeighborScan();
+    String json = "[";
+    for (int i = 0; i < NeighborCount(); i++) {
+      const NeighborEntry* e = NeighborGet(i);
+      if (i > 0) json += ",";
+      json += "{\"name\":\"" + String(e->name) + "\",\"ip\":\"" + String(e->ip) + "\"}";
+    }
+    json += "]";
+    req->send(200, "application/json", json);
+  });
 
   /* GET /log — recent log ring buffer as plain text, newest last */
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* req) {

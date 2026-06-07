@@ -51,11 +51,23 @@
   <!-- ── Content ───────────────────────────────────────── -->
   <main class="content">
 
+    <!-- Peer bar (hidden until neighbors found) ────────── -->
+    <div id="peer-bar">
+      <span class="peer-bar-label">Other PLCs:</span>
+      <span id="peer-links"></span>
+    </div>
+
     <!-- Home ──────────────────────────────────────────── -->
     <div class="panel active" id="tab-home">
       <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
         Dashboard
         <button class="btn btn-red" style="font-size:12px;padding:5px 12px;" onclick="rebootDevice()">Reboot</button>
+      </div>
+      <div id="dev-label-display" class="dev-label" onclick="editLabel()" title="Click to edit"></div>
+      <div id="dev-label-edit" style="display:none;align-items:center;gap:6px;margin-bottom:10px;">
+        <input id="dev-label-input" type="text" class="input" style="flex:1;max-width:320px;" maxlength="64" placeholder="e.g. Pump Room, Boiler #2">
+        <button class="btn" onclick="saveLabel()">Save</button>
+        <button class="btn-ghost" onclick="cancelLabel()">Cancel</button>
       </div>
 
       <div class="stat-grid">
@@ -411,6 +423,7 @@
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="ClearLog">Clear</button>
           <button class="btn-ghost" onclick="loadMem()">Refresh Mem</button>
+          <button class="btn-ghost" id="scan-btn" onclick="scanNeighbors(this)">Find PLCs</button>
         </div>
       </div>
     </div>
@@ -466,6 +479,68 @@ document.querySelectorAll('.tab-btn').forEach(function(btn) {
   btn.addEventListener('click', function() { showTab(id); });
 });
 
+/* ── Device label ───────────────────────────────────────── */
+var _labelOrig = '';
+function loadLabel() {
+  fetch('/api/label').then(function(r){return r.json();}).then(function(d) {
+    _labelOrig = d.label || '';
+    _applyLabel(_labelOrig);
+  });
+}
+function _applyLabel(text) {
+  var el = document.getElementById('dev-label-display');
+  el.textContent = text || 'Tap to set a location or description…';
+  el.style.color = text ? '' : 'var(--muted)';
+  var words = (text || '').trim().split(/\s+/).slice(0,3).join(' ');
+  document.title = (words || 'ESP32PLC') + ' | ESP32PLC';
+}
+function editLabel() {
+  document.getElementById('dev-label-input').value = _labelOrig;
+  document.getElementById('dev-label-display').style.display = 'none';
+  var ed = document.getElementById('dev-label-edit');
+  ed.style.display = 'flex';
+  document.getElementById('dev-label-input').focus();
+}
+function cancelLabel() {
+  document.getElementById('dev-label-display').style.display = '';
+  document.getElementById('dev-label-edit').style.display = 'none';
+}
+function saveLabel() {
+  var text = document.getElementById('dev-label-input').value.trim();
+  fetch('/api/label', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({label:text})})
+    .then(function() { _labelOrig = text; _applyLabel(text); cancelLabel(); });
+}
+
+/* ── Neighbor discovery ─────────────────────────────────── */
+function loadNeighbors() {
+  fetch('/api/neighbors').then(function(r){return r.json();}).then(_renderPeers);
+}
+function scanNeighbors(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
+  fetch('/api/neighbors/scan', {method:'POST'})
+    .then(function(r){return r.json();})
+    .then(function(d) {
+      _renderPeers(d);
+      if (btn) { btn.disabled = false; btn.textContent = 'Find PLCs'; }
+    })
+    .catch(function() { if (btn) { btn.disabled = false; btn.textContent = 'Find PLCs'; } });
+}
+function _renderPeers(list) {
+  var bar   = document.getElementById('peer-bar');
+  var links = document.getElementById('peer-links');
+  links.innerHTML = '';
+  if (!list || list.length === 0) { bar.style.display = 'none'; return; }
+  list.forEach(function(p) {
+    var a = document.createElement('a');
+    a.href = 'http://' + p.ip;
+    a.textContent = p.name;
+    a.target = '_blank';
+    a.className = 'peer-link';
+    links.appendChild(a);
+  });
+  bar.style.display = 'flex';
+}
+
 function showTab(id) {
   Object.keys(_panels).forEach(function(k) {
     _panels[k].classList.remove('active');
@@ -481,7 +556,7 @@ function showTab(id) {
   if (id === 'devices') loadDeviceList();
   if (id === 'files')   loadFileList();
   if (id === 'fw')      loadFwDeviceList();
-  if (id === 'log')     loadMem();
+  if (id === 'log')     { document.getElementById('history').innerHTML = ''; loadMem(); }
 }
 
 /* ── WebSocket ──────────────────────────────────────────── */
@@ -604,6 +679,8 @@ function _renderDots(id, states) {
 }
 
 _startIOPoll();  // home is the default tab
+loadLabel();
+loadNeighbors();
 
 /* ── WiFi config ────────────────────────────────────────── */
 function loadWifiConfig() {
