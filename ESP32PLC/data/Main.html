@@ -40,9 +40,9 @@
     <button class="tab-btn" data-tab="log" title="Log">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 3H4a1 1 0 00-1 1v16a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1zm-1 16H5V5h14v14zM7.293 9.707l2.147 2.146-2.147 2.147 1.414 1.414L12.267 12l-3.56-3.56-1.414 1.267zM13 15h4v-2h-4v2z"/></svg>
     </button>
-    <!-- Mem icon -->
-    <button class="tab-btn" data-tab="mem" title="Memory">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path d="M0 96C0 60.7 28.7 32 64 32H576c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM48 368v32c0 8.8 7.2 16 16 16H112c8.8 0 16-7.2 16-16V368c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16zm368-16c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V368c0-8.8-7.2-16-16-16H416zM48 240v32c0 8.8 7.2 16 16 16H112c8.8 0 16-7.2 16-16V240c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16zm368-16c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V240c0-8.8-7.2-16-16-16H416zM48 112v32c0 8.8 7.2 16 16 16H112c8.8 0 16-7.2 16-16V112c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16zm368-16c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V112c0-8.8-7.2-16-16-16H416zM160 128v64c0 17.7 14.3 32 32 32H448c17.7 0 32-14.3 32-32V128c0-17.7-14.3-32-32-32H192c-17.7 0-32 14.3-32 32zm32 160v64c0 17.7 14.3 32 32 32H448c17.7 0 32-14.3 32-32V288c0-17.7-14.3-32-32-32H192c-17.7 0-32 14.3-32 32z"/></svg>
+    <!-- App -->
+    <button class="tab-btn" data-tab="app" title="App">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M0 80C0 53.5 21.5 32 48 32h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V80zm320 0c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48h-96c-26.5 0-48-21.5-48-48V80zM0 400c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48v-96zm320 0c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v96c0 26.5-21.5 48-48 48h-96c-26.5 0-48-21.5-48-48v-96z"/></svg>
     </button>
     <!-- FW text label -->
     <button class="tab-btn" data-tab="fw" title="FW Update">FW</button>
@@ -393,27 +393,33 @@
     <!-- Log ───────────────────────────────────────────── -->
     <div class="panel" id="tab-log">
       <div class="page-header">System Log</div>
+
+      <!-- Memory bubble ─────────────────────────────── -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="card" style="flex:1;min-width:140px;margin:0;">
+          <div class="card-title" style="margin-bottom:8px;">Heap</div>
+          <table id="mem-heap"><tbody></tbody></table>
+        </div>
+        <div class="card" id="mem-psram-card" style="flex:1;min-width:140px;margin:0;display:none;">
+          <div class="card-title" style="margin-bottom:8px;">PSRAM</div>
+          <table id="mem-psram"><tbody></tbody></table>
+        </div>
+      </div>
+
       <div class="card">
         <div class="terminal" id="history"></div>
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="ClearLog">Clear</button>
+          <button class="btn-ghost" onclick="loadMem()">Refresh Mem</button>
         </div>
       </div>
     </div>
 
-    <!-- Memory ─────────────────────────────────────────── -->
-    <div class="panel" id="tab-mem">
-      <div class="page-header">Memory</div>
-      <div class="card">
-        <div class="card-title">Heap (internal DRAM)</div>
-        <table id="mem-heap"><tbody></tbody></table>
-      </div>
-      <div class="card" id="mem-psram-card" style="display:none">
-        <div class="card-title">PSRAM</div>
-        <table id="mem-psram"><tbody></tbody></table>
-      </div>
-      <div class="btn-row" style="margin-top:10px;">
-        <button class="btn" onclick="loadMem()">Refresh</button>
+    <!-- App ────────────────────────────────────────────── -->
+    <div class="panel" id="tab-app">
+      <div class="page-header">App</div>
+      <div class="card" style="color:var(--muted);font-size:13px;text-align:center;padding:32px 0;">
+        App content coming soon.
       </div>
     </div>
 
@@ -475,7 +481,7 @@ function showTab(id) {
   if (id === 'devices') loadDeviceList();
   if (id === 'files')   loadFileList();
   if (id === 'fw')      loadFwDeviceList();
-  if (id === 'mem')     loadMem();
+  if (id === 'log')     loadMem();
 }
 
 /* ── WebSocket ──────────────────────────────────────────── */
