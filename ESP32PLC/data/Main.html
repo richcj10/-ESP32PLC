@@ -287,50 +287,62 @@
       </div>
     </div>
 
-    <!-- I/O / Fireworks ───────────────────────────────── -->
+    <!-- I/O Control ────────────────────────────────────── -->
     <div class="panel" id="tab-io">
-      <div class="page-header">Fireworks</div>
+      <div class="page-header">I/O Control</div>
+
+      <div class="card">
+        <div class="card-title">Inputs</div>
+        <div id="ctrl-inputs" class="io-ctrl-row"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Outputs</div>
+        <div id="ctrl-outputs" class="io-ctrl-row"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">LED Strip</div>
+        <div id="led-swatch" style="height:36px;border-radius:6px;background:rgb(255,0,0);margin-bottom:14px;border:1px solid var(--border);"></div>
+        <div class="form-row">
+          <label>R</label>
+          <input type="range" id="led-r" min="0" max="255" value="255" oninput="_ledPrev()">
+          <span id="led-rv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">255</span>
+        </div>
+        <div class="form-row">
+          <label>G</label>
+          <input type="range" id="led-g" min="0" max="255" value="0" oninput="_ledPrev()">
+          <span id="led-gv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">0</span>
+        </div>
+        <div class="form-row">
+          <label>B</label>
+          <input type="range" id="led-b" min="0" max="255" value="0" oninput="_ledPrev()">
+          <span id="led-bv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">0</span>
+        </div>
+        <div class="form-row">
+          <label>Bri</label>
+          <input type="range" id="led-bri" min="0" max="255" value="255" oninput="_ledPrev()">
+          <span id="led-briv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">255</span>
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn" onclick="ledSet()">Set Color</button>
+          <button class="btn btn-red" onclick="ledOff()">Off</button>
+        </div>
+      </div>
+
+      <!-- Fireworks disabled ─────────────────────────────
       <div class="card">
         <div class="card-title">Channels</div>
-        <div class="fw-ch">
-          <label class="fw-ch-label"><input type="checkbox" id="firework1en"> CH 1</label>
-          <div class="fw-ch-slider">
-            <input type="range" id="CH1TD" min="0" max="50" value="10" oninput="document.getElementById('o1').value=this.value">
-            <output id="o1">10</output>
-          </div>
-        </div>
-        <div class="fw-ch">
-          <label class="fw-ch-label"><input type="checkbox" id="firework2en"> CH 2</label>
-          <div class="fw-ch-slider">
-            <input type="range" id="CH2TD" min="0" max="50" value="10" oninput="document.getElementById('o2').value=this.value">
-            <output id="o2">10</output>
-          </div>
-        </div>
-        <div class="fw-ch">
-          <label class="fw-ch-label"><input type="checkbox" id="firework3en"> CH 3</label>
-          <div class="fw-ch-slider">
-            <input type="range" id="CH3TD" min="0" max="50" value="10" oninput="document.getElementById('o3').value=this.value">
-            <output id="o3">10</output>
-          </div>
-        </div>
-        <div class="fw-ch">
-          <label class="fw-ch-label"><input type="checkbox" id="firework4en"> CH 4</label>
-          <div class="fw-ch-slider">
-            <input type="range" id="CH4TD" min="0" max="50" value="10" oninput="document.getElementById('o4').value=this.value">
-            <output id="o4">10</output>
-          </div>
-        </div>
-        <div class="fw-ch">
-          <label class="fw-ch-label"><input type="checkbox" id="firework5en"> CH 5</label>
-          <div class="fw-ch-slider">
-            <input type="range" id="CH5TD" min="0" max="50" value="10" oninput="document.getElementById('o5').value=this.value">
-            <output id="o5">10</output>
-          </div>
-        </div>
+        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework1en"> CH 1</label><div class="fw-ch-slider"><input type="range" id="CH1TD" min="0" max="50" value="10" oninput="document.getElementById('o1').value=this.value"><output id="o1">10</output></div></div>
+        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework2en"> CH 2</label><div class="fw-ch-slider"><input type="range" id="CH2TD" min="0" max="50" value="10" oninput="document.getElementById('o2').value=this.value"><output id="o2">10</output></div></div>
+        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework3en"> CH 3</label><div class="fw-ch-slider"><input type="range" id="CH3TD" min="0" max="50" value="10" oninput="document.getElementById('o3').value=this.value"><output id="o3">10</output></div></div>
+        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework4en"> CH 4</label><div class="fw-ch-slider"><input type="range" id="CH4TD" min="0" max="50" value="10" oninput="document.getElementById('o4').value=this.value"><output id="o4">10</output></div></div>
+        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework5en"> CH 5</label><div class="fw-ch-slider"><input type="range" id="CH5TD" min="0" max="50" value="10" oninput="document.getElementById('o5').value=this.value"><output id="o5">10</output></div></div>
       </div>
       <div class="btn-row">
         <button class="btn btn-red" id="FWFire">&#128293; FIRE</button>
       </div>
+      ──────────────────────────────────────────────────── -->
     </div>
 
     <!-- Files ─────────────────────────────────────────── -->
@@ -455,8 +467,9 @@ function showTab(id) {
   });
   _panels[id].classList.add('active');
   _btns[id].classList.add('active');
-  if (id === 'home')  { loadHomeStats(); _startIOPoll(); }
-  else                { _stopIOPoll(); }
+  if (id === 'home') { loadHomeStats(); _startIOPoll(); }
+  else if (id === 'io') { _startIOPoll(); }
+  else { _stopIOPoll(); }
   if (id === 'wifi')    loadWifiConfig();
   if (id === 'mqtt')    loadMqttConfig();
   if (id === 'devices') loadDeviceList();
@@ -562,6 +575,8 @@ function _fetchIO() {
       }
       _renderDots('io-inputs',  d.inputs  || []);
       _renderDots('io-outputs', d.outputs || []);
+      _renderCtrlInputs(d.inputs   || []);
+      _renderCtrlOutputs(d.outputs || []);
       var t = parseFloat(d.tempF);
       document.getElementById('h-temp').innerText  = (isNaN(t) || t < 0) ? '—' : t.toFixed(1) + '°F';
       var h = parseFloat(d.humid);
@@ -1336,7 +1351,87 @@ function fetchFromGitHub(btn, addr, typeId) {
     });
 }
 
-/* ── Fireworks ──────────────────────────────────────────── */
+/* ── IO Control tab ─────────────────────────────────────── */
+var _outStates = [];
+
+function _renderCtrlInputs(states) {
+  var el = document.getElementById('ctrl-inputs');
+  if (!el) return;
+  if (el.children.length !== states.length) {
+    el.innerHTML = '';
+    states.forEach(function(_, i) {
+      el.innerHTML += '<div class="io-cell"><div class="io-in-dot" id="ci-' + i + '"></div>' +
+                      '<div class="io-cell-label">IN ' + (i + 1) + '</div></div>';
+    });
+  }
+  states.forEach(function(s, i) {
+    var d = document.getElementById('ci-' + i);
+    if (d) d.className = 'io-in-dot' + (s ? ' on' : '');
+  });
+}
+
+function _renderCtrlOutputs(states) {
+  var el = document.getElementById('ctrl-outputs');
+  if (!el) return;
+  _outStates = states.slice();
+  if (el.children.length !== states.length) {
+    el.innerHTML = '';
+    states.forEach(function(_, i) {
+      el.innerHTML += '<div class="io-cell">' +
+        '<button class="io-out-btn" id="co-' + i + '" onclick="_toggleOut(' + i + ')">OUT ' + (i + 1) + '</button>' +
+        '<div class="io-cell-label">OUT ' + (i + 1) + '</div></div>';
+    });
+  }
+  states.forEach(function(s, i) {
+    var b = document.getElementById('co-' + i);
+    if (b) b.className = 'io-out-btn' + (s ? ' on' : '');
+  });
+}
+
+function _toggleOut(n) {
+  var newVal = _outStates[n] ? 0 : 1;
+  fetch('/api/io', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ n: n, val: newVal })
+  }).then(function() { _fetchIO(); }).catch(function() {});
+}
+
+/* ── LED Strip control ──────────────────────────────────── */
+function _ledPrev() {
+  var r = document.getElementById('led-r').value;
+  var g = document.getElementById('led-g').value;
+  var b = document.getElementById('led-b').value;
+  document.getElementById('led-rv').innerText   = r;
+  document.getElementById('led-gv').innerText   = g;
+  document.getElementById('led-bv').innerText   = b;
+  document.getElementById('led-briv').innerText = document.getElementById('led-bri').value;
+  document.getElementById('led-swatch').style.background = 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function ledSet() {
+  fetch('/api/led', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      r:   parseInt(document.getElementById('led-r').value),
+      g:   parseInt(document.getElementById('led-g').value),
+      b:   parseInt(document.getElementById('led-b').value),
+      bri: parseInt(document.getElementById('led-bri').value)
+    })
+  }).catch(function() {});
+}
+
+function ledOff() {
+  fetch('/api/led', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ off: true })
+  }).catch(function() {});
+}
+
+/* ── Fireworks (disabled) ───────────────────────────────── */
+/*
 document.getElementById('FWFire').addEventListener('click', function() {
   if (!confirm('OK TO FIRE?')) { alert('Did not activate!'); return; }
   var ids = [1,2,3,4,5];
@@ -1348,6 +1443,7 @@ document.getElementById('FWFire').addEventListener('click', function() {
   socket.send(JSON.stringify(payload));
   alert('Fire   Fire   Fire');
 });
+*/
 
 /* ── Log ────────────────────────────────────────────────── */
 function appendLog(data) {
