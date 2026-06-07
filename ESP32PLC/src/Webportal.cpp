@@ -347,6 +347,40 @@ void WebStart(){
     _scheduleRestart();
   });
 
+  /* POST /api/factory-reset — clears NVS + Remote.json, then reboots */
+  server.on("/api/factory-reset", HTTP_POST, [](AsyncWebServerRequest *req) {
+    req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Factory reset — rebooting\"}");
+    FactoryReset();
+    _scheduleRestart();
+  });
+
+  /* GET /api/mem — heap and PSRAM usage report */
+  server.on("/api/mem", HTTP_GET, [](AsyncWebServerRequest *req) {
+    AsyncResponseStream *resp = req->beginResponseStream("application/json");
+
+    multi_heap_info_t hi;
+    heap_caps_get_info(&hi, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    size_t heapTotal   = hi.total_free_bytes + hi.total_allocated_bytes;
+    size_t heapFree    = hi.total_free_bytes;
+    size_t heapMin     = hi.minimum_free_bytes;
+    size_t heapLargest = hi.largest_free_block;
+
+    multi_heap_info_t ps;
+    heap_caps_get_info(&ps, MALLOC_CAP_SPIRAM);
+    size_t psTotal   = ps.total_free_bytes + ps.total_allocated_bytes;
+    size_t psFree    = ps.total_free_bytes;
+    size_t psMin     = ps.minimum_free_bytes;
+    size_t psLargest = ps.largest_free_block;
+
+    resp->printf(
+      "{\"heap\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u},"
+       "\"psram\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u}}",
+      heapTotal, heapFree, heapMin, heapLargest,
+      psTotal,   psFree,   psMin,   psLargest);
+
+    req->send(resp);
+  });
+
   /* ── API routes first — must be before serveStatic ──────────────────── */
 
   /* ── Config: GET /config/wifi ──────────────────────────────────────────── */

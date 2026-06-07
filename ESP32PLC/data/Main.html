@@ -40,6 +40,10 @@
     <button class="tab-btn" data-tab="log" title="Log">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 3H4a1 1 0 00-1 1v16a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1zm-1 16H5V5h14v14zM7.293 9.707l2.147 2.146-2.147 2.147 1.414 1.414L12.267 12l-3.56-3.56-1.414 1.267zM13 15h4v-2h-4v2z"/></svg>
     </button>
+    <!-- Mem icon -->
+    <button class="tab-btn" data-tab="mem" title="Memory">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path d="M0 96C0 60.7 28.7 32 64 32H576c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM48 368v32c0 8.8 7.2 16 16 16H112c8.8 0 16-7.2 16-16V368c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16zm368-16c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V368c0-8.8-7.2-16-16-16H416zM48 240v32c0 8.8 7.2 16 16 16H112c8.8 0 16-7.2 16-16V240c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16zm368-16c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V240c0-8.8-7.2-16-16-16H416zM48 112v32c0 8.8 7.2 16 16 16H112c8.8 0 16-7.2 16-16V112c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16zm368-16c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h48c8.8 0 16-7.2 16-16V112c0-8.8-7.2-16-16-16H416zM160 128v64c0 17.7 14.3 32 32 32H448c17.7 0 32-14.3 32-32V128c0-17.7-14.3-32-32-32H192c-17.7 0-32 14.3-32 32zm32 160v64c0 17.7 14.3 32 32 32H448c17.7 0 32-14.3 32-32V288c0-17.7-14.3-32-32-32H192c-17.7 0-32 14.3-32 32z"/></svg>
+    </button>
     <!-- FW text label -->
     <button class="tab-btn" data-tab="fw" title="FW Update">FW</button>
   </nav>
@@ -331,7 +335,10 @@
 
     <!-- Files ─────────────────────────────────────────── -->
     <div class="panel" id="tab-files">
-      <div class="page-header">Files</div>
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
+        Files
+        <button class="btn-ghost" style="font-size:12px;padding:5px 12px;color:var(--red);border-color:var(--red);" onclick="factoryReset()">Factory Reset</button>
+      </div>
 
       <div class="card">
         <div class="card-title">Storage</div>
@@ -379,6 +386,22 @@
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="ClearLog">Clear</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Memory ─────────────────────────────────────────── -->
+    <div class="panel" id="tab-mem">
+      <div class="page-header">Memory</div>
+      <div class="card">
+        <div class="card-title">Heap (internal DRAM)</div>
+        <table id="mem-heap"><tbody></tbody></table>
+      </div>
+      <div class="card" id="mem-psram-card" style="display:none">
+        <div class="card-title">PSRAM</div>
+        <table id="mem-psram"><tbody></tbody></table>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn" onclick="loadMem()">Refresh</button>
       </div>
     </div>
 
@@ -439,6 +462,7 @@ function showTab(id) {
   if (id === 'devices') loadDeviceList();
   if (id === 'files')   loadFileList();
   if (id === 'fw')      loadFwDeviceList();
+  if (id === 'mem')     loadMem();
 }
 
 /* ── WebSocket ──────────────────────────────────────────── */
@@ -477,6 +501,15 @@ function rebootDevice() {
     .then(function(r) { return r.json(); })
     .then(function() { alert('Rebooting — reconnect in a few seconds.'); })
     .catch(function() { alert('Rebooting…'); });
+}
+
+function factoryReset() {
+  if (!confirm('Factory reset will erase all WiFi, MQTT, and device configuration.\n\nAre you sure?')) return;
+  if (!confirm('This cannot be undone. Confirm factory reset?')) return;
+  fetch('/api/factory-reset', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function() { alert('Factory reset complete — device is rebooting.\nReconnect to the default AP to reconfigure.'); })
+    .catch(function() { alert('Reset sent — device rebooting.'); });
 }
 
 function loadHomeStats() {
@@ -689,6 +722,31 @@ function loadFileList() {
       });
     })
     .catch(function(e) { document.getElementById('file-list').innerHTML = '<tr><td colspan="3" style="color:var(--red);">Error: ' + e.message + '</td></tr>'; });
+}
+
+function loadMem() {
+  fetch('/api/mem')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      function memRows(m) {
+        var pct = Math.round((m.total - m.free) / m.total * 100);
+        return [
+          ['Total', fmtBytes(m.total)],
+          ['Free', fmtBytes(m.free) + ' (' + (100 - pct) + '%)'],
+          ['Peak used', fmtBytes(m.total - m.min_free)],
+          ['Largest free block', fmtBytes(m.largest_block)]
+        ].map(function(r) {
+          return '<tr><td style="padding:3px 8px">' + r[0] + '</td><td style="padding:3px 8px;font-family:monospace">' + r[1] + '</td></tr>';
+        }).join('');
+      }
+      document.querySelector('#mem-heap tbody').innerHTML = memRows(d.heap);
+      var pc = document.getElementById('mem-psram-card');
+      if (d.psram && d.psram.total > 0) {
+        pc.style.display = '';
+        document.querySelector('#mem-psram tbody').innerHTML = memRows(d.psram);
+      } else { pc.style.display = 'none'; }
+    })
+    .catch(function(e) { console.error('loadMem', e); });
 }
 
 function deleteFile(name) {

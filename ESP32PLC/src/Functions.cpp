@@ -17,6 +17,7 @@
 #include "Display/TFT.h"
 #include "WifiControl/WifiConfig.h"
 #include "FileSystem/FSInterface.h"
+#include "Devices/LEDStrip.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -58,6 +59,8 @@ void SystemStart(){
   I2CStart();
   Log(DEBUG,"Joystick Start");
   JoyStickStart();
+  Log(DEBUG,"LED Strip Start");
+  ledStrip.begin();
 }
 
 static bool         _fwDoneShown = false;
@@ -93,6 +96,7 @@ void UIUpdateLoop(){
 
   DisplayManager();
   WebHandel();
+  ledStrip.update();
 }
 
 void SensorUpdateLoop(){

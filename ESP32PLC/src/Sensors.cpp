@@ -1,5 +1,5 @@
 #include "Sensors.h"
-#include "Devices/SI7021.h"
+#include "Devices/TempHumid.h"
 #include <OneWire.h>
 
 OneWire  ds(5);
@@ -16,13 +16,17 @@ float DeviceTempratureF = 0;
 float DeviceHumidity = 0;
 
 void InitSensors(void){
-  //InitOneWire();
+  climSensor.begin();
 }
 
 void UpdateSensors(void){
-  //DeviceHumidity = ESgetRH();
-  //DeviceTempratureF = ESreadTemp();
+  climSensor.update();
+  DeviceHumidity    = climSensor.getHumidity();
+  DeviceTempratureF = climSensor.getTempF();
 }
+
+void readDeviceClimate(void) { climSensor.update(); }
+void printInfo(void) {}
 
 void InitOneWire(void){
   for(char k = 0;k<4;k++){

@@ -9,6 +9,7 @@
 #include <RemoteDeviceConfig.h>
 #include "Devices/Log.h"
 #include "HAL/Digital/Digital.h"
+#include "Devices/LEDStrip.h"
 
 #define MSG_BUFFER_SIZE 50
 char msg[MSG_BUFFER_SIZE];
@@ -79,6 +80,48 @@ static bool _handleRemoteWrite(const char* topic, const char* payload) {
 }
 
 // ----------------------------------------------------------------
+// LED strip state publish — call after any color change
+// ----------------------------------------------------------------
+static void _publishStripState() {
+    if (!MQTTActive) return;
+    char topic[96];
+    char buf[72];
+    snprintf(topic, sizeof(topic), "%s/light/strip/state", _mqttBase);
+    if (!ledStrip.isOn()) {
+        strlcpy(buf, "{\"state\":\"OFF\"}", sizeof(buf));
+    } else {
+        snprintf(buf, sizeof(buf),
+            "{\"state\":\"ON\",\"color\":{\"r\":%u,\"g\":%u,\"b\":%u},\"brightness\":%u}",
+            ledStrip.r(), ledStrip.g(), ledStrip.b(), ledStrip.brightness());
+    }
+    client.publish(topic, buf);
+}
+
+// LED strip write — handles ESPPLC/<host>/light/strip/set
+// HA JSON schema: {"state":"ON","color":{"r":255,"g":0,"b":0},"brightness":255}
+// ----------------------------------------------------------------
+static bool _handleStripWrite(const char* topic, const char* payload) {
+    char expected[96];
+    snprintf(expected, sizeof(expected), "%s/light/strip/set", _mqttBase);
+    if (strcmp(topic, expected) != 0) return false;
+
+    StaticJsonDocument<192> doc;
+    if (deserializeJson(doc, payload) != DeserializationError::Ok) return true;
+
+    const char* state = doc["state"] | "ON";
+    if (strcasecmp(state, "OFF") == 0) {
+        ledStrip.setOff();
+    } else {
+        uint8_t r   = doc["color"]["r"]  | ledStrip.r();
+        uint8_t g   = doc["color"]["g"]  | ledStrip.g();
+        uint8_t b   = doc["color"]["b"]  | ledStrip.b();
+        uint8_t bri = doc["brightness"]  | ledStrip.brightness();
+        ledStrip.setColor(r, g, b, bri);
+    }
+    _publishStripState();
+    return true;
+}
+
 // Local I/O write — handles ESPPLC/<host>/io/out/<n>
 // payload "1"/"on" → HIGH, anything else → LOW
 // ----------------------------------------------------------------
@@ -103,6 +146,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     if (_handleRemoteWrite(topic, messageTemp.c_str())) return;
     if (_handleIOWrite(topic, messageTemp.c_str()))     return;
+    if (_handleStripWrite(topic, messageTemp.c_str()))  return;
 
     char t[80];
     snprintf(t, sizeof(t), "%s/Heater", _mqttBase);
@@ -181,6 +225,11 @@ void MQTTreconnect(void) {
                 client.subscribe(subTopic);
                 Log(LOG, "MQTT: subscribed io/out/%u\r\n", (unsigned)n);
             }
+
+            /* Subscribe to LED strip control */
+            snprintf(subTopic, sizeof(subTopic), "%s/light/strip/set", _mqttBase);
+            client.subscribe(subTopic);
+            Log(LOG, "MQTT: subscribed light/strip/set\r\n");
 
             // Auto-subscribe to all write topics nested inside groups
             const RemoteConfig_t& cfg = GetRemoteConfig();
@@ -283,6 +332,26 @@ void PublishHADiscovery() {
                 }
             }
         }
+    }
+
+    // LED strip light entity discovery
+    {
+        char uid[52];
+        snprintf(uid, sizeof(uid), "espplc_%s_strip", hostSafe);
+        char ltopic[96];
+        snprintf(ltopic, sizeof(ltopic), "homeassistant/light/%s/config", uid);
+        int n = snprintf(payload, sizeof(payload),
+            "{\"name\":\"LED Strip\","
+            "\"schema\":\"json\","
+            "\"cmd_t\":\"%s/light/strip/set\","
+            "\"stat_t\":\"%s/light/strip/state\","
+            "\"rgb\":true,"
+            "\"bri\":true,"
+            "\"uniq_id\":\"%s\","
+            "\"dev\":{\"ids\":[\"espplc_%s\"],\"name\":\"ESP32PLC\",\"mf\":\"ESP32PLC\"}}",
+            _mqttBase, _mqttBase, uid, hostSafe);
+        if (n > 0 && n < (int)sizeof(payload))
+            client.publish(ltopic, (const uint8_t*)payload, (unsigned int)n, true);
     }
 }
 

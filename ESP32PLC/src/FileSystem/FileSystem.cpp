@@ -79,7 +79,7 @@ void MqttComfig(struct MQTTConfig* MQC) {
 // ----------------------------------------------------------------
 // Remote device config — static storage + load / save
 // ----------------------------------------------------------------
-static RemoteConfig_t _remoteCfg;
+static RemoteConfig_t* _remoteCfg   = nullptr;  // allocated in PSRAM on first load
 static bool _remoteRevOk    = true;
 static char _remoteRevGot[8] = {};
 
@@ -87,52 +87,135 @@ bool        RemoteConfigRevOK()     { return _remoteRevOk; }
 const char* RemoteConfigRevGot()    { return _remoteRevGot; }
 const char* RemoteConfigRevNeeded() { return REMOTE_CONFIG_REV; }
 
-const RemoteConfig_t* RemoteGetConfig() { return &_remoteCfg; }
+const RemoteConfig_t* RemoteGetConfig() { return _remoteCfg; }
+
+// ── Streaming JSON helpers ────────────────────────────────────────────────────
+
+// Scan forward until past the opening '[' of the "devices" array.
+static bool _seekToDevicesArray(File& f) {
+    const char* needle = "\"devices\"";
+    uint8_t     ni     = 0;
+    int c;
+    while ((c = f.read()) >= 0) {
+        if (c == needle[ni]) {
+            if (++ni == 9) {
+                while ((c = f.read()) >= 0) { if (c == ':') break; }
+                while ((c = f.read()) >= 0) { if (c == '[') return true; }
+                return false;
+            }
+        } else {
+            ni = (c == needle[0]) ? 1 : 0;
+        }
+    }
+    return false;
+}
+
+// Read one balanced { ... } object from stream into buf (null-terminated).
+// Skips leading whitespace and commas.  Returns byte count, 0 = end/error.
+static size_t _readJsonObject(File& f, char* buf, size_t bufSize) {
+    int    depth   = 0;
+    size_t pos     = 0;
+    bool   inStr   = false;
+    bool   escaped = false;
+    int    c;
+
+    while ((c = f.read()) >= 0) {
+        if (c == ']') return 0;     // end of array
+        if (c == '{') { depth = 1; buf[pos++] = '{'; break; }
+        // skip ',' and whitespace between objects
+    }
+    if (depth == 0) return 0;
+
+    while ((c = f.read()) >= 0) {
+        if (pos >= bufSize - 1) { Log(ERROR, "FS: device JSON exceeds buffer\r\n"); return 0; }
+        buf[pos++] = (char)c;
+        if (escaped)             { escaped = false; continue; }
+        if (c == '\\' && inStr)  { escaped = true;  continue; }
+        if (c == '"')            { inStr   = !inStr; continue; }
+        if (!inStr) {
+            if      (c == '{')  depth++;
+            else if (c == '}' && --depth == 0) { buf[pos] = '\0'; return pos; }
+        }
+    }
+    return 0;
+}
+
+// ── Load ─────────────────────────────────────────────────────────────────────
 
 void RemoteComfig() {
-    memset(&_remoteCfg, 0, sizeof(_remoteCfg));
+    if (!_remoteCfg) {
+        _remoteCfg = (RemoteConfig_t*)ps_calloc(1, sizeof(RemoteConfig_t));
+        if (!_remoteCfg) _remoteCfg = (RemoteConfig_t*)calloc(1, sizeof(RemoteConfig_t));
+        if (!_remoteCfg) { Log(ERROR, "FS: RemoteConfig alloc failed\r\n"); return; }
+        Log(NOTIFY, "FS: RemoteConfig %u B → %s\r\n", (unsigned)sizeof(RemoteConfig_t),
+            psramFound() ? "PSRAM" : "DRAM");
+    } else {
+        memset(_remoteCfg, 0, sizeof(RemoteConfig_t));
+    }
 
     File f = LittleFS.open(Remotefilename);
     if (!f) { Log(NOTIFY, "FS: no Remote.json\r\n"); return; }
 
-    DynamicJsonDocument doc(8192);
-    DeserializationError err = deserializeJson(doc, f);
-    f.close();
-    if (err) { Log(ERROR, "FS: Remote.json parse error: %s\r\n", err.c_str()); return; }
-
-    const char* rev = doc["rev"] | "";
-    strlcpy(_remoteRevGot, rev, sizeof(_remoteRevGot));
-    if (strcmp(rev, REMOTE_CONFIG_REV) != 0) {
-        _remoteRevOk = false;
-        Log(ERROR, "FS: Remote.json rev mismatch — got '%s', need '%s' — config not loaded\r\n",
-            rev, REMOTE_CONFIG_REV);
-        return;
+    // ── Pass 1: extract "rev" with a filter (tiny memory, consumes stream) ───
+    {
+        StaticJsonDocument<16> filter;
+        filter["rev"] = true;
+        StaticJsonDocument<64> env;
+        deserializeJson(env, f, DeserializationOption::Filter(filter));
+        const char* rev = env["rev"] | "";
+        strlcpy(_remoteRevGot, rev, sizeof(_remoteRevGot));
+        if (strcmp(rev, REMOTE_CONFIG_REV) != 0) {
+            _remoteRevOk = false;
+            Log(ERROR, "FS: Remote.json rev mismatch — got '%s', need '%s' — config not loaded\r\n",
+                rev, REMOTE_CONFIG_REV);
+            f.close(); return;
+        }
+        _remoteRevOk = true;
     }
-    _remoteRevOk = true;
 
-    JsonArray devArr = doc["devices"].as<JsonArray>();
-    if (devArr.isNull()) { Log(NOTIFY, "FS: Remote.json — no devices array\r\n"); return; }
+    // ── Pass 2: stream one device at a time ───────────────────────────────────
+    f.seek(0);
+    if (!_seekToDevicesArray(f)) {
+        Log(NOTIFY, "FS: Remote.json — no devices array\r\n");
+        f.close(); return;
+    }
 
-    for (JsonObject dev : devArr) {
-        if (_remoteCfg.deviceCount >= MAX_REMOTE_DEVICES) break;
-        RemoteDeviceCfg_t& d = _remoteCfg.devices[_remoteCfg.deviceCount];
+    // Text buffer for one device's JSON — PSRAM-backed when available
+    const size_t DEV_BUF = 6144;
+    char* devBuf = (char*)(psramFound() ? ps_malloc(DEV_BUF) : malloc(DEV_BUF));
+    if (!devBuf) { Log(ERROR, "FS: devBuf alloc failed\r\n"); f.close(); return; }
 
-        strlcpy(d.name,       dev["name"]          | "Unknown", sizeof(d.name));
-        d.address   = dev["address"]    | (uint8_t)1;
-        d.typeId    = dev["typeId"]     | (uint8_t)0;
-        d.swVersion = dev["swVersion"]  | (uint16_t)0;
+    // Doc reused across devices; zero-copy parse so strings point into devBuf
+    DynamicJsonDocument devDoc(8192);
 
-        JsonArray grpArr = dev["groups"].as<JsonArray>();
-        for (JsonObject grp : grpArr) {
+    while (_remoteCfg->deviceCount < MAX_REMOTE_DEVICES) {
+        size_t len = _readJsonObject(f, devBuf, DEV_BUF);
+        if (len == 0) break;
+
+        devDoc.clear();
+        if (deserializeJson(devDoc, devBuf, len) != DeserializationError::Ok) {
+            Log(ERROR, "FS: device %u parse error — skipping\r\n", _remoteCfg->deviceCount);
+            continue;
+        }
+
+        JsonObject dev = devDoc.as<JsonObject>();
+        RemoteDeviceCfg_t& d = _remoteCfg->devices[_remoteCfg->deviceCount];
+
+        strlcpy(d.name,       dev["name"]      | "Unknown", sizeof(d.name));
+        d.address   = dev["address"]   | (uint8_t)1;
+        d.typeId    = dev["typeId"]    | (uint8_t)0;
+        d.swVersion = dev["swVersion"] | (uint16_t)0;
+
+        for (JsonObject grp : dev["groups"].as<JsonArray>()) {
             if (d.groupCount >= MAX_GROUPS_PER_DEVICE) break;
             RemoteGroupCfg_t& g = d.groups[d.groupCount];
 
-            strlcpy(g.name,      grp["name"]       | "Group", sizeof(g.name));
-            g.fc         = grp["fc"]         | (uint8_t)4;
-            g.startReg   = grp["startReg"]   | (uint16_t)0;
-            g.count      = grp["count"]      | (uint8_t)1;
-            g.pollMs     = grp["pollMs"]     | (uint32_t)1000;
-            g.scale      = grp["scale"]      | 1.0f;
+            strlcpy(g.name,   grp["name"]     | "Group", sizeof(g.name));
+            g.fc       = grp["fc"]       | (uint8_t)4;
+            g.startReg = grp["startReg"] | (uint16_t)0;
+            g.count    = grp["count"]    | (uint8_t)1;
+            g.pollMs   = grp["pollMs"]   | (uint32_t)1000;
+            g.scale    = grp["scale"]    | 1.0f;
             {
                 JsonVariant uv = grp["units"];
                 if (uv.is<JsonArray>()) {
@@ -150,7 +233,7 @@ void RemoteComfig() {
                 }
             }
             g.mqttEnable = grp["mqttEnable"] | false;
-            strlcpy(g.mqttTopic, grp["mqttTopic"]  | "",      sizeof(g.mqttTopic));
+            strlcpy(g.mqttTopic, grp["mqttTopic"] | "", sizeof(g.mqttTopic));
 
             uint8_t ri = 0;
             for (JsonVariant rv : grp["regs"].as<JsonArray>()) {
@@ -167,7 +250,7 @@ void RemoteComfig() {
                 w.fc       = wg["fc"]       | (uint8_t)16;
                 w.startReg = wg["startReg"] | (uint16_t)0;
                 w.count    = wg["count"]    | (uint8_t)1;
-                strlcpy(w.mqttTopic, wg["mqttTopic"]  | "",      sizeof(w.mqttTopic));
+                strlcpy(w.mqttTopic, wg["mqttTopic"] | "", sizeof(w.mqttTopic));
 
                 uint8_t wi = 0;
                 for (JsonVariant dv : wg["defaults"].as<JsonArray>()) {
@@ -178,7 +261,6 @@ void RemoteComfig() {
                 for (JsonVariant rv : wg["regs"].as<JsonArray>()) {
                     if (wi >= MAX_REGS_PER_GROUP) break;
                     if (rv.is<int>()) {
-                        // Numeric literal — fixed value sent as-is, not a payload key
                         w.regs[wi][0]  = '\0';
                         w.defaults[wi] = (uint16_t)rv.as<int>();
                     } else {
@@ -189,33 +271,43 @@ void RemoteComfig() {
                 }
                 g.writeCount++;
             }
-
             d.groupCount++;
         }
-
-        _remoteCfg.deviceCount++;
+        _remoteCfg->deviceCount++;
     }
 
-    _remoteCfg.loaded = true;
-    Log(LOG, "FS: Remote.json loaded (%u device(s))\r\n", _remoteCfg.deviceCount);
+    free(devBuf);
+    f.close();
+    _remoteCfg->loaded = true;
+    Log(LOG, "FS: Remote.json loaded (%u device(s))\r\n", _remoteCfg->deviceCount);
 }
 
+// ── Save ─────────────────────────────────────────────────────────────────────
+// Streams one device at a time so peak heap is ~8 KB regardless of device count.
+
 void RemoteSaveConfig(const RemoteConfig_t* cfg) {
-    DynamicJsonDocument doc(8192);
-    doc["rev"] = "2.0";
-    JsonArray devArr = doc.createNestedArray("devices");
+    File f = LittleFS.open(Remotefilename, "w");
+    if (!f) { Log(ERROR, "FS: cannot write Remote.json\r\n"); return; }
+
+    f.print("{\"rev\":\"" REMOTE_CONFIG_REV "\",\"devices\":[");
+
+    DynamicJsonDocument devDoc(8192);
 
     for (uint8_t i = 0; i < cfg->deviceCount; i++) {
+        if (i > 0) f.print(',');
+
+        devDoc.clear();
+        JsonObject dev = devDoc.to<JsonObject>();
         const RemoteDeviceCfg_t& d = cfg->devices[i];
-        JsonObject dev = devArr.createNestedObject();
+
         dev["name"]    = d.name;
         dev["address"] = d.address;
         if (d.typeId)    dev["typeId"]    = d.typeId;
         if (d.swVersion) dev["swVersion"] = d.swVersion;
 
         JsonArray grpArr = dev.createNestedArray("groups");
-        for (uint8_t g = 0; g < d.groupCount; g++) {
-            const RemoteGroupCfg_t& grp = d.groups[g];
+        for (uint8_t gi = 0; gi < d.groupCount; gi++) {
+            const RemoteGroupCfg_t& grp = d.groups[gi];
             JsonObject go = grpArr.createNestedObject();
             go["name"]       = grp.name;
             go["fc"]         = grp.fc;
@@ -260,15 +352,16 @@ void RemoteSaveConfig(const RemoteConfig_t* cfg) {
                 }
             }
         }
+
+        if (serializeJson(devDoc, f) == 0) {
+            Log(ERROR, "FS: device %u write failed\r\n", i);
+            f.close(); return;
+        }
     }
 
-    File f = LittleFS.open(Remotefilename, "w");
-    if (!f) { Log(ERROR, "FS: cannot write Remote.json\r\n"); return; }
-    if (serializeJson(doc, f) == 0)
-        Log(ERROR, "FS: Remote.json write failed\r\n");
-    else
-        Log(LOG, "FS: Remote.json saved (%u device(s))\r\n", cfg->deviceCount);
+    f.print("]}");
     f.close();
+    Log(LOG, "FS: Remote.json saved (%u device(s))\r\n", cfg->deviceCount);
 }
 
 // ----------------------------------------------------------------

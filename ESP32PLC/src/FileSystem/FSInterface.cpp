@@ -2,6 +2,8 @@
 #include "FileSystem.h"
 #include "Devices/Log.h"
 #include "Arduino.h"
+#include <Preferences.h>
+#include <LittleFS.h>
 
 WiFiConfig wfconfig;
 MQTTConfig mqconfig;
@@ -39,7 +41,20 @@ bool SaveWiFiConfig(uint8_t mode, const char* ssid, const char* pass, const char
 }
 
 // ── Remote config accessor ────────────────────────────────────────────────────
-const RemoteConfig_t& GetRemoteConfig() { return *RemoteGetConfig(); }
+const RemoteConfig_t& GetRemoteConfig() {
+    const RemoteConfig_t* p = RemoteGetConfig();
+    static const RemoteConfig_t empty = {};  // safe fallback if called before alloc
+    return p ? *p : empty;
+}
+
+// ── Factory reset ─────────────────────────────────────────────────────────────
+void FactoryReset() {
+    Preferences p;
+    p.begin("wifi", false); p.clear(); p.end();
+    p.begin("mqtt", false); p.clear(); p.end();
+    LittleFS.remove("/Remote.json");
+    Log(NOTIFY_FORCE, "FS: factory reset complete\r\n");
+}
 
 // ── Save MQTT config ──────────────────────────────────────────────────────────
 bool SaveMQTTConfig(bool enabled, const char* ip, uint16_t port, const char* user, const char* pass) {

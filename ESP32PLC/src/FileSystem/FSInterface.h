@@ -30,4 +30,7 @@ bool        RemoteConfigRevOK();      // false if loaded rev != firmware's expec
 const char* RemoteConfigRevGot();     // rev string found in the file
 const char* RemoteConfigRevNeeded();  // rev string this firmware requires
 
+// Factory reset — clears NVS wifi+mqtt namespaces and removes Remote.json
+void FactoryReset();
+
 #endif
