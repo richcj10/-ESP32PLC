@@ -562,6 +562,10 @@ function _fetchIO() {
       }
       _renderDots('io-inputs',  d.inputs  || []);
       _renderDots('io-outputs', d.outputs || []);
+      var t = parseFloat(d.tempF);
+      document.getElementById('h-temp').innerText  = (isNaN(t) || t < 0) ? '—' : t.toFixed(1) + '°F';
+      var h = parseFloat(d.humid);
+      document.getElementById('h-humid').innerText = (isNaN(h) || h < 0) ? '—' : h.toFixed(1) + '%';
     }).catch(function() {});
 }
 

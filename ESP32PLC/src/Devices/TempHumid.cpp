@@ -27,7 +27,7 @@ bool TempHumidSensor::_readHDC2080() {
     Wire.write(0x0F);
     Wire.write(0x01);
     if (Wire.endTransmission() != 0) return false;
-    delay(2);
+    delay(10);
 
     Wire.beginTransmission(ADDR);
     Wire.write(0x00);
@@ -92,8 +92,8 @@ bool TempHumidSensor::_readSI7021() {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 void TempHumidSensor::begin() {
-    // Kick off first detection attempt; update() retries until MAX_FAILS
-    _detectHDC2080() || _detectSI7021();
+    // SI7021 detected first — HDC2080 detection writes 0xFE which is the SI7021 Reset command
+    _detectSI7021() || _detectHDC2080();
     if (_type != TH_NONE) _available = true;
 }
 
@@ -101,7 +101,7 @@ void TempHumidSensor::update() {
     if (_failCount >= MAX_FAILS) return;
 
     if (_type == TH_NONE) {
-        if (_detectHDC2080() || _detectSI7021()) {
+        if (_detectSI7021() || _detectHDC2080()) {
             _available = true;
             _failCount = 0;
         } else if (++_failCount >= MAX_FAILS) {

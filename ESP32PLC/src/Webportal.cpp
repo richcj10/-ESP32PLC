@@ -815,9 +815,14 @@ void WebStart(){
     AsyncResponseStream *resp = req->beginResponseStream("application/json");
     resp->printf("{\"type\":%d,\"name\":\"%s\"", type, GetBoardName().c_str());
 
+    float tempF = getDeviceClimateTemprature();
+    float humid = getDeviceClimateHumidity();
+
     if (noShield) {
-        resp->print(",\"inputs\":[],\"outputs\":[]"
-                    ",\"error\":\"No shield detected or unknown type\"}");
+        resp->printf(",\"inputs\":[],\"outputs\":[]"
+                     ",\"tempF\":%.2f,\"humid\":%.2f"
+                     ",\"error\":\"No shield detected or unknown type\"}",
+                     tempF, humid);
     } else {
         resp->print(",\"inputs\":[");
         for (uint8_t i = 0; i < inCnt; i++) {
@@ -829,7 +834,7 @@ void WebStart(){
             if (i) resp->print(",");
             resp->print(GetOutput(i) ? "true" : "false");
         }
-        resp->print("],\"error\":null}");
+        resp->printf("],\"tempF\":%.2f,\"humid\":%.2f,\"error\":null}", tempF, humid);
     }
     req->send(resp);
   });
@@ -980,8 +985,8 @@ void WebHandel(){
       //jsonDocTx["HN"] = GetHostName();
       //jsonDocTx["RSSI"] = GetRSSIStr();
       //jsonDocTx["MAC"] = GetMACStr();
-      ///jsonDocTx["Temp"] = String(getDeviceClimateTemprature());
-      //jsonDocTx["Humid"] = String(getDeviceClimateHumidity());
+      //jsonDocTx["Temp"]  — served via GET /api/io instead
+      //jsonDocTx["Humid"] — served via GET /api/io instead
       //jsonDocTx["button"] = lastButtonState;
       //jsonDocTx["Input1"] = lastButtonState;
       //jsonDocTx["Input2"] = lastButtonState;
