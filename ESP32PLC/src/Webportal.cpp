@@ -15,7 +15,6 @@
 #include "HAL/DeviceConfig.h"
 
 #include "Devices/Log.h"
-#include "Devices/LEDStrip.h"
 #include <esp_heap_caps.h>
 
 #define HTTP_PORT 80
@@ -877,13 +876,13 @@ void WebStart(){
             return;
         }
         if (doc["off"].as<bool>()) {
-            ledStrip.setOff();
+            LEDWebSetOff();
         } else {
             uint8_t r   = doc["r"]   | 255;
             uint8_t g   = doc["g"]   | 0;
             uint8_t b   = doc["b"]   | 0;
             uint8_t bri = doc["bri"] | 255;
-            ledStrip.setColor(r, g, b, bri);
+            LEDWebSetColor(r, g, b, bri);
         }
         req->send(200, "application/json", "{\"ok\":true}");
     },

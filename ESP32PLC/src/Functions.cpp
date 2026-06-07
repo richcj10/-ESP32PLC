@@ -177,6 +177,13 @@ void WiFiOK(){
   ledStrip.startUDP();
 }
 
+void LEDWebSetColor(uint8_t r, uint8_t g, uint8_t b, uint8_t bri) {
+  ledStrip.setColor(r, g, b, bri);
+}
+void LEDWebSetOff() {
+  ledStrip.setOff();
+}
+
 unsigned long Countdown = 0;
 
 char GetWiFiStatus(void){
