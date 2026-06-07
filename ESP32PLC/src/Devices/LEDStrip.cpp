@@ -38,7 +38,10 @@ void LEDStrip::begin() {
     FastLED.setBrightness(255);
     fill_solid(_leds, STRIP_NUM_LEDS, CRGB::Black);
     FastLED.show();
+    Log(NOTIFY, "LED: FastLED ready\r\n");
+}
 
+void LEDStrip::startUDP() {
     if (_udp.listen(DDP_PORT)) {
         _udp.onPacket([this](AsyncUDPPacket pkt) {
             processDDP(pkt.data(), pkt.length());

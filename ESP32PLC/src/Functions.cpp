@@ -174,6 +174,7 @@ void WiFiFaiure(){
 
 void WiFiOK(){
   WiFiConnected = 1;
+  ledStrip.startUDP();
 }
 
 unsigned long Countdown = 0;

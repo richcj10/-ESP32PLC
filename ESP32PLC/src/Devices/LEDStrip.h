@@ -12,7 +12,8 @@
 
 class LEDStrip {
 public:
-    void begin();
+    void begin();               // FastLED init only — call before WiFi
+    void startUDP();            // start DDP listener — call after WiFi connects
     void update();              // call from main loop; applies MQTT color when DDP idle
 
     // Called by MQTT handler
