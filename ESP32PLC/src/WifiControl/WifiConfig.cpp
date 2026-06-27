@@ -22,7 +22,7 @@ static void applyHostnameToNetif(const char* hostname) {
 
 /* Returns a hostname safe for the ESP32 WiFi stack (RFC 952 / RFC 1123):
    only [a-zA-Z0-9-], max 32 chars, no leading/trailing hyphens. */
-static String sanitizeHostname(const String& raw) {
+static String sanitizeHostname(const String& raw) {  // keep static — internal use only
     String out;
     out.reserve(32);
     for (size_t i = 0; i < raw.length() && out.length() < 32; i++) {
@@ -74,7 +74,6 @@ char SetupWiFi(void) {
         SetLEDStatus(WIFI_CONNECTING, 250);
 
         Log(LOG, "WiFi: connecting to %s hostname=%s\r\n", ssid.c_str(), hostname.c_str());
-        DisplayWiFiConnect();
         WiFi.begin(ssid.c_str(), pass.c_str());
 
         unsigned long t = millis();
@@ -135,7 +134,9 @@ static void startAP(bool recovery) {
     delay(250);
     WiFi.setHostname(apSsid.c_str());
     String apPass = GetAPPassword();
-    WiFi.softAP(apSsid.c_str(), apPass.c_str());
+    if (!WiFi.softAP(apSsid.c_str(), apPass.c_str()))
+        Log(ERROR, "WiFi: softAP() FAILED — SSID=%s pass_len=%u\r\n",
+            apSsid.c_str(), (unsigned)apPass.length());
     Log(LOG, "WiFi: AP IP %s\r\n", WiFi.softAPIP().toString().c_str());
     if (MDNS.begin(apSsid.c_str())) {
         MDNS.addService("http", "tcp", 80);
@@ -204,10 +205,12 @@ String GetMACStr() {
            String(mac[2]) + ":" + String(mac[1]) + ":" + String(mac[0]);
 }
 
+String GetSanitizedHostname() { return sanitizeHostname(GetHostName()); }
+
 String GetAPPassword() {
     byte mac[6];
     WiFi.macAddress(mac);
-    char buf[7];
-    snprintf(buf, sizeof(buf), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+    char buf[9];  // 8 hex chars — WPA2 minimum is 8
+    snprintf(buf, sizeof(buf), "%02X%02X%02X%02X", mac[2], mac[3], mac[4], mac[5]);
     return String(buf);
 }

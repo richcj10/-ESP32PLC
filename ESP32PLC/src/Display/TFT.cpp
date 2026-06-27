@@ -13,6 +13,7 @@
 #include "Devices/Log.h"
 #include "Define.h"
 #include "WifiControl/WifiConfig.h"
+#include "FileSystem/FSInterface.h"
 
 #define MAX_IMAGE_WIDTH 240
 
@@ -36,27 +37,30 @@ int pngDraw(PNGDRAW *pDraw);
 static char    (*_bootBuf)[52] = nullptr;
 static uint8_t _bootN = 0;
 
+static void _bootDrawLine(uint8_t row, const char* text) {
+    tft.setTextSize(1);
+    tft.setTextWrap(false);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setCursor(21, BOOT_LOG_Y + row * BOOT_LOG_LINE_H);
+    tft.print("> ");
+    tft.print(text);
+}
+
 void TFTBootLog(const char* line) {
     if (!_bootBuf) return;
     if (_bootN < BOOT_LOG_LINES) {
+        // Append: draw only the new line, never touch previous ones
+        uint8_t row = _bootN;
         strlcpy(_bootBuf[_bootN++], line, sizeof(_bootBuf[0]));
+        _bootDrawLine(row, _bootBuf[row]);
     } else {
+        // Scroll (>10 lines — rare): shift buffer, clear area, redraw all
         for (uint8_t i = 0; i < BOOT_LOG_LINES - 1; i++)
             strlcpy(_bootBuf[i], _bootBuf[i + 1], sizeof(_bootBuf[0]));
         strlcpy(_bootBuf[BOOT_LOG_LINES - 1], line, sizeof(_bootBuf[0]));
-    }
-    tft.fillRect(0, BOOT_LOG_Y, 320, BOOT_LOG_LINES * BOOT_LOG_LINE_H + 2, TFT_BLACK);
-    tft.setTextSize(1);
-    tft.setTextWrap(false);
-    for (uint8_t i = 0; i < _bootN; i++) {
-        int age = (_bootN - 1) - i;   // 0 = newest (bottom)
-        uint16_t col = (age == 0) ? TFT_WHITE
-                     : (age <  3) ? 0xC618   // light grey
-                                  : 0x4208;  // dim grey
-        tft.setTextColor(col);
-        tft.setCursor(6, BOOT_LOG_Y + i * BOOT_LOG_LINE_H);
-        tft.print("> ");
-        tft.print(_bootBuf[i]);
+        tft.fillRect(0, BOOT_LOG_Y, 320, BOOT_LOG_LINES * BOOT_LOG_LINE_H + 2, TFT_BLACK);
+        for (uint8_t i = 0; i < BOOT_LOG_LINES; i++)
+            _bootDrawLine(i, _bootBuf[i]);
     }
 }
 
@@ -239,8 +243,8 @@ void TFTDisplayAPInfo(const char* ssid) {
     tft.fillRect(0, 0, 320, 26, TFT_NAVY);
     tft.setTextColor(TFT_CYAN);
     tft.setTextSize(2);
-    tft.setCursor(38, 5);
-    tft.print("AP MODE");
+    tft.setCursor(IsForcedAPMode() ? 10 : 38, 5);
+    tft.print(IsForcedAPMode() ? "FORCED AP MODE" : "AP MODE");
 
     // ── WiFi network ────────────────────────────────────────────────────────
     tft.setTextColor(0x4208); // dim grey label
@@ -323,7 +327,6 @@ void _hw_init() {
     TFTInit();
     ledcSetup(0, LEDC_BASE_FREQ, 12);
     ledcAttachPin(LED_PIN, 0);
-    TFTLogo();
 }
 
 void _hw_clear()                    { TFTDisplayClear(); }

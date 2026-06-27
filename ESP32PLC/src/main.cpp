@@ -17,11 +17,13 @@
 #include "Remote/MasterController.h"
 #include "Remote/FwUpdater.h"
 #include "Display/TFT.h"
+#include "Modules/ModuleManager.h"
 
 // Start ArduinoOTA via WiFiSettings with the same hostname and password
 int BuffSize = 0;
 
 void setup() {
+  RegisterModules();
   SystemStart();
    delay(1);
   Log(DEBUG,">> SystemStart done");
@@ -29,19 +31,27 @@ void setup() {
   LEDBoot();
   Log(DEBUG,">> QueryLocalDevice");
   QueryLocalDevice();
+  DisplayLog(GetWiFiMode() != 0 ? "NVS: OK" : "NVS: defaults");
   Log(DEBUG,">> DigitalStart");
   DigitalStart();
   Log(DEBUG,">> IOStart");
   IOStart();
-  DisplayLog(" Connecting to WiFi...");
+  DisplayLog("WiFi: Connecting...");
   Log(DEBUG,">> SetupWiFi");
   SetupWiFi();   // retries STA 3x then falls back to AP internally
   Log(DEBUG,">> setup_ota");
   setup_ota();
-  DisplayLog(GetIPStr().c_str());
+  if (GetWiFiMode() == WIFI_AP_MODE) {
+    DisplayLog("WiFi: AP Mode");
+  } else {
+    char _wip[48];
+    snprintf(_wip, sizeof(_wip), "WiFi: %s", GetIPStr().c_str());
+    DisplayLog(_wip);
+  }
   delay(1);
   Log(DEBUG,">> InitSensors");
   InitSensors();
+  DisplayLog(GetMQTTEnabled() ? "MQTT: Enabled" : "MQTT: Disabled");
   Log(DEBUG,">> MQTTStart");
   MQTTStart();
   Log(DEBUG,">> WebStart");
@@ -55,8 +65,9 @@ void setup() {
   DisplayTimeoutReset();
   Log(DEBUG,">> WiFiMode check");
   if (GetWiFiMode() == WIFI_AP_MODE) {
-    DisplaySetAPMode(true, GetHostName().c_str());
-    DisplayAPInfo(GetHostName().c_str());
+    String apSsid = GetSanitizedHostname();
+    DisplaySetAPMode(true, apSsid.c_str());
+    DisplayAPInfo(apSsid.c_str());
   } else {
     DisplaySetAPMode(false, nullptr);
     DisplayClear();
@@ -103,6 +114,7 @@ void loop() {
     LastSendTime2 = millis();
     SendRemoteDevices();
     SendLocalIO();
+    modules.mqttPublish();
   }
 
   if(millis() - LastSendTime3 > 200){

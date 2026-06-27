@@ -18,6 +18,7 @@
 #include "WifiControl/WifiConfig.h"
 #include "FileSystem/FSInterface.h"
 #include "Devices/LEDStrip.h"
+#include "Modules/ModuleManager.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -41,26 +42,51 @@ void SystemStart(){
   Log(DEBUG,"LED Start-");
   LEDBoot();
   Log(DEBUG,"TFT Start-");
-  Log(DEBUG,">> FileStstemStart");
-  if(FileStstemStart()){
-    DisplayLog(" FS OK ");
-    delay(1000);
-  }
-  else{
-    DisplayLog(" FS ERROR ");
-    delay(1000);
-  }
   DispalyConfigSet(TFT);
   DisplaySetup();
   DisplayBrightnes(75);
+  Log(DEBUG,">> FileStstemStart");
+  DisplayLog(FileStstemStart() ? "FS: OK" : "FS: ERROR");
   Log(DEBUG,"RS485 Master Start");
   RemoteStart();
+  {
+    const RemoteConfig_t& rc = GetRemoteConfig();
+    uint8_t grps = RemoteGrpCount();
+    char rmsg[36];
+    if (rc.loaded)
+      snprintf(rmsg, sizeof(rmsg), "RS485: %udev %ugrp %s",
+               (unsigned)rc.deviceCount, (unsigned)grps,
+               grps > 0 ? "OK" : "WARN");
+    else
+      snprintf(rmsg, sizeof(rmsg), "RS485: no cfg (default)");
+    DisplayLog(rmsg);
+  }
   Log(DEBUG,"I2C Master Start");
   I2CStart();
+  {
+    uint8_t addrs[8];
+    uint8_t n = I2CScanAddrs(addrs, 8);
+    if (n == 0) {
+      DisplayLog("I2C: no devices");
+    } else {
+      for (uint8_t i = 0; i < n; i++) {
+        char imsg[36];
+        snprintf(imsg, sizeof(imsg), "I2C: %s", I2CDeviceName(addrs[i]));
+        DisplayLog(imsg);
+      }
+    }
+  }
   Log(DEBUG,"Joystick Start");
   JoyStickStart();
-  Log(DEBUG,"LED Strip Start");
-  ledStrip.begin();
+  Log(DEBUG,"Module Start");
+  modules.begin();
+  for (uint8_t i = 0; i < modules.count(); i++) {
+    char mmsg[32];
+    snprintf(mmsg, sizeof(mmsg), "Mod: %s", modules.get(i)->name());
+    DisplayLog(mmsg);
+  }
+  if (modules.count() == 0)
+    DisplayLog("Mod: none");
 }
 
 static bool         _fwDoneShown = false;
@@ -96,7 +122,7 @@ void UIUpdateLoop(){
 
   DisplayManager();
   WebHandel();
-  ledStrip.update();
+  modules.update();
 }
 
 void SensorUpdateLoop(){
@@ -174,7 +200,7 @@ void WiFiFaiure(){
 
 void WiFiOK(){
   WiFiConnected = 1;
-  ledStrip.startUDP();
+  modules.startNetwork();
 }
 
 void LEDWebSetColor(uint8_t r, uint8_t g, uint8_t b, uint8_t bri) {
