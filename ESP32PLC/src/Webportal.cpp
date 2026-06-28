@@ -14,9 +14,21 @@
 #include "Remote/MasterController.h"
 #include "HAL/Digital/Digital.h"
 #include "HAL/DeviceConfig.h"
+#include "Modules/ModuleManager.h"
 
 #include "Devices/Log.h"
 #include <esp_heap_caps.h>
+
+// ArduinoJson allocator that uses PSRAM so large device configs don't
+// exhaust internal DRAM.  Falls back to internal heap if PSRAM is full.
+struct SpiRamAllocator {
+    void* allocate(size_t size) {
+        void* p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+        return p ? p : malloc(size);
+    }
+    void deallocate(void* ptr) { heap_caps_free(ptr); }
+};
+using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
 
 #define HTTP_PORT 80
 
@@ -279,8 +291,8 @@ static void _cfgBodyHandler(AsyncWebServerRequest*, uint8_t *data, size_t len,
     if (index + len >= total) _cfgBuf[_cfgBufLen] = '\0';
 }
 
-/* ── Device config body buffer (larger — holds full Remote.json) ────────── */
-static constexpr size_t DEV_BUF_SIZE = 8192;
+/* ── Device config body buffer (holds full Remote.json — sized to match parser budget) */
+static constexpr size_t DEV_BUF_SIZE = 65536;
 static char*  _devBuf    = nullptr;
 static size_t _devBufLen = 0;
 
@@ -380,6 +392,24 @@ void WebStart(){
       psTotal,   psFree,   psMin,   psLargest);
 
     req->send(resp);
+  });
+
+  /* GET /api/version — git-derived FW and web asset versions */
+  server.on("/api/version", HTTP_GET, [](AsyncWebServerRequest *req) {
+#ifndef FW_VERSION
+#define FW_VERSION "dev"
+#endif
+#ifndef FW_SHA
+#define FW_SHA "0000000"
+#endif
+#ifndef WEB_VERSION
+#define WEB_VERSION "0000000"
+#endif
+    char buf[128];
+    snprintf(buf, sizeof(buf),
+        "{\"fw\":\"%s\",\"fw_sha\":\"%s\",\"web\":\"%s\"}",
+        FW_VERSION, FW_SHA, WEB_VERSION);
+    req->send(200, "application/json", buf);
   });
 
   /* ── API routes first — must be before serveStatic ──────────────────── */
@@ -669,7 +699,7 @@ void WebStart(){
             req->send(400, "application/json", "{\"ok\":false,\"msg\":\"No data received\"}");
             return;
         }
-        DynamicJsonDocument doc(8192);
+        SpiRamJsonDocument doc(65536);
         if (deserializeJson(doc, (const char*)_devBuf, _devBufLen)) {
             req->send(400, "application/json", "{\"ok\":false,\"msg\":\"Invalid JSON\"}");
             return;
@@ -682,8 +712,7 @@ void WebStart(){
         f.write((const uint8_t*)_devBuf, _devBufLen);
         f.close();
         Log(NOTIFY, "Web: Remote.json saved via devices tab (%u B)\r\n", (unsigned)_devBufLen);
-        req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Saved — rebooting\",\"reboot\":true}");
-        _scheduleReboot();
+        req->send(200, "application/json", "{\"ok\":true,\"msg\":\"Saved — restart required to activate\",\"reboot\":true}");
     },
     nullptr,
     _devBodyHandler
@@ -1031,7 +1060,7 @@ void WebStart(){
   server.on("/ESP32PLC.css", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(LittleFS, "/ESP32PLC.css", "text/css");
   });
-  server.serveStatic("/", LittleFS, "/");
+  server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=600");
 
   server.onNotFound([](AsyncWebServerRequest *request){
     if (_captive) {
@@ -1042,6 +1071,28 @@ void WebStart(){
     Log(DEBUG,"Bad Request: %s\r\n",request->url());
     request->send(404);
   });
+  /* GET /api/debug/settings */
+  server.on("/api/debug/settings", HTTP_GET, [](AsyncWebServerRequest* req) {
+    char buf[48];
+    snprintf(buf, sizeof(buf), "{\"joy_cal\":%s}", GetJoyCalPageEnabled() ? "true" : "false");
+    req->send(200, "application/json", buf);
+  });
+
+  /* POST /api/debug/settings  body: {"joy_cal":true} */
+  server.on("/api/debug/settings", HTTP_POST,
+    [](AsyncWebServerRequest* req) { req->send(200, "application/json", "{\"ok\":true}"); },
+    nullptr,
+    [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+        StaticJsonDocument<64> doc;
+        if (deserializeJson(doc, data, len) == DeserializationError::Ok) {
+            if (doc.containsKey("joy_cal"))
+                SetJoyCalPageEnabled(doc["joy_cal"].as<bool>());
+        }
+        req->send(200, "application/json", "{\"ok\":true}");
+    });
+
+  modules.registerRoutes(server);
+
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
   server.begin();

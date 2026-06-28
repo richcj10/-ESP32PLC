@@ -4,6 +4,7 @@
 #include "Arduino.h"
 #include <Preferences.h>
 #include <LittleFS.h>
+#include "WifiControl/WifiConfig.h"
 
 WiFiConfig wfconfig;
 MQTTConfig mqconfig;
@@ -36,8 +37,24 @@ bool SaveWiFiConfig(uint8_t mode, const char* ssid, const char* pass, const char
     wfconfig.PswdLN  = strlen(wfconfig.Passcode);
     wfconfig.HoastLN = strlen(wfconfig.Host);
     WifisaveConfiguration(&wfconfig);
+    // Clear forced-AP flag whenever mode changes away from AP via any path.
+    if (mode != WIFI_AP_MODE) LittleFS.remove("/forced_ap.flag");
     Log(LOG, "Config: WiFi saved (mode=%u ssid=%s)\r\n", mode, wfconfig.SSID);
     return true;
+}
+
+// ── Forced-AP flag (written by display switch page, persists across restart) ──
+bool IsForcedAPMode() {
+    return LittleFS.exists("/forced_ap.flag");
+}
+
+void SetForcedAPMode(bool forced) {
+    if (forced) {
+        File f = LittleFS.open("/forced_ap.flag", "w");
+        if (f) f.close();
+    } else {
+        LittleFS.remove("/forced_ap.flag");
+    }
 }
 
 // ── Remote config accessor ────────────────────────────────────────────────────
@@ -45,6 +62,18 @@ const RemoteConfig_t& GetRemoteConfig() {
     const RemoteConfig_t* p = RemoteGetConfig();
     static const RemoteConfig_t empty = {};  // safe fallback if called before alloc
     return p ? *p : empty;
+}
+
+// ── Debug / feature flags ─────────────────────────────────────────────────────
+bool GetJoyCalPageEnabled() {
+    Preferences p; p.begin("debug", true);
+    bool v = p.getBool("joy_cal", false);
+    p.end(); return v;
+}
+void SetJoyCalPageEnabled(bool en) {
+    Preferences p; p.begin("debug", false);
+    p.putBool("joy_cal", en);
+    p.end();
 }
 
 // ── Factory reset ─────────────────────────────────────────────────────────────

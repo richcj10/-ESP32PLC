@@ -51,6 +51,25 @@ char RemoteStart() {
         }
     }
 
+    // Warn on duplicate mqttTopic entries — first-match-wins means duplicates silently drop
+    if (cfg.loaded) {
+        for (uint8_t di = 0; di < cfg.deviceCount; di++) {
+            for (uint8_t gi = 0; gi < cfg.devices[di].groupCount; gi++) {
+                const char* t = cfg.devices[di].groups[gi].mqttTopic;
+                if (!t[0]) continue;
+                for (uint8_t dj = di; dj < cfg.deviceCount; dj++) {
+                    uint8_t gstart = (dj == di) ? gi + 1 : 0;
+                    for (uint8_t gj = gstart; gj < cfg.devices[dj].groupCount; gj++) {
+                        if (strcmp(t, cfg.devices[dj].groups[gj].mqttTopic) == 0) {
+                            Log(NOTIFY, "WARNING: duplicate mqttTopic \"%s\" on dev[%u].grp[%u] and dev[%u].grp[%u] — only first will respond\r\n",
+                                t, (unsigned)di, (unsigned)gi, (unsigned)dj, (unsigned)gj);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (!remoteMaster.begin(master, cfg)) {
         // No JSON config — fall back to hardcoded OCC at address 22
         Log(NOTIFY, "Remote: no JSON config — using hardcoded OCC defaults\r\n");

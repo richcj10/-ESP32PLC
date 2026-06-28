@@ -243,7 +243,7 @@ void TFTDisplayAPInfo(const char* ssid) {
     tft.fillRect(0, 0, 320, 26, TFT_NAVY);
     tft.setTextColor(TFT_CYAN);
     tft.setTextSize(2);
-    tft.setCursor(IsForcedAPMode() ? 10 : 38, 5);
+    tft.setCursor(IsForcedAPMode() ? 30 : 38, 5);
     tft.print(IsForcedAPMode() ? "FORCED AP MODE" : "AP MODE");
 
     // ── WiFi network ────────────────────────────────────────────────────────

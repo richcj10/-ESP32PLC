@@ -50,8 +50,10 @@ void DisplaySetup() {
 
 // ── Joystick-driven page carousel ────────────────────────────────────────────
 
-static bool _joySelPrev  = false;
-static char _joyPosPrev  = JOYSTICK_NONE;
+static bool     _joySelPrev  = false;
+static char     _joyPosPrev  = JOYSTICK_NONE;
+static uint32_t _apSelHoldMs  = 0;
+static uint32_t _selHoldMs    = 0;
 
 void DisplayManager() {
     bool joySel  = GetJoyStickSelect();
@@ -73,14 +75,33 @@ void DisplayManager() {
         }
     } else {
         if (!_apMode) {
-            if (joyRight || joyEdge) { DisplayTimeoutReset(); UIPageNext(); }
-            if (joyLeft)             { DisplayTimeoutReset(); UIPagePrev(); }
-            if ((millis() - LastDisplayUpdate) > 3000) {
+            bool lockNav = UIPageLockNav();
+            if (joyRight && !lockNav) { DisplayTimeoutReset(); _selHoldMs = 0; UIPageNext(); }
+            if (joyEdge)              { DisplayTimeoutReset(); _selHoldMs = 0; UIPageSelect(); }
+            if (joyLeft  && !lockNav) { DisplayTimeoutReset(); _selHoldMs = 0; UIPagePrev(); }
+            // Hold SELECT 3 s to execute a confirmed action (e.g. WiFi switch)
+            if (joySel) {
+                if (_selHoldMs == 0) _selHoldMs = millis();
+                if (millis() - _selHoldMs >= 3000) {
+                    _selHoldMs = 0;
+                    UIPageExecuteHeld();
+                }
+            } else {
+                _selHoldMs = 0;
+            }
+            if ((millis() - LastDisplayUpdate) > UIPageUpdateMs()) {
                 LastDisplayUpdate = millis();
                 UIPageDraw();
             }
         } else {
             if (joyEdge) DisplayTimeoutReset();
+            // Hold SELECT 3 s to exit AP mode → STA
+            if (joySel) {
+                if (_apSelHoldMs == 0) _apSelHoldMs = millis();
+                if (millis() - _apSelHoldMs >= 3000) UIApModeExitNow();
+            } else {
+                _apSelHoldMs = 0;
+            }
         }
         DisplaySaver();
     }

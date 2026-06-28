@@ -12,6 +12,7 @@ String GetIPStr();
 String GetRSSIStr();
 String GetMACStr();
 String GetAPPassword();
+String GetSanitizedHostname();
 
 #define NEIGHBOR_MAX 8
 struct NeighborEntry { char name[48]; char ip[16]; };

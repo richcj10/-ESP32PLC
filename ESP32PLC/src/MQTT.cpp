@@ -10,6 +10,7 @@
 #include "Devices/Log.h"
 #include "HAL/Digital/Digital.h"
 #include "Devices/LEDStrip.h"
+#include "Modules/ModuleManager.h"
 
 #define MSG_BUFFER_SIZE 50
 char msg[MSG_BUFFER_SIZE];
@@ -144,29 +145,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     Log(NOTIFY, "MQTT rx [%s] %s\r\n", topic, messageTemp.c_str());
 
-    if (_handleRemoteWrite(topic, messageTemp.c_str())) return;
-    if (_handleIOWrite(topic, messageTemp.c_str()))     return;
-    if (_handleStripWrite(topic, messageTemp.c_str()))  return;
+    if (_handleRemoteWrite(topic, messageTemp.c_str()))       return;
+    if (_handleIOWrite(topic, messageTemp.c_str()))           return;
+    if (_handleStripWrite(topic, messageTemp.c_str()))        return;
+    if (modules.handleMQTT(topic, messageTemp.c_str()))       return;
 
-    char t[80];
-    snprintf(t, sizeof(t), "%s/Heater", _mqttBase);
-    if (strcmp(topic, t) == 0) {
-        bool on = messageTemp == "on";
-        digitalWrite(40, on ? HIGH : LOW);
-        snprintf(t, sizeof(t), "%s/Heater/State", _mqttBase);
-        client.publish(t, on ? "on" : "off");
-        return;
-    }
-    snprintf(t, sizeof(t), "%s/Lights", _mqttBase);
-    if (strcmp(topic, t) == 0) {
-        bool on = messageTemp == "on";
-        digitalWrite(41, on ? HIGH : LOW);
-        digitalWrite(42, on ? HIGH : LOW);
-        digitalWrite(39, on ? HIGH : LOW);
-        snprintf(t, sizeof(t), "%s/Lights/State", _mqttBase);
-        client.publish(t, on ? "on" : "off");
-        return;
-    }
 }
 
 void MqttLoop(void) {
@@ -216,8 +199,6 @@ void MQTTreconnect(void) {
             MQTTActive = 1;
             Log(LOG, "MQTT: connected\r\n");
             char subTopic[128];
-            snprintf(subTopic, sizeof(subTopic), "%s/Heater", _mqttBase);
-            client.subscribe(subTopic);
 
             /* Subscribe to local I/O output control topics */
             for (uint8_t n = 0; n < GetOutputCount(); n++) {
@@ -249,6 +230,7 @@ void MQTTreconnect(void) {
                 }
             }
             PublishHADiscovery();
+            modules.onMQTTConnect();
         }
         counter++;
         if (counter > 5) {
@@ -285,16 +267,16 @@ void PublishHADiscovery() {
     const RemoteConfig_t& cfg = GetRemoteConfig();
     if (!cfg.loaded || cfg.deviceCount == 0) return;
 
-    static char hostSafe[24];
+    char hostSafe[24];
     _sanitizeId(GetHostName().c_str(), hostSafe, sizeof(hostSafe));
 
-    static char payload[512];
-    static char discTopic[128];
+    char payload[512];
+    char discTopic[128];
 
     for (uint8_t di = 0; di < cfg.deviceCount; di++) {
         const RemoteDeviceCfg_t& dev = cfg.devices[di];
-        static char devSafe[24]; _sanitizeId(dev.name, devSafe, sizeof(devSafe));
-        static char devId[52];
+        char devSafe[24]; _sanitizeId(dev.name, devSafe, sizeof(devSafe));
+        char devId[52];
         snprintf(devId, sizeof(devId), "espplc_%s_%s", hostSafe, devSafe);
 
         for (uint8_t gi = 0; gi < dev.groupCount; gi++) {
@@ -305,11 +287,11 @@ void PublishHADiscovery() {
                 const char* rname = (grp.regs[ri][0] != '\0') ? grp.regs[ri] : nullptr;
                 if (!rname) continue;
 
-                static char rSafe[24]; _sanitizeId(rname, rSafe, sizeof(rSafe));
-                static char uid[76];
+                char rSafe[24]; _sanitizeId(rname, rSafe, sizeof(rSafe));
+                char uid[76];
                 snprintf(uid, sizeof(uid), "%s_%s", devId, rSafe);
 
-                static char statTopic[128];
+                char statTopic[128];
                 snprintf(statTopic, sizeof(statTopic), "%s/%s/%s",
                          _mqttBase, grp.mqttTopic, rname);
 
@@ -372,8 +354,24 @@ void SendDeviceEnviroment() {
 // SendRemoteDevices — publish all JSON-configured device groups
 // Each enabled group publishes: {mqttTopic}/{regName} = value
 // ----------------------------------------------------------------
+// Minimum value change that triggers an MQTT publish (engineering units after scaling).
+#define MQTT_PUBLISH_THRESHOLD 0.25f
+
+// Publish-on-change cache — NAN sentinel forces publish on first call.
+// Indexed by group-pool index (gi) and register offset (r).
+static float    _lastPubVal[MAX_GROUP_POOL][MAX_REGS_PER_GROUP];
+static uint32_t _lastPubMs[MAX_GROUP_POOL];
+static bool     _pubCacheReady = false;
+
 void SendRemoteDevices() {
     if (!MQTTActive) return;
+
+    if (!_pubCacheReady) {
+        for (uint8_t i = 0; i < MAX_GROUP_POOL; i++)
+            for (uint8_t r = 0; r < MAX_REGS_PER_GROUP; r++)
+                _lastPubVal[i][r] = NAN;
+        _pubCacheReady = true;
+    }
 
     const RemoteConfig_t& cfg = GetRemoteConfig();
 
@@ -388,10 +386,16 @@ void SendRemoteDevices() {
         const RemoteGroupCfg_t& grp = cfg.devices[di].groups[gri];
         if (!grp.mqttEnable || grp.mqttTopic[0] == '\0') continue;
 
+        bool heartbeat = (millis() - _lastPubMs[gi]) >= 60000UL;
+        bool published = false;
+
         for (uint8_t r = 0; r < grp.count; r++) {
             float val = (grp.scale == 1.0f)
                 ? (float)dev->getRaw(r)
                 : (float)dev->getSigned(r) / grp.scale;
+
+            bool changed = isnan(_lastPubVal[gi][r]) || fabsf(val - _lastPubVal[gi][r]) > MQTT_PUBLISH_THRESHOLD;
+            if (!changed && !heartbeat) continue;
 
             char topic[128];
             if (grp.regs[r][0])
@@ -403,7 +407,12 @@ void SendRemoteDevices() {
             snprintf(buf, sizeof(buf), "%.2f", val);
             if (!client.publish(topic, buf)) ErrorCounter++;
             else ErrorCounter = 0;
+
+            _lastPubVal[gi][r] = val;
+            published = true;
         }
+
+        if (published) _lastPubMs[gi] = millis();
     }
 }
 

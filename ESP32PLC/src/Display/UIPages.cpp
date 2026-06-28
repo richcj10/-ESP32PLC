@@ -9,8 +9,13 @@
 #include "MQTT.h"
 #include "FileSystem/FSInterface.h"
 #include "WifiControl/WifiConfig.h"
+#include "Devices/JoyStick.h"
 
-#define PAGE_COUNT  4
+#define PAGE_CNT_FULL    6
+#define PAGE_CNT_NO_CAL  5
+static inline uint8_t _pageCount() {
+    return GetJoyCalPageEnabled() ? PAGE_CNT_FULL : PAGE_CNT_NO_CAL;
+}
 
 // Uncomment to show pixel-grid test pattern instead of normal pages.
 //#define UI_TEST_PATTERN
@@ -29,6 +34,7 @@
 #define CARD_H      185                       // card ends at y=211
 #define CONTENT_X  (MARGIN + 6)              // text left margin inside card
 #define DOTS_Y      225                       // dots below card, above bottom bezel
+#define OUTLINE_R   40                        // white border corner radius — must exceed physical screen corner
 
 static uint8_t _page = 0;
 
@@ -64,7 +70,7 @@ static void _header(const char* title) {
         snprintf(ub, sizeof(ub), "%uh%02um", (unsigned)(s / 3600), (unsigned)((s % 3600) / 60));
     Screen.setTextSize(1);
     Screen.setTextColor(TFT_DARKGREY, HDR_BG);
-    Screen.setCursor(MARGIN, 7);
+    Screen.setCursor(MARGIN + 30, 7);
     Screen.print(ub);
 
     // Title centered across full display width
@@ -75,7 +81,7 @@ static void _header(const char* title) {
     Screen.print(title);
 
     // WiFi bars + MQTT dot — keep within VIS_RIGHT=300
-    _wifiIcon(VIS_RIGHT - 28, 4);   // bars at 272,277,282
+    _wifiIcon(VIS_RIGHT - 58, 4);   // bars shifted 30px toward center
     _mqttIcon(VIS_RIGHT - 6, 11);   // dot at 294 (r=4 → 290..298)
 
     Screen.drawFastHLine(0, HDR_H, DISP_W, TFT_CYAN);
@@ -87,8 +93,8 @@ static void _card() {
 
 static void _dots() {
     const int sp = 16;
-    int sx = (DISP_W - (PAGE_COUNT - 1) * sp) / 2;
-    for (int i = 0; i < PAGE_COUNT; i++) {
+    int sx = (DISP_W - (_pageCount() - 1) * sp) / 2;
+    for (int i = 0; i < _pageCount(); i++) {
         int dx = sx + i * sp;
         if (i == (int)_page) Screen.fillCircle(dx, DOTS_Y, 4, TFT_CYAN);
         else                 Screen.drawCircle(dx, DOTS_Y, 3, TFT_DARKGREY);
@@ -288,6 +294,305 @@ static void _drawMQTT() {
     Screen.setTextColor(TFT_WHITE, HDR_BG);    Screen.print(GetMQTTUser().c_str());
 }
 
+// ── Page 4: WIFI SWITCH ───────────────────────────────────────────────────────
+
+static bool     _wifiConfirm   = false;
+static uint32_t _wifiConfirmMs = 0;
+
+static void _drawWiFiSwitch() {
+    if (_wifiConfirm && (millis() - _wifiConfirmMs > 5000))
+        _wifiConfirm = false;
+
+    bool inAP = (GetWiFiMode() == WIFI_AP_MODE);
+    _header("WIFI SWITCH");
+    _card();
+    Screen.setTextSize(1);
+
+    int y = CARD_Y + 12;
+
+    // Current mode
+    Screen.setCursor(CONTENT_X, y);
+    Screen.setTextColor(TFT_CYAN, HDR_BG);    Screen.print("Current: ");
+    Screen.setTextColor(inAP ? TFT_YELLOW : TFT_GREEN, HDR_BG);
+    Screen.print(inAP ? "AP MODE" : "STA MODE");
+    y += 18;
+
+    if (!inAP) {
+        Screen.setCursor(CONTENT_X, y);
+        Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("SSID:    ");
+        Screen.setTextColor(TFT_WHITE, HDR_BG); Screen.print(GetSSID().c_str());
+        y += 18;
+    }
+
+    Screen.drawFastHLine(CONTENT_X, y, CARD_W - 14, TFT_DARKGREY);
+    y += 10;
+
+    if (_wifiConfirm) {
+        Screen.setTextSize(2);
+        Screen.setTextColor(TFT_YELLOW, HDR_BG);
+        const char* target = inAP ? "-> STA?" : "-> AP?";
+        int tw = (int)strlen(target) * 12;
+        Screen.setCursor((DISP_W - tw) / 2, y);
+        Screen.print(target);
+        y += 28;
+
+        Screen.setTextSize(1);
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        Screen.print("Device will restart.");
+        y += 22;
+
+        Screen.setTextColor(TFT_GREEN, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        Screen.print("Hold [SEL] 3s = Confirm");
+        y += 16;
+
+        Screen.setTextColor(TFT_RED, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        Screen.print("[LEFT] = Cancel");
+    } else {
+        // Target mode preview
+        Screen.setCursor(CONTENT_X, y);
+        Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("Switch to: ");
+        Screen.setTextColor(TFT_YELLOW, HDR_BG);
+        Screen.print(inAP ? "STA MODE" : "AP MODE");
+        y += 18;
+
+        if (!inAP) {
+            // Show AP credentials the device will create
+            Screen.setCursor(CONTENT_X, y);
+            Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("AP SSID: ");
+            Screen.setTextColor(TFT_WHITE, HDR_BG); Screen.print(GetSanitizedHostname().c_str());
+            y += 18;
+
+            Screen.setCursor(CONTENT_X, y);
+            Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("AP Pass: ");
+            Screen.setTextColor(TFT_WHITE, HDR_BG); Screen.print(GetAPPassword().c_str());
+            y += 18;
+
+            Screen.setCursor(CONTENT_X, y);
+            Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("IP:      ");
+            Screen.setTextColor(TFT_WHITE, HDR_BG); Screen.print("192.168.4.1");
+            y += 18;
+        } else {
+            Screen.setCursor(CONTENT_X, y);
+            Screen.setTextColor(TFT_DARKGREY, HDR_BG);
+            Screen.print("(configure SSID in web UI)");
+            y += 18;
+        }
+
+        Screen.drawFastHLine(CONTENT_X, y, CARD_W - 14, TFT_DARKGREY);
+        y += 10;
+
+        Screen.setTextColor(TFT_GREEN, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        Screen.print("[SEL] to switch");
+    }
+}
+
+// ── Page 5: JOYSTICK CALIBRATION ─────────────────────────────────────────────
+//
+// Flow (fully automatic after SELECT to start):
+//   CENTER  — 3 s auto-sample while user releases stick  → compute dead band
+//   WAIT_x  — wait for ADC to leave dead band (must first return to center)
+//   CAP_x   — 2 s countdown capturing min/max while stick is held
+//   Repeat for UP → DOWN → LEFT → RIGHT → DONE (map saved, SEL to dismiss)
+
+enum CalState : uint8_t {
+    CAL_IDLE = 0,
+    CAL_CENTER,
+    CAL_WAIT_UP,   CAL_CAP_UP,
+    CAL_WAIT_DOWN, CAL_CAP_DOWN,
+    CAL_WAIT_LEFT, CAL_CAP_LEFT,
+    CAL_WAIT_RIGHT,CAL_CAP_RIGHT,
+    CAL_DONE,
+};
+static CalState  _calState   = CAL_IDLE;
+static uint32_t  _calStartMs = 0;
+static int       _capLo      = 4095;
+static int       _capHi      = 0;
+static int       _ctrLo      = 3000;   // center dead-band (set during CAL_CENTER)
+static int       _ctrHi      = 3500;
+static bool      _ctrSeen    = false;  // must see center before triggering next direction
+static int       _dirLo[4]   = {4095,4095,4095,4095}; // UP,DOWN,LEFT,RIGHT captured lo
+static int       _dirHi[4]   = {0,0,0,0};             // UP,DOWN,LEFT,RIGHT captured hi
+
+static const char* _dirLabel(CalState s) {
+    switch (s) {
+        case CAL_WAIT_UP:   case CAL_CAP_UP:    return "UP";
+        case CAL_WAIT_DOWN: case CAL_CAP_DOWN:  return "DOWN";
+        case CAL_WAIT_LEFT: case CAL_CAP_LEFT:  return "LEFT";
+        case CAL_WAIT_RIGHT:case CAL_CAP_RIGHT: return "RIGHT";
+        default: return "";
+    }
+}
+static int _dirIdx(CalState s) {
+    if (s==CAL_WAIT_UP   ||s==CAL_CAP_UP)   return 0;
+    if (s==CAL_WAIT_DOWN ||s==CAL_CAP_DOWN)  return 1;
+    if (s==CAL_WAIT_LEFT ||s==CAL_CAP_LEFT)  return 2;
+    if (s==CAL_WAIT_RIGHT||s==CAL_CAP_RIGHT) return 3;
+    return -1;
+}
+static CalState _afterCap(CalState s) {
+    switch (s) {
+        case CAL_CAP_UP:    return CAL_WAIT_DOWN;
+        case CAL_CAP_DOWN:  return CAL_WAIT_LEFT;
+        case CAL_CAP_LEFT:  return CAL_WAIT_RIGHT;
+        default:            return CAL_DONE;
+    }
+}
+
+static void _drawCalibrate() {
+    int raw      = JoyStickRawAvg();
+    uint32_t now = millis();
+
+    // ── State machine (runs every UIPageUpdateMs tick) ────────────────────────
+    if (_calState == CAL_CENTER) {
+        if (raw < _capLo) _capLo = raw;
+        if (raw > _capHi) _capHi = raw;
+        if ((now - _calStartMs) >= 3000) {
+            _ctrLo    = max(0,    _capLo - 25);
+            _ctrHi    = min(4095, _capHi + 25);
+            _capLo    = 4095; _capHi = 0;
+            _ctrSeen  = true;   // just finished at center
+            _calState = CAL_WAIT_UP;
+        }
+    }
+    else if (_calState == CAL_WAIT_UP   || _calState == CAL_WAIT_DOWN ||
+             _calState == CAL_WAIT_LEFT || _calState == CAL_WAIT_RIGHT) {
+        if (raw >= _ctrLo && raw <= _ctrHi) _ctrSeen = true;
+        if (_ctrSeen && (raw < _ctrLo || raw > _ctrHi)) {
+            _capLo = _capHi = raw;
+            _calStartMs = now;
+            _ctrSeen    = false;
+            _calState   = (CalState)((uint8_t)_calState + 1); // WAIT→CAP
+        }
+    }
+    else if (_calState == CAL_CAP_UP   || _calState == CAL_CAP_DOWN ||
+             _calState == CAL_CAP_LEFT || _calState == CAL_CAP_RIGHT) {
+        if (raw < _capLo) _capLo = raw;
+        if (raw > _capHi) _capHi = raw;
+        if ((now - _calStartMs) >= 2000) {
+            int idx = _dirIdx(_calState);
+            _dirLo[idx] = _capLo;
+            _dirHi[idx] = _capHi;
+            _capLo = 4095; _capHi = 0;
+            CalState next = _afterCap(_calState);
+            if (next == CAL_DONE) {
+                JoyMap m;
+                m.none  = { _ctrLo,    _ctrHi    };
+                m.up    = { _dirLo[0], _dirHi[0] };
+                m.down  = { _dirLo[1], _dirHi[1] };
+                m.left  = { _dirLo[2], _dirHi[2] };
+                m.right = { _dirLo[3], _dirHi[3] };
+                JoyStickSetMap(m);
+                JoyStickSaveMap();
+            }
+            _calState = next;
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    _header("JOY CAL");
+    _card();
+    Screen.setTextSize(1);
+    int y = CARD_Y + 12;
+    char buf[32];
+
+    if (_calState == CAL_IDLE) {
+        Screen.setCursor(CONTENT_X, y);
+        Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("Raw: ");
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        snprintf(buf, sizeof(buf), "%d", raw);  Screen.print(buf);
+        y += 4;
+        Screen.drawFastHLine(CONTENT_X, y + 10, CARD_W - 14, TFT_DARKGREY);
+        y += 20;
+        JoyMap m = JoyStickGetMap();
+        struct { const char* lbl; JoyMapEntry e; } rows[5] = {
+            {"CTR", m.none}, {"UP ", m.up}, {"DN ", m.down},
+            {"LF ", m.left}, {"RT ", m.right},
+        };
+        for (auto& r : rows) {
+            snprintf(buf, sizeof(buf), "%s %4d..%4d", r.lbl, r.e.lo, r.e.hi);
+            Screen.setCursor(CONTENT_X, y);
+            Screen.setTextColor(TFT_DARKGREY, HDR_BG); Screen.print(buf);
+            y += 14;
+        }
+        y += 6;
+        Screen.drawFastHLine(CONTENT_X, y, CARD_W - 14, TFT_DARKGREY);
+        y += 10;
+        Screen.setTextColor(TFT_GREEN, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        Screen.print("[SEL] Start calibration");
+
+    } else if (_calState == CAL_DONE) {
+        Screen.setTextSize(2);
+        Screen.setTextColor(TFT_GREEN, HDR_BG);
+        Screen.setCursor((DISP_W - 7*12)/2, CARD_Y + 50);
+        Screen.print("Saved!");
+        Screen.setTextSize(1);
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        Screen.setCursor(CONTENT_X, CARD_Y + 120);
+        Screen.print("[SEL] Done");
+
+    } else if (_calState == CAL_CENTER) {
+        uint32_t elapsed = now - _calStartMs;
+        Screen.setTextColor(TFT_YELLOW, HDR_BG);
+        Screen.setCursor(CONTENT_X, y); Screen.print("Release — sensing center");
+        y += 26;
+        int barW   = CARD_W - 24;
+        int filled = (int)((float)barW * (float)min(elapsed, (uint32_t)3000) / 3000.0f);
+        Screen.fillRect(CARD_X + 12, y, barW, 14, 0x2104);
+        Screen.drawRect(CARD_X + 11, y - 1, barW + 2, 16, TFT_DARKGREY);
+        if (filled > 0) Screen.fillRect(CARD_X + 12, y, filled, 14, TFT_CYAN);
+        y += 24;
+        Screen.setTextColor(TFT_DARKGREY, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        snprintf(buf, sizeof(buf), "Raw: %d", raw); Screen.print(buf);
+
+    } else if (_calState == CAL_WAIT_UP   || _calState == CAL_WAIT_DOWN ||
+               _calState == CAL_WAIT_LEFT || _calState == CAL_WAIT_RIGHT) {
+        Screen.setTextSize(2);
+        Screen.setTextColor(TFT_YELLOW, HDR_BG);
+        snprintf(buf, sizeof(buf), "Press %s", _dirLabel(_calState));
+        Screen.setCursor((DISP_W - (int)strlen(buf)*12)/2, y);
+        Screen.print(buf);
+        y += 32;
+        Screen.setTextSize(1);
+        Screen.setTextColor(TFT_CYAN, HDR_BG);
+        Screen.setCursor(CONTENT_X, y); Screen.print("Raw: ");
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        snprintf(buf, sizeof(buf), "%d", raw); Screen.print(buf);
+        y += 18;
+        Screen.setTextColor(TFT_DARKGREY, HDR_BG);
+        Screen.setCursor(CONTENT_X, y);
+        snprintf(buf, sizeof(buf), "Band: %d..%d", _ctrLo, _ctrHi);
+        Screen.print(buf);
+
+    } else {  // CAP states
+        uint32_t elapsed = now - _calStartMs;
+        Screen.setTextSize(2);
+        Screen.setTextColor(TFT_GREEN, HDR_BG);
+        snprintf(buf, sizeof(buf), "Hold %s", _dirLabel(_calState));
+        Screen.setCursor((DISP_W - (int)strlen(buf)*12)/2, y);
+        Screen.print(buf);
+        y += 32;
+        Screen.setTextSize(1);
+        Screen.setTextColor(TFT_CYAN, HDR_BG);
+        Screen.setCursor(CONTENT_X, y); Screen.print("Raw: ");
+        Screen.setTextColor(TFT_WHITE, HDR_BG);
+        snprintf(buf, sizeof(buf), "%d  (%d..%d)", raw, _capLo, _capHi);
+        Screen.print(buf);
+        y += 22;
+        int barW   = CARD_W - 24;
+        uint32_t clamped = min(elapsed, (uint32_t)2000);
+        int filled = (int)((float)barW * (float)clamped / 2000.0f);
+        Screen.fillRect(CARD_X + 12, y, barW, 14, 0x2104);
+        Screen.drawRect(CARD_X + 11, y - 1, barW + 2, 16, TFT_DARKGREY);
+        if (filled > 0) Screen.fillRect(CARD_X + 12, y, filled, 14, TFT_GREEN);
+    }
+}
+
 // ── Screen test pattern ───────────────────────────────────────────────────────
 // Draws a labeled pixel grid across the full sprite so the housing bezel clip
 // boundaries can be read directly off the display.
@@ -410,8 +715,8 @@ void UIPageUpload(const char* title, uint8_t pct, const char* msg) {
         Screen.print(msg);
     }
 
-    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, 18, TFT_WHITE);
-    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, 17, TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, OUTLINE_R,     TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, OUTLINE_R - 1, TFT_WHITE);
     Screen.pushSprite(0, 0);
 }
 
@@ -438,8 +743,8 @@ void UIPageUploadDone(bool success, const char* msg) {
         Screen.print(msg);
     }
 
-    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, 18, TFT_WHITE);
-    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, 17, TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, OUTLINE_R,     TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, OUTLINE_R - 1, TFT_WHITE);
     Screen.pushSprite(0, 0);
 }
 
@@ -456,25 +761,121 @@ void UIPageDraw() {
     return;
 #endif
     switch (_page) {
-        case 0: _drawNetwork(); break;
-        case 1: _drawIO();      break;
-        case 2: _drawModbus();  break;
-        case 3: _drawMQTT();    break;
+        case 0: _drawNetwork();    break;
+        case 1: _drawIO();         break;
+        case 2: _drawModbus();     break;
+        case 3: _drawMQTT();       break;
+        case 4: _drawWiFiSwitch(); break;
+        case 5: _drawCalibrate();  break;
     }
     _dots();
-    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, 18, TFT_WHITE);
-    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, 17, TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT,     2, VIS_RIGHT - VIS_LEFT,     DISP_H - 4, OUTLINE_R,     TFT_WHITE);
+    Screen.drawRoundRect(VIS_LEFT + 1, 3, VIS_RIGHT - VIS_LEFT - 2, DISP_H - 6, OUTLINE_R - 1, TFT_WHITE);
     Log(NOTIFY_FORCE, "UIPageDraw: pushSprite\r\n");
     Screen.pushSprite(0, 0);
     Log(NOTIFY_FORCE, "UIPageDraw: done\r\n");
 }
 
+bool UIPageLockNav() {
+    // Block direction navigation during active calibration steps.
+    // IDLE and DONE allow normal navigation; all active steps (1–5) do not.
+    return _page == 5 && _calState != CAL_IDLE && _calState != CAL_DONE;
+}
+
 void UIPageNext() {
-    _page = (_page + 1) % PAGE_COUNT;
+    if (UIPageLockNav()) return;  // joystick ADC unreliable before calibration
+    _wifiConfirm = false;
+    _calState    = CAL_IDLE;
+    _page = (_page + 1) % _pageCount();
     UIPageDraw();
 }
 
 void UIPagePrev() {
-    _page = (_page == 0) ? PAGE_COUNT - 1 : _page - 1;
+    // Calibration page: LEFT cancels active calibration (not IDLE or DONE), stays on page.
+    if (_page == 5 && _calState != CAL_IDLE && _calState != CAL_DONE) {
+        _calState = CAL_IDLE;
+        UIPageDraw();
+        return;
+    }
+    // WiFi switch page: LEFT cancels pending confirm, stays on page.
+    if (_page == 4 && _wifiConfirm) {
+        _wifiConfirm = false;
+        UIPageDraw();
+        return;
+    }
+    _wifiConfirm = false;
+    _calState    = CAL_IDLE;
+    _page = (_page == 0) ? _pageCount() - 1 : _page - 1;
     UIPageDraw();
+}
+
+void UIPageSelect() {
+    // ── WiFi switch page ──────────────────────────────────────────────────────
+    if (_page == 4) {
+        if (!_wifiConfirm) {
+            _wifiConfirm   = true;
+            _wifiConfirmMs = millis();
+            UIPageDraw();
+        }
+        // Second tap does nothing — hold SELECT 3 s to confirm
+        return;
+    }
+
+    // ── Calibration page ──────────────────────────────────────────────────────
+    if (_page == 5) {
+        if (_calState == CAL_IDLE) {
+            // Start — reset all capture state
+            _capLo = 4095; _capHi = 0;
+            for (int i = 0; i < 4; i++) { _dirLo[i] = 4095; _dirHi[i] = 0; }
+            _ctrSeen  = false;
+            _calStartMs = millis();
+            _calState = CAL_CENTER;
+            UIPageDraw();
+        } else if (_calState == CAL_DONE) {
+            _calState = CAL_IDLE;
+            UIPageDraw();
+        }
+        // All active states advance automatically — no SELECT action needed.
+        return;
+    }
+
+    // ── Info pages: SELECT advances like right-swipe ──────────────────────────
+    UIPageNext();
+}
+
+uint16_t UIPageUpdateMs() {
+    // Live ADC updates on calibration page during active calibration.
+    return (_page == 5 && _calState != CAL_IDLE && _calState != CAL_DONE) ? 200 : 3000;
+}
+
+void UIPageExecuteHeld() {
+    if (_page == 4 && _wifiConfirm) {
+        _wifiConfirm = false;
+        uint8_t newMode = (GetWiFiMode() == WIFI_AP_MODE) ? WIFI_STA_MODE : WIFI_AP_MODE;
+        SetForcedAPMode(newMode == WIFI_AP_MODE);
+        SaveWiFiConfig(newMode, GetSSID().c_str(), GetSSIDPassword().c_str(), GetHostName().c_str());
+        _header(newMode == WIFI_AP_MODE ? "-> AP MODE" : "-> STA MODE");
+        _card();
+        Screen.setTextSize(2);
+        Screen.setTextColor(TFT_CYAN, HDR_BG);
+        Screen.setCursor(CONTENT_X, CARD_Y + 60);
+        Screen.print("Restarting...");
+        Screen.pushSprite(0, 0);
+        delay(1500);
+        ESP.restart();
+    }
+}
+
+void UIApModeExitNow() {
+    SetForcedAPMode(false);
+    SaveWiFiConfig(WIFI_STA_MODE, GetSSID().c_str(), GetSSIDPassword().c_str(), GetHostName().c_str());
+    Screen.fillSprite(TFT_BLACK);
+    Screen.setTextSize(2);
+    Screen.setTextColor(TFT_CYAN, TFT_BLACK);
+    int tw = 19 * 12;  // "Switching to STA..." = 19 chars × 12px
+    Screen.setCursor((DISP_W - tw) / 2, 110);
+    Screen.print("Switching to STA...");
+    Screen.pushSprite(0, 0);
+    delay(1500);
+    ESP.restart();
 }

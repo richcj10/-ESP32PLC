@@ -115,6 +115,20 @@
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title">Versions</div>
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="stat-label">Firmware</div>
+            <div class="stat-val" id="h-fw-ver" style="font-size:11px;word-break:break-all;">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Web UI</div>
+            <div class="stat-val" id="h-web-ver" style="font-size:11px;">—</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- WiFi ──────────────────────────────────────────── -->
@@ -313,35 +327,6 @@
         <div id="ctrl-outputs" class="io-ctrl-row"></div>
       </div>
 
-      <div class="card">
-        <div class="card-title">LED Strip</div>
-        <div id="led-swatch" style="height:36px;border-radius:6px;background:rgb(255,0,0);margin-bottom:14px;border:1px solid var(--border);"></div>
-        <div class="form-row">
-          <label>R</label>
-          <input type="range" id="led-r" min="0" max="255" value="255" oninput="_ledPrev()">
-          <span id="led-rv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">255</span>
-        </div>
-        <div class="form-row">
-          <label>G</label>
-          <input type="range" id="led-g" min="0" max="255" value="0" oninput="_ledPrev()">
-          <span id="led-gv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">0</span>
-        </div>
-        <div class="form-row">
-          <label>B</label>
-          <input type="range" id="led-b" min="0" max="255" value="0" oninput="_ledPrev()">
-          <span id="led-bv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">0</span>
-        </div>
-        <div class="form-row">
-          <label>Bri</label>
-          <input type="range" id="led-bri" min="0" max="255" value="255" oninput="_ledPrev()">
-          <span id="led-briv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">255</span>
-        </div>
-        <div class="btn-row" style="margin-top:14px;">
-          <button class="btn" onclick="ledSet()">Set Color</button>
-          <button class="btn btn-red" onclick="ledOff()">Off</button>
-        </div>
-      </div>
-
       <!-- Fireworks disabled ─────────────────────────────
       <div class="card">
         <div class="card-title">Channels</div>
@@ -431,9 +416,120 @@
     <!-- App ────────────────────────────────────────────── -->
     <div class="panel" id="tab-app">
       <div class="page-header">App</div>
-      <div class="card" style="color:var(--muted);font-size:13px;text-align:center;padding:32px 0;">
-        App content coming soon.
+
+      <!-- ── LED Strip module ─────────────────────────── -->
+      <div class="card" id="app-card-led">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          LED Strip
+          <button id="app-tog-led" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('led')">&#9660;</button>
+        </div>
+        <div id="app-body-led">
+          <div id="led-swatch" style="height:36px;border-radius:6px;background:rgb(255,0,0);margin-bottom:14px;border:1px solid var(--border);"></div>
+          <div class="form-row">
+            <label>R</label>
+            <input type="range" id="led-r" min="0" max="255" value="255" oninput="_ledPrev()">
+            <span id="led-rv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">255</span>
+          </div>
+          <div class="form-row">
+            <label>G</label>
+            <input type="range" id="led-g" min="0" max="255" value="0" oninput="_ledPrev()">
+            <span id="led-gv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">0</span>
+          </div>
+          <div class="form-row">
+            <label>B</label>
+            <input type="range" id="led-b" min="0" max="255" value="0" oninput="_ledPrev()">
+            <span id="led-bv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">0</span>
+          </div>
+          <div class="form-row">
+            <label>Bri</label>
+            <input type="range" id="led-bri" min="0" max="255" value="255" oninput="_ledPrev()">
+            <span id="led-briv" style="min-width:28px;text-align:right;color:var(--muted);font-size:12px;">255</span>
+          </div>
+          <div class="btn-row" style="margin-top:14px;">
+            <button class="btn" onclick="ledSet()">Set Color</button>
+            <button class="btn btn-red" onclick="ledOff()">Off</button>
+          </div>
+        </div>
       </div>
+
+      <!-- ── Fireworks module ──────────────────────────── -->
+      <div class="card" id="app-card-fwd">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Fireworks &#8212; Devices
+          <button id="app-tog-fwd" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('fwd')">&#9660;</button>
+        </div>
+        <div id="app-body-fwd">
+          <div id="fw-dev-list" style="font-size:13px;color:var(--muted);">Loading…</div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" onclick="fwSetMode(true)">Enter FW Mode</button>
+            <button class="btn-ghost" onclick="fwSetMode(false)">Exit FW Mode</button>
+            <span class="status-text" id="fw-mode-status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="app-card-fws">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Fireworks &#8212; Sequence
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="fw-run-badge" class="badge badge-grey">Idle</span>
+            <button id="app-tog-fws" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('fws')">&#9660;</button>
+          </div>
+        </div>
+        <div id="app-body-fws">
+          <table class="data-table" style="margin-bottom:10px;">
+            <thead><tr><th>#</th><th>Device</th><th>Output</th><th>Delay (ms)</th><th></th></tr></thead>
+            <tbody id="fw-seq-body"><tr><td colspan="5" style="color:var(--muted);text-align:center;">No steps</td></tr></tbody>
+          </table>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+            <div>
+              <div class="stat-label" style="margin-bottom:3px;">Device</div>
+              <select id="fw-add-dev" class="input" style="width:90px;">
+                <option value="0">Dev 0</option>
+                <option value="1">Dev 1</option>
+              </select>
+            </div>
+            <div>
+              <div class="stat-label" style="margin-bottom:3px;">Output</div>
+              <select id="fw-add-out" class="input" style="width:80px;">
+                <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+                <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+              </select>
+            </div>
+            <div>
+              <div class="stat-label" style="margin-bottom:3px;">Delay ms</div>
+              <input id="fw-add-delay" type="number" min="0" value="500" class="input" style="width:90px;">
+            </div>
+            <button class="btn-ghost" onclick="fwAddStep()">+ Add Step</button>
+            <button class="btn-ghost" onclick="fwClearSeq()">Clear All</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="btn-ghost" onclick="fwUploadSeq()">&#8593; Upload Sequence</button>
+            <span class="status-text" id="fw-seq-status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="app-card-fwc">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Fireworks &#8212; Control
+          <button id="app-tog-fwc" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('fwc')">&#9660;</button>
+        </div>
+        <div id="app-body-fwc">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span id="fw-safety-dot" style="flex-shrink:0;width:13px;height:13px;border-radius:50%;background:var(--muted);display:inline-block;"></span>
+            <span id="fw-safety-text" style="font-size:12px;color:var(--muted);">Safety: —</span>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button id="fw-fire-btn" class="btn" style="background:var(--green);border-color:var(--green);min-width:120px;" onclick="fwFire()">&#9654; FIRE</button>
+            <button class="btn btn-red" style="min-width:120px;" onclick="fwAbort()">&#9632; ABORT</button>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);">
+            Step: <span id="fw-cur-step">—</span> / <span id="fw-total-steps">—</span>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- FW Update ─────────────────────────────────────── -->
@@ -465,6 +561,7 @@
         <p id="fw-pct" style="font-size:12px;color:var(--muted);margin-top:4px;">0%</p>
       </div>
     </div>
+
 
   </main>
 </div>
@@ -548,14 +645,15 @@ function showTab(id) {
   });
   _panels[id].classList.add('active');
   _btns[id].classList.add('active');
-  if (id === 'home') { loadHomeStats(); _startIOPoll(); }
+  if (id === 'home') { loadHomeStats(); loadVersion(); _startIOPoll(); }
   else if (id === 'io') { _startIOPoll(); }
   else { _stopIOPoll(); }
   if (id === 'wifi')    loadWifiConfig();
   if (id === 'mqtt')    loadMqttConfig();
   if (id === 'devices') loadDeviceList();
   if (id === 'files')   loadFileList();
-  if (id === 'fw')      loadFwDeviceList();
+  if (id === 'fw')         loadFwDeviceList();
+  if (id === 'app')        { fwLoad(); _initAppVisibility(); }
   if (id === 'log')     { document.getElementById('history').innerHTML = ''; loadMem(); }
 }
 
@@ -628,6 +726,28 @@ function loadHomeStats() {
     }).catch(function() {});
 }
 loadHomeStats();
+
+var GITHUB_REPO = 'https://github.com/richcj10/-ESP32PLC';
+
+function loadVersion() {
+  fetch('/api/version')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var fwEl  = document.getElementById('h-fw-ver');
+      var webEl = document.getElementById('h-web-ver');
+      if (d.fw && d.fw_sha) {
+        var fwHref = GITHUB_REPO + '/commit/' + d.fw_sha;
+        fwEl.innerHTML = '<a href="' + fwHref + '" target="_blank" rel="noopener" ' +
+          'style="color:inherit;text-decoration:underline dotted;">' + d.fw + '</a>';
+      }
+      if (d.web) {
+        var webHref = GITHUB_REPO + '/tree/' + d.web + '/data';
+        webEl.innerHTML = '<a href="' + webHref + '" target="_blank" rel="noopener" ' +
+          'style="color:inherit;text-decoration:underline dotted;">' + d.web + '</a>';
+      }
+    }).catch(function() {});
+}
+loadVersion();
 
 /* ── I/O polling (home tab) ─────────────────────────────── */
 var _ioTimer = null;
@@ -1035,10 +1155,17 @@ function loadDeviceList() {
             if (!val) return;
             if (typeof val === 'object') {
               dev.status = val.status;
-              dev.statusDetail = val.status === 'type_mismatch' ? 'id err' : 'ver err';
+              if (val.status === 'type_mismatch') {
+                dev.statusDetail = 'id err';
+                dev.statusTip = 'Type ID mismatch — got: ' + val.got + ', expected: ' + val.expected;
+              } else {
+                dev.statusDetail = 'ver err';
+                dev.statusTip = 'Version mismatch — got: ' + val.got + ', expected: ' + val.expected;
+              }
             } else {
               dev.status = val;
               dev.statusDetail = null;
+              dev.statusTip = null;
             }
           });
           renderDeviceList();
@@ -1064,12 +1191,15 @@ function renderDeviceList() {
              dev.status === 'type_mismatch'  ? 'var(--yellow)' :
              dev.status === 'offline'        ? 'var(--red)'    : 'var(--muted)';
     var stText = dev.statusDetail || dev.status || '—';
+    var stExtra = dev.statusTip
+      ? ' title="' + dev.statusTip + '" style="color:' + sc + ';font-size:12px;cursor:help;text-decoration:underline dotted;text-underline-offset:3px;"'
+      : ' style="color:' + sc + ';font-size:12px;"';
     tbody.innerHTML +=
       '<tr>' +
       '<td>' + (dev.name || '—') + '</td>' +
       '<td>' + (dev.address !== undefined ? dev.address : '—') + '</td>' +
       '<td>' + (dev.typeId !== undefined ? dev.typeId : '—') + '</td>' +
-      '<td style="color:' + sc + ';font-size:12px;">' + stText + '</td>' +
+      '<td' + stExtra + '>' + stText + '</td>' +
       '<td style="white-space:nowrap;">' +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
         'onclick="showLiveData(' + (dev.address !== undefined ? dev.address : 'undefined') + ')">Live</button>' +
@@ -1156,7 +1286,7 @@ function saveDeviceEdit() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       setStatus('dev-form-status', d.ok ? d.msg : 'Error: ' + d.msg, !d.ok);
-      if (d.ok) { renderDeviceList(); document.getElementById('dev-form-card').style.display = 'none'; if (d.reboot) showRebootBanner(); }
+      if (d.ok) { renderDeviceList(); document.getElementById('dev-form-card').style.display = 'none'; if (d.reboot) showPendingRestartBanner(); }
     })
     .catch(function(e) { setStatus('dev-form-status', 'Error: ' + e, true); });
 }
@@ -1173,7 +1303,7 @@ function deleteDevice(idx) {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.ok) { renderDeviceList(); if (d.reboot) showRebootBanner(); }
+      if (d.ok) { renderDeviceList(); if (d.reboot) showPendingRestartBanner(); }
       else { _devList.splice(idx, 0, removed[0]); alert('Delete failed: ' + d.msg); }
     })
     .catch(function(e) { _devList.splice(idx, 0, removed[0]); alert('Error: ' + e); });
@@ -1236,7 +1366,7 @@ function saveRawConfig() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       setStatus('raw-editor-status', d.ok ? d.msg : 'Error: ' + d.msg, !d.ok);
-      if (d.ok) { document.getElementById('raw-editor-card').style.display = 'none'; if (d.reboot) showRebootBanner(); else loadDeviceList(); }
+      if (d.ok) { document.getElementById('raw-editor-card').style.display = 'none'; showPendingRestartBanner(); loadDeviceList(); }
     })
     .catch(function(e) { setStatus('raw-editor-status', 'Error: ' + e, true); });
 }
@@ -1326,7 +1456,18 @@ function pollScanResult() {
         });
         document.getElementById('scan-result').innerHTML = html + '</div>';
       }
-      if (d.probe && d.probe.length) _showDiscoveryCards(d.probe);
+      if (d.probe && d.probe.length) {
+        _showDiscoveryCards(d.probe);
+        if (!_githubDevices) {
+          fetch(DEVICE_LIBRARY_URL)
+            .then(function(r) { return r.json(); })
+            .then(function(lib) {
+              var devs = lib.devices || lib;
+              if (Array.isArray(devs)) { _githubDevices = devs; _showDiscoveryCards(d.probe); }
+            })
+            .catch(function() {});
+        }
+      }
     })
     .catch(function() {});
 }
@@ -1389,7 +1530,7 @@ function _addDiscoveredDevice(addr, typeId) {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.ok) { renderDeviceList(); if (d.reboot) { showRebootBanner(); } else if (_lastProbe) _showDiscoveryCards(_lastProbe); }
+      if (d.ok) { renderDeviceList(); if (d.reboot) showPendingRestartBanner(); if (_lastProbe) _showDiscoveryCards(_lastProbe); }
       else { _devList.pop(); alert('Save failed: ' + d.msg); }
     })
     .catch(function(e) { _devList.pop(); alert('Error: ' + e); });
@@ -1576,11 +1717,211 @@ function showRebootBanner() {
   }, 2500);
 }
 
+function showPendingRestartBanner() {
+  if (document.getElementById('reboot-banner') || document.getElementById('pending-restart-banner')) return;
+  var banner = document.createElement('div');
+  banner.id = 'pending-restart-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#e6a817;' +
+    'color:#000;text-align:center;padding:10px 20px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;gap:16px;';
+  var msg = document.createElement('span');
+  msg.innerText = 'Config saved — restart required to activate changes.';
+  var btn = document.createElement('button');
+  btn.innerText = 'Apply & Restart';
+  btn.style.cssText = 'background:#222;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;';
+  btn.onclick = function() {
+    btn.disabled = true;
+    btn.innerText = 'Restarting…';
+    fetch('/api/reboot', { method: 'POST' })
+      .catch(function() {});
+    banner.remove();
+    showRebootBanner();
+  };
+  banner.appendChild(msg);
+  banner.appendChild(btn);
+  document.body.appendChild(banner);
+}
+
 function setBadge(id, text, color) {
   var el = document.getElementById(id);
   el.innerText = text;
   el.className = 'badge badge-' + (color || 'grey');
 }
+
+/* ── App card hide/show ─────────────────────────────────── */
+function _toggleAppCard(name) {
+  var body = document.getElementById('app-body-' + name);
+  var btn  = document.getElementById('app-tog-'  + name);
+  if (!body) return;
+  var show = body.style.display === 'none';
+  body.style.display = show ? '' : 'none';
+  if (btn) btn.innerHTML = show ? '&#9660;' : '&#9654;';
+  try { localStorage.setItem('appVis_' + name, show ? '1' : '0'); } catch(e) {}
+}
+
+function _initAppVisibility() {
+  ['led', 'fwd', 'fws', 'fwc'].forEach(function(name) {
+    try {
+      if (localStorage.getItem('appVis_' + name) === '0') {
+        var body = document.getElementById('app-body-' + name);
+        var btn  = document.getElementById('app-tog-'  + name);
+        if (body) body.style.display = 'none';
+        if (btn)  btn.innerHTML = '&#9654;';
+      }
+    } catch(e) {}
+  });
+}
+
+/* ── Fireworks ──────────────────────────────────────────── */
+var _fwSeq = [];
+
+function fwLoad() {
+  fetch('/api/fireworks/status').then(function(r){ return r.json(); }).then(function(d) {
+    // Device list — include safety voltage per device
+    var devHtml = '';
+    if (!d.devices || d.devices.length === 0) {
+      devHtml = '<span style="color:var(--red);">No HPO devices found — check Remote.json typeId=40</span>';
+    } else {
+      d.devices.forEach(function(dev) {
+        var vOk  = dev.safety_ok !== false;
+        var vTxt = dev.safety_v !== undefined
+          ? '<span style="color:' + (vOk ? 'var(--green)' : 'var(--red)') + ';margin-left:8px;">&#9889; ' + Number(dev.safety_v).toFixed(1) + 'V</span>'
+          : '';
+        devHtml += '<div style="margin-bottom:4px;">' +
+          '<span class="badge badge-green" style="margin-right:6px;">Dev ' + dev.idx + '</span>' +
+          dev.name + ' &nbsp;<span style="color:var(--muted);">addr 0x' + dev.addr.toString(16).toUpperCase() + '</span>' +
+          vTxt + '</div>';
+      });
+    }
+    document.getElementById('fw-dev-list').innerHTML = devHtml;
+
+    // Run status
+    var running = d.seq_running;
+    setBadge('fw-run-badge', running ? 'Running' : 'Idle', running ? 'green' : 'grey');
+    document.getElementById('fw-cur-step').innerText    = running ? d.seq_step + 1 : '—';
+    document.getElementById('fw-total-steps').innerText = d.seq_len || '—';
+
+    // Safety voltage status light + fire button gate
+    var safeOk = d.safety_ok !== false;
+    var dot  = document.getElementById('fw-safety-dot');
+    var stxt = document.getElementById('fw-safety-text');
+    var fbtn = document.getElementById('fw-fire-btn');
+    if (dot)  dot.style.background = safeOk ? 'var(--green)' : 'var(--red)';
+    if (stxt) {
+      var vParts = [];
+      if (d.devices) d.devices.forEach(function(dev) {
+        if (dev.safety_v !== undefined)
+          vParts.push('Dev' + dev.idx + ': ' + Number(dev.safety_v).toFixed(1) + 'V');
+      });
+      stxt.innerText = 'Safety: ' + (safeOk ? 'OK' : 'LOW VOLTAGE') + (vParts.length ? ' — ' + vParts.join(', ') : '');
+      stxt.style.color = safeOk ? 'var(--green)' : 'var(--red)';
+    }
+    if (fbtn) {
+      fbtn.disabled = !safeOk;
+      fbtn.style.opacity = safeOk ? '1' : '0.4';
+      fbtn.style.cursor  = safeOk ? '' : 'not-allowed';
+      fbtn.title         = safeOk ? '' : 'Safety voltage < 10V — fire blocked';
+    }
+  }).catch(function(){ document.getElementById('fw-dev-list').innerText = 'Error loading status'; });
+}
+
+function fwSetMode(enter) {
+  var st = document.getElementById('fw-mode-status');
+  st.innerText = 'Sending…';
+  fetch('/api/fireworks/mode', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({enter: enter})
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    st.innerText = d.ok ? (enter ? 'Entered FW mode' : 'Exited FW mode') : 'Error';
+  }).catch(function(){ st.innerText = 'Request failed'; });
+}
+
+function fwAddStep() {
+  var dev   = parseInt(document.getElementById('fw-add-dev').value)   || 0;
+  var out   = parseInt(document.getElementById('fw-add-out').value)   || 1;
+  var delay = parseInt(document.getElementById('fw-add-delay').value) || 0;
+  if (out < 1 || out > 10) { alert('Output must be 1–10'); return; }
+  _fwSeq.push({dev: dev, out: out, delay_ms: delay});
+  fwRenderSeq();
+}
+
+function fwDeleteStep(i) {
+  _fwSeq.splice(i, 1);
+  fwRenderSeq();
+}
+
+function fwClearSeq() {
+  _fwSeq = [];
+  fwRenderSeq();
+}
+
+function fwRenderSeq() {
+  var tbody = document.getElementById('fw-seq-body');
+  if (_fwSeq.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;">No steps</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _fwSeq.map(function(s, i) {
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>Dev ' + s.dev + '</td>' +
+      '<td>Out ' + s.out + '</td>' +
+      '<td>' + s.delay_ms + '</td>' +
+      '<td><button class="btn-ghost" style="padding:2px 8px;font-size:11px;" onclick="fwDeleteStep(' + i + ')">✕</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function fwUploadSeq() {
+  var st = document.getElementById('fw-seq-status');
+  if (_fwSeq.length === 0) { st.innerText = 'Sequence is empty'; return; }
+  st.innerText = 'Uploading…';
+  fetch('/api/fireworks/sequence', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(_fwSeq)
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    st.innerText = d.ok ? ('Uploaded ' + d.steps + ' steps') : ('Error: ' + (d.error || '?'));
+  }).catch(function(){ st.innerText = 'Request failed'; });
+}
+
+function fwFire() {
+  var fbtn = document.getElementById('fw-fire-btn');
+  if (fbtn && fbtn.disabled) { alert('Safety voltage too low — fire blocked.'); return; }
+  if (_fwSeq.length === 0) { alert('No steps in sequence.'); return; }
+
+  function _doFire() {
+    fetch('/api/fireworks/fire', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (!d.ok) alert('Fire error: ' + (d.error || '?')); else fwLoad(); })
+      .catch(function() { alert('Fire request failed'); });
+  }
+
+  // Always upload the current sequence before firing so the two steps stay in sync
+  var st = document.getElementById('fw-seq-status');
+  if (st) st.innerText = 'Uploading…';
+  fetch('/api/fireworks/sequence', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(_fwSeq)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { alert('Sequence upload failed: ' + (d.error || '?')); return; }
+      if (st) st.innerText = d.steps + ' steps loaded';
+      _doFire();
+    })
+    .catch(function() { alert('Sequence upload failed'); });
+}
+
+function fwAbort() {
+  fetch('/api/fireworks/abort', {method:'POST'}).then(function(){ fwLoad(); });
+}
+
+// Poll while fireworks tab is active
+setInterval(function() {
+  if (document.getElementById('tab-app').classList.contains('active')) fwLoad();
+}, 2000);
 </script>
 </body>
 </html>

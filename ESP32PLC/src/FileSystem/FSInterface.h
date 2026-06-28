@@ -30,7 +30,15 @@ bool        RemoteConfigRevOK();      // false if loaded rev != firmware's expec
 const char* RemoteConfigRevGot();     // rev string found in the file
 const char* RemoteConfigRevNeeded();  // rev string this firmware requires
 
+// Forced-AP flag — set by display switch page, cleared when switching back to STA
+bool IsForcedAPMode();
+void SetForcedAPMode(bool forced);
+
 // Factory reset — clears NVS wifi+mqtt namespaces and removes Remote.json
 void FactoryReset();
+
+// Debug / feature flags (NVS namespace "debug")
+bool GetJoyCalPageEnabled();
+void SetJoyCalPageEnabled(bool en);
 
 #endif
