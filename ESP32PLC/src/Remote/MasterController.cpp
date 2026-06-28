@@ -5,7 +5,8 @@
 #include "MQTT.h"
 #include "FileSystem/FSInterface.h"
 
-ModbusMasterController master(Serial1, 38400, 16, 17, 20);
+// timeout=500ms, minPoll=10ms — Modbus spec only needs ~1ms at 38400 baud; 200ms default wrecks fire sequence timing
+ModbusMasterController master(Serial1, 38400, 16, 17, 20, 500, 10);
 static RemoteMaster    remoteMaster;
 
 // MQTT publish bridge — called by RemoteMaster for online/offline events.

@@ -1773,6 +1773,7 @@ function _initAppVisibility() {
 
 /* ── Fireworks ──────────────────────────────────────────── */
 var _fwSeq = [];
+var _fwSeqDirty = false; // true when _fwSeq has changed since last successful upload
 
 function fwLoad() {
   fetch('/api/fireworks/status').then(function(r){ return r.json(); }).then(function(d) {
@@ -1842,16 +1843,19 @@ function fwAddStep() {
   var delay = parseInt(document.getElementById('fw-add-delay').value) || 0;
   if (out < 1 || out > 10) { alert('Output must be 1–10'); return; }
   _fwSeq.push({dev: dev, out: out, delay_ms: delay});
+  _fwSeqDirty = true;
   fwRenderSeq();
 }
 
 function fwDeleteStep(i) {
   _fwSeq.splice(i, 1);
+  _fwSeqDirty = true;
   fwRenderSeq();
 }
 
 function fwClearSeq() {
   _fwSeq = [];
+  _fwSeqDirty = true;
   fwRenderSeq();
 }
 
@@ -1881,7 +1885,8 @@ function fwUploadSeq() {
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(_fwSeq)
   }).then(function(r){ return r.json(); }).then(function(d) {
-    st.innerText = d.ok ? ('Uploaded ' + d.steps + ' steps') : ('Error: ' + (d.error || '?'));
+    if (d.ok) { _fwSeqDirty = false; st.innerText = 'Uploaded ' + d.steps + ' steps'; }
+    else st.innerText = 'Error: ' + (d.error || '?');
   }).catch(function(){ st.innerText = 'Request failed'; });
 }
 
@@ -1897,8 +1902,11 @@ function fwFire() {
       .catch(function() { alert('Fire request failed'); });
   }
 
-  // Always upload the current sequence before firing so the two steps stay in sync
   var st = document.getElementById('fw-seq-status');
+
+  // Skip upload if sequence hasn't changed since last successful upload
+  if (!_fwSeqDirty) { _doFire(); return; }
+
   if (st) st.innerText = 'Uploading…';
   fetch('/api/fireworks/sequence', {
     method: 'POST',
@@ -1908,6 +1916,7 @@ function fwFire() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (!d.ok) { alert('Sequence upload failed: ' + (d.error || '?')); return; }
+      _fwSeqDirty = false;
       if (st) st.innerText = d.steps + ' steps loaded';
       _doFire();
     })

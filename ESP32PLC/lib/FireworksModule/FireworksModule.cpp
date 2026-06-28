@@ -39,14 +39,20 @@ void FireworksModule::begin() {
 // ── update: step through sequence ─────────────────────────────────────────────
 void FireworksModule::update() {
     if (!_seqRunning || _seqLen == 0) return;
-    if ((millis() - _seqLastMs) < _seq[_seqStep].delayMs) return;
 
-    const Step& s = _seq[_seqStep];
-    if (s.devIdx < _devCount)
-        _fireOutput(_devs[s.devIdx].addr, s.output);
+    // Process all steps that are immediately ready (batches delay=0 steps into
+    // a single update call so they queue back-to-back with no 10ms gap between them)
+    while (_seqStep < _seqLen) {
+        const Step& s = _seq[_seqStep];
+        if ((millis() - _seqLastMs) < s.delayMs) break;
 
-    _seqLastMs = millis();
-    _seqStep++;
+        if (s.devIdx < _devCount)
+            _fireOutput(_devs[s.devIdx].addr, s.output);
+
+        _seqLastMs = millis();
+        _seqStep++;
+    }
+
     if (_seqStep >= _seqLen) {
         _seqRunning = false;
         Log(LOG, "FW: sequence complete (%u steps)\r\n", (unsigned)_seqLen);
