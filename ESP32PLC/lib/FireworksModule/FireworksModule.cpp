@@ -5,6 +5,7 @@
 #include "Remote/MasterController.h"
 #include "FileSystem/FSInterface.h"
 #include "Devices/Log.h"
+#include "HAL/Digital/Digital.h"
 
 FireworksModule fwModule;
 
@@ -36,8 +37,36 @@ void FireworksModule::begin() {
         Log(NOTIFY, "FW: no HighPowerOutput devices found in config (typeId=%u)\r\n", HPO_DEVICE_TYPE);
 }
 
-// ── update: step through sequence ─────────────────────────────────────────────
+// ── helpers ────────────────────────────────────────────────────────────────────
+bool FireworksModule::_allSafetyOk() const {
+    if (_devCount == 0) return false;
+    for (uint8_t i = 0; i < _devCount; i++)
+        if (!_isSafetyOk(i)) return false;
+    return true;
+}
+
+void FireworksModule::_startSequence() {
+    _seqStep    = 0;
+    _seqLastMs  = millis();
+    _seqRunning = true;
+}
+
+// ── update: step through sequence + physical input trigger ────────────────────
 void FireworksModule::update() {
+    // Physical input trigger — fire on rising edge of IN0 (active-low hardware, inverted by GetInput)
+    if (_inputTriggerEnabled && _seqLen > 0 && !_seqRunning) {
+        bool in0 = GetInput(0);
+        if (in0 && !_inputTrigLastState) {
+            if (_allSafetyOk()) {
+                Log(NOTIFY, "FW: input trigger IN0 fired sequence (%u steps)\r\n", (unsigned)_seqLen);
+                _startSequence();
+            } else {
+                Log(ERROR, "FW: input trigger IN0 blocked — safety voltage low\r\n");
+            }
+        }
+        _inputTrigLastState = in0;
+    }
+
     if (!_seqRunning || _seqLen == 0) return;
 
     // Process all steps that are immediately ready (batches delay=0 steps into
@@ -79,7 +108,9 @@ void FireworksModule::getLiveData(JsonObject& out) {
         d["safety_ok"] = ok;
         if (!ok) allSafe = false;
     }
-    out["safety_ok"] = allSafe;
+    out["safety_ok"]       = allSafe;
+    out["input_trigger"]   = _inputTriggerEnabled;
+    out["in0_state"]       = GetInput(0);
 }
 
 // ── safety voltage helpers ─────────────────────────────────────────────────────
@@ -165,24 +196,39 @@ void FireworksModule::registerRoutes(AsyncWebServer& svr) {
             req->send(400, "application/json", "{\"ok\":false,\"error\":\"no sequence loaded\"}");
             return;
         }
-        // Block fire if any device has insufficient safety voltage
-        for (uint8_t i = 0; i < _devCount; i++) {
-            if (!_isSafetyOk(i)) {
-                char err[96];
-                snprintf(err, sizeof(err),
-                    "{\"ok\":false,\"error\":\"Safety voltage low on Dev%u (%.1fV < %.0fV)\"}",
-                    (unsigned)i, (double)_getSafetyV(i), (double)HPO_SAFETY_V_MIN);
-                Log(ERROR, "FW: FIRE BLOCKED — %s\r\n", err);
-                req->send(403, "application/json", err);
-                return;
+        if (!_allSafetyOk()) {
+            for (uint8_t i = 0; i < _devCount; i++) {
+                if (!_isSafetyOk(i)) {
+                    char err[96];
+                    snprintf(err, sizeof(err),
+                        "{\"ok\":false,\"error\":\"Safety voltage low on Dev%u (%.1fV < %.0fV)\"}",
+                        (unsigned)i, (double)_getSafetyV(i), (double)HPO_SAFETY_V_MIN);
+                    Log(ERROR, "FW: FIRE BLOCKED — safety voltage low\r\n");
+                    req->send(403, "application/json", err);
+                    return;
+                }
             }
         }
-        _seqStep    = 0;
-        _seqLastMs  = millis();
-        _seqRunning = true;
-        Log(LOG, "FW: sequence started (%u steps)\r\n", (unsigned)_seqLen);
+        _startSequence();
+        Log(LOG, "FW: sequence started via web (%u steps)\r\n", (unsigned)_seqLen);
         req->send(200, "application/json", "{\"ok\":true}");
     });
+
+    // POST /api/fireworks/inputtrigger  body: {"enabled":true}
+    svr.on("/api/fireworks/inputtrigger", HTTP_POST,
+        [](AsyncWebServerRequest* req) {},
+        nullptr,
+        [this](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
+            StaticJsonDocument<64> doc;
+            if (deserializeJson(doc, data, len) != DeserializationError::Ok) {
+                req->send(400, "application/json", "{\"ok\":false}");
+                return;
+            }
+            _inputTriggerEnabled = doc["enabled"] | false;
+            _inputTrigLastState  = GetInput(0);  // seed edge detect so we don't fire immediately
+            Log(NOTIFY, "FW: input trigger IN0 %s\r\n", _inputTriggerEnabled ? "ENABLED" : "disabled");
+            req->send(200, "application/json", "{\"ok\":true}");
+        });
 
     // POST /api/fireworks/abort
     svr.on("/api/fireworks/abort", HTTP_POST, [this](AsyncWebServerRequest* req) {

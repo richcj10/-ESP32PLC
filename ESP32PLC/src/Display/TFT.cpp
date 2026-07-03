@@ -1,5 +1,6 @@
 
 #include "TFT.h"
+#include "HAL/Digital/Digital.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <SPI.h>
@@ -134,13 +135,19 @@ void TFTWiFiConnect(char Position) {
 
 void TFTDisplayInputs() {
     TFTCenterClear();
-    tft.setTextSize(2);
-    tft.setCursor(30, 20);
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.setCursor(10, 22);
     tft.print("Inputs:");
-    tft.drawCircle(30, 60, 4, TFT_WHITE);
-    tft.drawCircle(50, 60, 4, TFT_WHITE);
-    tft.drawCircle(70, 60, 4, TFT_WHITE);
-    tft.drawCircle(90, 60, 4, TFT_WHITE);
+    uint8_t cnt = GetInputCount();
+    for (uint8_t i = 0; i < cnt && i < 8; i++) {
+        int cx = 18 + i * 22;
+        bool on = GetInput(i);
+        tft.fillCircle(cx, 50, 8, on ? TFT_GREEN : TFT_DARKGREY);
+        tft.setTextColor(TFT_WHITE, on ? TFT_GREEN : TFT_DARKGREY);
+        tft.setCursor(cx - 3, 46);
+        tft.printf("%u", i);
+    }
 }
 
 void TFTDisplayOutputs() {

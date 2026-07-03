@@ -74,7 +74,8 @@ uint8_t GetInputCount(void)  { return _inCount; }
 uint8_t GetOutputCount(void) { return _outCount; }
 
 bool GetInput(uint8_t n) {
-    return (n < _inCount) && _inState[n];
+    // Inputs are active-low (NOT): pin HIGH = signal LOW = inactive, pin LOW = signal HIGH = active
+    return (n < _inCount) && !_inState[n];
 }
 
 bool GetOutput(uint8_t n) {

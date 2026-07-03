@@ -164,30 +164,37 @@ static void _drawIO() {
     _card();
     Screen.setTextSize(1);
 
-    Screen.setTextColor(TFT_DARKGREY, HDR_BG);
+    // ── Shield inputs ─────────────────────────────────────────────────────────
+    Screen.setTextColor(TFT_CYAN, HDR_BG);
     Screen.setCursor(CONTENT_X, CARD_Y + 10);
-    Screen.print("Fire Channels:");
+    Screen.print("Inputs:");
 
-    // 5 circles evenly spaced across card width
-    int circleY = CARD_Y + 75;
-    for (int i = 0; i < 5; i++) {
-        int cx = CARD_X + 20 + i * ((CARD_W - 20) / 5) + ((CARD_W - 20) / 10);
-        bool active = GetCHFire(i + 1) == 1;
-        if (active) {
-            Screen.fillCircle(cx, circleY, 14, TFT_RED);
-            Screen.setTextColor(TFT_WHITE, TFT_RED);
+    uint8_t inCnt = GetInputCount();
+    int circleY = CARD_Y + 50;
+    int spacing = (inCnt > 0) ? ((CARD_W - 20) / inCnt) : 30;
+    for (uint8_t i = 0; i < inCnt && i < 8; i++) {
+        int cx = CARD_X + 20 + i * spacing + spacing / 2;
+        bool on = GetInput(i);
+        if (on) {
+            Screen.fillCircle(cx, circleY, 12, TFT_GREEN);
+            Screen.setTextColor(TFT_BLACK, TFT_GREEN);
         } else {
-            Screen.fillCircle(cx, circleY, 14, HDR_BG);
-            Screen.drawCircle(cx, circleY, 14, TFT_DARKGREY);
+            Screen.fillCircle(cx, circleY, 12, HDR_BG);
+            Screen.drawCircle(cx, circleY, 12, TFT_DARKGREY);
             Screen.setTextColor(TFT_DARKGREY, HDR_BG);
         }
         char lbl[3];
-        snprintf(lbl, sizeof(lbl), "%d", i + 1);
+        snprintf(lbl, sizeof(lbl), "%u", i);
         Screen.setCursor(cx - 3, circleY - 4);
         Screen.print(lbl);
     }
+    if (inCnt == 0) {
+        Screen.setTextColor(TFT_DARKGREY, HDR_BG);
+        Screen.setCursor(CONTENT_X + 50, CARD_Y + 44);
+        Screen.print("none");
+    }
 
-    int y = CARD_Y + 120;
+    int y = CARD_Y + 90;
     Screen.setCursor(CONTENT_X, y);
     Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("Temp: ");
     Screen.setTextColor(TFT_WHITE, HDR_BG);

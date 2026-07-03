@@ -53,10 +53,15 @@ private:
 
     float _getSafetyV(uint8_t devIdx)   const;
     bool  _isSafetyOk(uint8_t devIdx)  const;
+    bool  _allSafetyOk()               const;
+    void  _startSequence();
 
     void _fireOutput(uint8_t addr, uint8_t output);
     void _sendModeCmd(uint8_t addr, uint16_t cmd);
     void _abortSequence();
+
+    bool _inputTriggerEnabled = false;
+    bool _inputTrigLastState  = false;  // edge detect — fire on rising edge of IN0
 };
 
 extern FireworksModule fwModule;

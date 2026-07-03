@@ -527,6 +527,10 @@
           <div style="margin-top:8px;font-size:12px;color:var(--muted);">
             Step: <span id="fw-cur-step">—</span> / <span id="fw-total-steps">—</span>
           </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" id="fw-input-trig" onchange="fwSetInputTrigger(this.checked)">
+            Enable IN0 hardware trigger <span id="fw-in0-dot" style="width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;margin-left:4px;"></span>
+          </label>
         </div>
       </div>
 
@@ -1822,6 +1826,12 @@ function fwLoad() {
       fbtn.style.cursor  = safeOk ? '' : 'not-allowed';
       fbtn.title         = safeOk ? '' : 'Safety voltage < 10V — fire blocked';
     }
+
+    // Input trigger checkbox + IN0 state dot
+    var cb = document.getElementById('fw-input-trig');
+    if (cb && d.input_trigger !== undefined) cb.checked = d.input_trigger;
+    var in0dot = document.getElementById('fw-in0-dot');
+    if (in0dot) in0dot.style.background = d.in0_state ? 'var(--green)' : 'var(--muted)';
   }).catch(function(){ document.getElementById('fw-dev-list').innerText = 'Error loading status'; });
 }
 
@@ -1925,6 +1935,16 @@ function fwFire() {
 
 function fwAbort() {
   fetch('/api/fireworks/abort', {method:'POST'}).then(function(){ fwLoad(); });
+}
+
+function fwSetInputTrigger(enabled) {
+  fetch('/api/fireworks/inputtrigger', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({enabled: enabled})
+  }).then(function(r){ return r.json(); })
+    .then(function(d){ if (!d.ok) alert('Input trigger error'); })
+    .catch(function(){ alert('Input trigger request failed'); });
 }
 
 // Poll while fireworks tab is active
