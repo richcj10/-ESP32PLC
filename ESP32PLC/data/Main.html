@@ -485,8 +485,8 @@
             <div>
               <div class="stat-label" style="margin-bottom:3px;">Device</div>
               <select id="fw-add-dev" class="input" style="width:90px;">
-                <option value="0">Dev 0</option>
-                <option value="1">Dev 1</option>
+                <option value="0">Yellow</option>
+                <option value="1">Red</option>
               </select>
             </div>
             <div>
@@ -1875,10 +1875,11 @@ function fwRenderSeq() {
     tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;">No steps</td></tr>';
     return;
   }
+  var FW_DEV_LABELS = { 0: 'Yellow', 1: 'Red' };
   tbody.innerHTML = _fwSeq.map(function(s, i) {
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
-      '<td>Dev ' + s.dev + '</td>' +
+      '<td>' + (FW_DEV_LABELS[s.dev] || ('Dev ' + s.dev)) + '</td>' +
       '<td>Out ' + s.out + '</td>' +
       '<td>' + s.delay_ms + '</td>' +
       '<td><button class="btn-ghost" style="padding:2px 8px;font-size:11px;" onclick="fwDeleteStep(' + i + ')">✕</button></td>' +

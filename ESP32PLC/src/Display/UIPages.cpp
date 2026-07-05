@@ -164,37 +164,58 @@ static void _drawIO() {
     _card();
     Screen.setTextSize(1);
 
+    const int R = 9;  // circle radius for both rows
+
     // ── Shield inputs ─────────────────────────────────────────────────────────
     Screen.setTextColor(TFT_CYAN, HDR_BG);
-    Screen.setCursor(CONTENT_X, CARD_Y + 10);
+    Screen.setCursor(CONTENT_X, CARD_Y + 6);
     Screen.print("Inputs:");
 
     uint8_t inCnt = GetInputCount();
-    int circleY = CARD_Y + 50;
-    int spacing = (inCnt > 0) ? ((CARD_W - 20) / inCnt) : 30;
+    if (inCnt == 0) inCnt = 4;  // show 4 placeholders if HAL not reporting
+    int inSp  = (CARD_W - 20) / (int)inCnt;
+    int inY   = CARD_Y + 26;
     for (uint8_t i = 0; i < inCnt && i < 8; i++) {
-        int cx = CARD_X + 20 + i * spacing + spacing / 2;
+        int cx = CARD_X + 10 + i * inSp + inSp / 2;
         bool on = GetInput(i);
         if (on) {
-            Screen.fillCircle(cx, circleY, 12, TFT_GREEN);
+            Screen.fillCircle(cx, inY, R, TFT_GREEN);
             Screen.setTextColor(TFT_BLACK, TFT_GREEN);
         } else {
-            Screen.fillCircle(cx, circleY, 12, HDR_BG);
-            Screen.drawCircle(cx, circleY, 12, TFT_DARKGREY);
+            Screen.fillCircle(cx, inY, R, HDR_BG);
+            Screen.drawCircle(cx, inY, R, TFT_DARKGREY);
             Screen.setTextColor(TFT_DARKGREY, HDR_BG);
         }
-        char lbl[3];
-        snprintf(lbl, sizeof(lbl), "%u", i);
-        Screen.setCursor(cx - 3, circleY - 4);
-        Screen.print(lbl);
-    }
-    if (inCnt == 0) {
-        Screen.setTextColor(TFT_DARKGREY, HDR_BG);
-        Screen.setCursor(CONTENT_X + 50, CARD_Y + 44);
-        Screen.print("none");
+        Screen.setCursor(cx - 3, inY - 4);
+        Screen.printf("%u", i);
     }
 
-    int y = CARD_Y + 90;
+    // ── Shield outputs ────────────────────────────────────────────────────────
+    Screen.setTextColor(TFT_CYAN, HDR_BG);
+    Screen.setCursor(CONTENT_X, CARD_Y + 46);
+    Screen.print("Outputs:");
+
+    uint8_t outCnt = GetOutputCount();
+    if (outCnt == 0) outCnt = 6;  // show 6 placeholders if HAL not reporting
+    int outSp = (CARD_W - 20) / (int)outCnt;
+    int outY  = CARD_Y + 66;
+    for (uint8_t i = 0; i < outCnt && i < 8; i++) {
+        int cx = CARD_X + 10 + i * outSp + outSp / 2;
+        bool on = GetOutput(i);
+        if (on) {
+            Screen.fillCircle(cx, outY, R, TFT_ORANGE);
+            Screen.setTextColor(TFT_BLACK, TFT_ORANGE);
+        } else {
+            Screen.fillCircle(cx, outY, R, HDR_BG);
+            Screen.drawCircle(cx, outY, R, TFT_DARKGREY);
+            Screen.setTextColor(TFT_DARKGREY, HDR_BG);
+        }
+        Screen.setCursor(cx - 3, outY - 4);
+        Screen.printf("%u", i);
+    }
+
+    // ── Climate + occupancy ───────────────────────────────────────────────────
+    int y = CARD_Y + 94;
     Screen.setCursor(CONTENT_X, y);
     Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("Temp: ");
     Screen.setTextColor(TFT_WHITE, HDR_BG);
@@ -206,7 +227,7 @@ static void _drawIO() {
     char hBuf[10];
     snprintf(hBuf, sizeof(hBuf), "%.0f%%", getDeviceClimateHumidity());
     Screen.print(hBuf);
-    y += 30;
+    y += 22;
 
     Screen.setCursor(CONTENT_X, y);
     bool sw = GetUserSWValue();

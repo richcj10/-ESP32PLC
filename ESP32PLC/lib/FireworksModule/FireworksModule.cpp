@@ -53,18 +53,30 @@ void FireworksModule::_startSequence() {
 
 // ── update: step through sequence + physical input trigger ────────────────────
 void FireworksModule::update() {
-    // Physical input trigger — fire on rising edge of IN0 (active-low hardware, inverted by GetInput)
+    // Physical input trigger — IN0 must be held active for FW_INPUT_HOLD_MS (0.5s) to fire
     if (_inputTriggerEnabled && _seqLen > 0 && !_seqRunning) {
         bool in0 = GetInput(0);
-        if (in0 && !_inputTrigLastState) {
-            if (_allSafetyOk()) {
-                Log(NOTIFY, "FW: input trigger IN0 fired sequence (%u steps)\r\n", (unsigned)_seqLen);
-                _startSequence();
-            } else {
-                Log(ERROR, "FW: input trigger IN0 blocked — safety voltage low\r\n");
+        uint32_t now = millis();
+        if (in0) {
+            _inputTrigLastHighMs = now;
+            if (_inputTrigHoldStart == 0) {
+                _inputTrigHoldStart = now;  // start timing the hold
+                Log(LOG, "FW: IN0 hold started\r\n");
+            } else if ((now - _inputTrigHoldStart) >= FW_INPUT_HOLD_MS) {
+                _inputTrigHoldStart = 0;  // reset so we don't re-fire until released+re-held
+                if (_allSafetyOk()) {
+                    Log(NOTIFY, "FW: input trigger IN0 held 0.5s — firing sequence (%u steps)\r\n", (unsigned)_seqLen);
+                    _startSequence();
+                } else {
+                    Log(ERROR, "FW: input trigger IN0 held 0.5s — BLOCKED (safety voltage low)\r\n");
+                }
             }
+        } else if (_inputTrigHoldStart != 0 &&
+                   (now - _inputTrigLastHighMs) >= FW_INPUT_GLITCH_MS) {
+            // Only cancel the hold once the input has been inactive continuously
+            // for FW_INPUT_GLITCH_MS — brief bounce glitches don't restart the timer.
+            _inputTrigHoldStart = 0;  // genuinely released before hold time — reset
         }
-        _inputTrigLastState = in0;
     }
 
     if (!_seqRunning || _seqLen == 0) return;
@@ -225,7 +237,7 @@ void FireworksModule::registerRoutes(AsyncWebServer& svr) {
                 return;
             }
             _inputTriggerEnabled = doc["enabled"] | false;
-            _inputTrigLastState  = GetInput(0);  // seed edge detect so we don't fire immediately
+            _inputTrigHoldStart  = 0;  // reset hold timer on enable/disable
             Log(NOTIFY, "FW: input trigger IN0 %s\r\n", _inputTriggerEnabled ? "ENABLED" : "disabled");
             req->send(200, "application/json", "{\"ok\":true}");
         });

@@ -60,8 +60,11 @@ private:
     void _sendModeCmd(uint8_t addr, uint16_t cmd);
     void _abortSequence();
 
-    bool _inputTriggerEnabled = false;
-    bool _inputTrigLastState  = false;  // edge detect — fire on rising edge of IN0
+    bool     _inputTriggerEnabled = false;
+    uint32_t _inputTrigHoldStart  = 0;   // millis() when IN0 first went active; 0 = not held
+    uint32_t _inputTrigLastHighMs = 0;   // millis() of the most recent active read (for glitch tolerance)
+    static constexpr uint32_t FW_INPUT_HOLD_MS   = 500;
+    static constexpr uint32_t FW_INPUT_GLITCH_MS = 50;   // ignore inactive reads shorter than this (contact bounce)
 };
 
 extern FireworksModule fwModule;
