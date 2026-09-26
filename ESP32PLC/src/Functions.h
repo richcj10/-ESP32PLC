@@ -9,27 +9,14 @@
 void setup_ota(void);
 String GetClientId(void);
 void SystemStart(void);
-void GPIOInit(void);
-void SystemStart(void);
 void ClientIdCreation(void);
-void WiFiStart(void);
 void SyncLoop(void);
 // Main-loop timing since the last call (resets the window). Defined in main.cpp.
 void LoopStatsRead(uint32_t* maxUs, uint32_t* peakUs, uint32_t* avgUs, uint32_t* perSec);
 char GetWiFiStatus(void);
-void WiFiFaiure(void);
-void SaveResetReason(void);
-char GetResetReason(char cpucore);
-void PrintResetReason(void);
 void UIUpdateLoop();
 void SensorUpdateLoop();
 void WiFiOK();
-
-void SetFWData(char ch1,char ch2,char ch3,char ch4,char ch5,int ch1t, int ch2t,int ch3t,int ch4t,int ch5t);
-void RunFW();
-void FireWorksTrigger(char CH);
-char GetCHFire(char ch);
-void SetCHFire(char ch, char data);
 
 void LEDWebSetColor(uint8_t r, uint8_t g, uint8_t b, uint8_t bri);
 void LEDWebSetOff();

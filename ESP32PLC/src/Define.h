@@ -1,13 +1,8 @@
 #ifndef DEFINE_H
 #define  DEFINE_H
 
-#define HOW_MANY_IO_TYPES 5
-
 #define SREENTIMEOUT    20000
 #define AP_SCREEN_TIMEOUT 60000
-
-// #define LOG(f_, ...) \
-//   { Serial.printf((f_), ##__VA_ARGS__); }
 
 #define RXD2 16
 #define TXD2 17

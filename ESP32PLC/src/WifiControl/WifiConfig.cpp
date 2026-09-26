@@ -184,9 +184,6 @@ char GetWiFisetupMode(void) {
     return (char)GetWiFiMode();
 }
 
-void SetWiFisetupMode(char value) {
-    (void)value;
-}
 
 static String IpAddress2String(const IPAddress& ipAddress) {
     return String(ipAddress[0]) + "." + String(ipAddress[1]) + "." +
@@ -199,16 +196,7 @@ String GetIPStr() {
     return WiFi.localIP().toString();
 }
 
-String GetRSSIStr() {
-    return String(WiFi.RSSI());
-}
 
-String GetMACStr() {
-    byte mac[6];
-    WiFi.macAddress(mac);
-    return String(mac[5]) + ":" + String(mac[4]) + ":" + String(mac[3]) + ":" +
-           String(mac[2]) + ":" + String(mac[1]) + ":" + String(mac[0]);
-}
 
 String GetSanitizedHostname() { return sanitizeHostname(GetHostName()); }
 

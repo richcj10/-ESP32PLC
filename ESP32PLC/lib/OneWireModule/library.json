@@ -1,0 +1,6 @@
+{
+  "name": "OneWireModule",
+  "version": "1.0.0",
+  "description": "ESP32PLC app: DS18B20 1-Wire temperature sensors reported to MQTT",
+  "build": { "libArchive": false, "libLDFMode": "deep+" }
+}

@@ -34,60 +34,22 @@ using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
 
 #define HTTP_PORT 80
 
-void WSRunJSON();
-
 AsyncWebServer server(HTTP_PORT);
 AsyncWebSocket ws("/ws");
 
-StaticJsonDocument<200> jsonDocTx;
-StaticJsonDocument<300> jsonDocRx;
-
-bool wsconnected = false;
-bool lastButtonState = 0;
-static char* output = nullptr;
-
-static constexpr size_t OUTPUT_BUF_SIZE = 512;
-
-unsigned long cnt = 0;
 unsigned long LastTime = 0;
 
-void notFound(AsyncWebServerRequest* request) {
-  request->send(404, "text/plain", "Not found");
-}
-
+// WebSocket is server -> browser only (log lines, FW progress); incoming frames are ignored.
 void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
                AwsEventType type, void* arg, uint8_t* data, size_t len) {
+  (void)arg; (void)data; (void)len;
   if (type == WS_EVT_CONNECT) {
-    wsconnected = true;
-    Log(NOTIFY,"ws[%s][%u] connect\r\n", server->url(), client->id());
-    // client->printf("Hello Client %u :)", client->id());
+    Log(NOTIFY, "ws[%s][%u] connect", server->url(), client->id());
     client->ping();
   } else if (type == WS_EVT_DISCONNECT) {
-    wsconnected = false;
-    Log(NOTIFY,"ws[%s][%u] disconnect\n", server->url(), client->id());
+    Log(NOTIFY, "ws[%s][%u] disconnect", server->url(), client->id());
   } else if (type == WS_EVT_ERROR) {
-    Log(ERROR,"WS Error");
-  } else if (type == WS_EVT_PONG) {
-    Log(NOTIFY,"WS pong");
-  } else if (type == WS_EVT_DATA) {
-    AwsFrameInfo* info = (AwsFrameInfo*)arg;
-    String msg = "";
-    if (info->final && info->index == 0 && info->len == len) {
-      // the whole message is in a single frame and we got all of it's data
-      Log(NOTIFY,"ws[%s][%u] %s-msg[%llu]\r\n", server->url(), client->id(),
-          (info->opcode == WS_TEXT) ? "txt" : "bin", info->len);
-
-      if (info->opcode == WS_TEXT) {
-        for (size_t i = 0; i < info->len; i++) {
-          msg += (char)data[i];
-        }
-        Log(NOTIFY,"%s\r\n\r\n", msg.c_str());
-
-        deserializeJson(jsonDocRx, msg);
-        WSRunJSON();
-        jsonDocRx.clear();
-      }
-    }
+    Log(ERROR, "WS Error");
   }
 }
 
@@ -329,8 +291,6 @@ static void _scheduleRestart() {
 
 void WebStart(){
   // Allocate shared response buffers in PSRAM
-  output   = (char*) heap_caps_malloc(OUTPUT_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  if (!output)   output   = (char*) malloc(OUTPUT_BUF_SIZE);
   _cfgBuf  = (char*) heap_caps_malloc(CFG_BUF_SIZE,    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (!_cfgBuf)  _cfgBuf  = (char*) malloc(CFG_BUF_SIZE);
   _devBuf  = (char*) heap_caps_malloc(DEV_BUF_SIZE,    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -1132,7 +1092,7 @@ void WebHandel(){
   }
 }
 
-// Called from Log() on any task — uses local buffers, not the shared jsonDocTx/output.
+// Called from Log() on any task — uses local buffers only.
 // Skips (drops the line) when the WebSocket queue is full rather than waiting.
 char WebLogSend(const char* line){
   if (ws.count() == 0 || !ws.availableForWriteAll()) return 0;
@@ -1143,10 +1103,4 @@ char WebLogSend(const char* line){
   serializeJson(doc, buf, sizeof(buf));   // no trailing newline — appendLog() adds it
   ws.textAll(buf);
   return 1;
-}
-
-void WSRunJSON(){
-  if(jsonDocRx["Mode"] == "FW"){
-    SetFWData(jsonDocRx["CH1"],jsonDocRx["CH2"],jsonDocRx["CH3"],jsonDocRx["CH4"],jsonDocRx["CH5"],int(jsonDocRx["CH1T"]), int(jsonDocRx["CH2T"]),int(jsonDocRx["CH3T"]),int(jsonDocRx["CH4T"]),int(jsonDocRx["CH5T"]));
-  }
 }

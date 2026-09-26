@@ -24,7 +24,6 @@ void   JoyStickStart();
 void   JoyStickUpdate();
 char   GetJoyStickPos();
 char   GetJoyStickSelect();
-void   GetJoystickPrint(char x);
 
 int      JoyStickRawAvg();
 void     JoyStickSaveMap();

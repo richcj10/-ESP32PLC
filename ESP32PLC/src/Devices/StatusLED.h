@@ -12,7 +12,6 @@
 
 void StatusLEDStart();
 void SetLEDStatus(char mode, int rate);
-char GetStatus();
 void LEDBoot();
 void LEDUpdate();
 #include <stdint.h>
@@ -20,7 +19,6 @@ void StatusLEDSet(uint8_t r, uint8_t g, uint8_t b);  // status pixel only
 void StatusLEDOverride(bool on);   // true = LEDUpdate() leaves the LED alone
 
 void WiFiFcn();
-void MQTTFcn();
 void NormalFcn();
 
 #endif 

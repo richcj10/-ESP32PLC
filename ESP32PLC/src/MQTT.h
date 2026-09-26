@@ -7,10 +7,6 @@ void MqttLoop(void);
 void MQTTreconnect(void);
 void MQTTStart(void);
 PubSubClient& GetMQTTClient(void);
-//void SendChestFreezer(void);
-void SendDeviceEnviroment(void);
-//void SendChestPower(char Mode);
-//void MQTTMessageInit(void);
 char        GetMQTTStatus(void);
 const char* GetMQTTState(void);      // "disabled" | "connected" | "connecting" | "ap_mode" | "failed"
 const char* GetMQTTBaseTopic(void);  // "ESPPLC/<hostname>"

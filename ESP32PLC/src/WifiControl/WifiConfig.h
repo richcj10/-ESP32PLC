@@ -7,10 +7,7 @@
 char SetupWiFi(void);
 void WiFiRecoveryLoop(void);
 char GetWiFisetupMode(void);
-void SetWiFisetupMode(char value);
 String GetIPStr();
-String GetRSSIStr();
-String GetMACStr();
 String GetAPPassword();
 String GetSanitizedHostname();
 

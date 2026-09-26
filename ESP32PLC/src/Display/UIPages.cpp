@@ -220,7 +220,7 @@ static void _drawIO() {
     Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("Temp: ");
     Screen.setTextColor(TFT_WHITE, HDR_BG);
     char tBuf[12];
-    snprintf(tBuf, sizeof(tBuf), "%.1fC", getDeviceClimateTemprature());
+    snprintf(tBuf, sizeof(tBuf), "%.1fF", getDeviceClimateTemprature());   // sensor value is degrees F
     Screen.print(tBuf);
     Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("  Hum: ");
     Screen.setTextColor(TFT_WHITE, HDR_BG);

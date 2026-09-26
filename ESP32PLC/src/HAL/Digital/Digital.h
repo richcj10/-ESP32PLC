@@ -20,12 +20,9 @@ bool    GetOutput(uint8_t n);   // reads back output register
 void    SetOutput(uint8_t n, bool val);
 
 /* ── MCU user controls ───────────────────────────────────────────────────── */
-void SetUserLED(bool val);
 void ToggletUserLED(void);      // legacy spelling kept — Functions.cpp uses it
 bool GetUserSWValue(void);
-void ScanUserInput(void);
 
 /* ── Legacy shim ─────────────────────────────────────────────────────────── */
-void ScanArrayAdd(char pin);    // no-op; keeps DeviceConfig.cpp compiling
 
 #endif

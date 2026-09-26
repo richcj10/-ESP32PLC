@@ -1,22 +1,19 @@
 #include "MQTT.h"
 #include "Functions.h"
 #include <ArduinoJson.h>
-#include "Display/Oled.h"
 #include "Sensors.h"
 #include <PubSubClient.h>
 #include "FileSystem/FSInterface.h"
 #include "Remote/MasterController.h"
 #include <RemoteDeviceConfig.h>
 #include "Devices/Log.h"
+#include <esp_heap_caps.h>
 #include "HAL/Digital/Digital.h"
 #include "Devices/LEDStrip.h"
 #include "Modules/ModuleManager.h"
 
-#define MSG_BUFFER_SIZE 50
-char msg[MSG_BUFFER_SIZE];
 char MQTTActive  = 0;
 char MQTTLockout = 0;
-char temp[50];
 char ErrorCounter = 0;
 
 // SendLocalIO state — on-change publish + hourly heartbeat (see SendLocalIO)
@@ -346,17 +343,6 @@ void PublishHADiscovery() {
     }
 }
 
-void SendDeviceEnviroment() {
-    if (!MQTTActive) return;
-    readDeviceClimate();
-    printInfo();
-    String TempMesure = String(getDeviceClimateTemprature());
-    TempMesure.toCharArray(temp, TempMesure.length() + 1);
-    client.publish("home/garage/cf/device/temp", temp);
-    TempMesure = String(getDeviceClimateHumidity());
-    TempMesure.toCharArray(temp, TempMesure.length() + 1);
-    client.publish("home/garage/cf/device/humid", temp);
-}
 
 
 // ----------------------------------------------------------------
@@ -368,18 +354,21 @@ void SendDeviceEnviroment() {
 
 // Publish-on-change cache — NAN sentinel forces publish on first call.
 // Indexed by group-pool index (gi) and register offset (r).
-static float    _lastPubVal[MAX_GROUP_POOL][MAX_REGS_PER_GROUP];
+// Lives in PSRAM (7.5 KB) — allocated on first publish.
+static float  (*_lastPubVal)[MAX_REGS_PER_GROUP] = nullptr;
 static uint32_t _lastPubMs[MAX_GROUP_POOL];
-static bool     _pubCacheReady = false;
 
 void SendRemoteDevices() {
     if (!MQTTActive) return;
 
-    if (!_pubCacheReady) {
+    if (!_lastPubVal) {
+        size_t sz = sizeof(float) * MAX_GROUP_POOL * MAX_REGS_PER_GROUP;
+        _lastPubVal = (float(*)[MAX_REGS_PER_GROUP])heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!_lastPubVal) _lastPubVal = (float(*)[MAX_REGS_PER_GROUP])malloc(sz);
+        if (!_lastPubVal) return;
         for (uint8_t i = 0; i < MAX_GROUP_POOL; i++)
             for (uint8_t r = 0; r < MAX_REGS_PER_GROUP; r++)
                 _lastPubVal[i][r] = NAN;
-        _pubCacheReady = true;
     }
 
     const RemoteConfig_t& cfg = GetRemoteConfig();

@@ -64,10 +64,11 @@ void SetForcedAPMode(bool forced) {
 }
 
 // ── Remote config accessor ────────────────────────────────────────────────────
+// RemoteGetConfig() allocates on first use and never returns null. (A `static const
+// RemoteConfig_t empty = {}` fallback used to live here — it put ~270 KB of zeros
+// into flash.)
 const RemoteConfig_t& GetRemoteConfig() {
-    const RemoteConfig_t* p = RemoteGetConfig();
-    static const RemoteConfig_t empty = {};  // safe fallback if called before alloc
-    return p ? *p : empty;
+    return *RemoteGetConfig();
 }
 
 // ── Debug / feature flags ─────────────────────────────────────────────────────

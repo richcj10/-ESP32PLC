@@ -17,7 +17,6 @@ void SaveHostName(struct WiFiConfig* WFC);
 
 // Remote device config — loaded from /Remote.json
 const RemoteConfig_t* RemoteGetConfig();
-void RemoteSaveConfig(const RemoteConfig_t* cfg);
 
 struct WiFiConfig {
     unsigned char WIFIMode        = 2;          // 1=STA  2=AP (default AP)

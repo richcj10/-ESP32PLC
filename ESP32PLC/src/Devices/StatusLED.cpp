@@ -70,9 +70,6 @@ void LEDUpdate(){
   }
 }
 
-char GetStatus(){
-    return 0;
-}
 
 
 void WiFiFcn(){
@@ -95,27 +92,10 @@ void NormalFcn(){
   if(LEDAnaimation > 1) LEDAnaimation = 0;
 }
 
-void MQTTFcn(){
-  switch (LEDAnaimation){
-  case 0: _statusShow(CRGB(0, 0, 0));   break;
-  case 1: _statusShow(CRGB(0, 0, 10));  break;
-  case 2: _statusShow(CRGB(0, 10, 0));  break;
-  case 3: _statusShow(CRGB(10, 0, 0));  break;
-  }
-  LEDAnaimation++;
-  if(LEDAnaimation > 4) LEDAnaimation = 0;
-}
 
 void LEDUpdate(char Value) {
   color = Value;
   _statusShow(CHSV(color, 255, Brightness));
 }
 
-void LEDBrightness(char Value) {
-  Brightness = Value;
-  _statusShow(CHSV(color, 255, Brightness));
-}
 
-char LEDGetValue(){
-  return color;
-}

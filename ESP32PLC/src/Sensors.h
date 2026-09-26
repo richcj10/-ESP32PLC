@@ -1,14 +1,9 @@
 #ifndef SENSORS_H
 #define  SENSORS_H
 
-void readDeviceClimate();
+void  InitSensors(void);
+void  UpdateSensors(void);
 float getDeviceClimateHumidity();
-float getDeviceClimateTemprature();
-void printInfo(void);
-void InitSensors(void);
-void InitOneWire(void);
-void ReadDS18B20OneWire(void);
-float getOneWireTemprature(void);
-void UpdateSensors(void);
+float getDeviceClimateTemprature();   // degrees F
 
 #endif  /* SENSORS_H */

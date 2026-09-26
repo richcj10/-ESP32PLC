@@ -6,9 +6,9 @@
 #include <SPI.h>
 #include <esp_heap_caps.h>
 #include <qrcode.h>
-#include "OledBitMaps.h"
 #include "Functions.h"
 #include <PNGdec.h>
+#include <new>
 #include "Sensors.h"
 #include "TFTBitMaps.h"
 #include "Devices/Log.h"
@@ -18,12 +18,12 @@
 
 #define MAX_IMAGE_WIDTH 240
 
-PNG png;
+// PNG decoder is ~45 KB — only needed to draw the boot logo once, so it lives
+// in PSRAM for the duration of TFTLogo() instead of permanently in internal RAM.
+static PNG* _png = nullptr;
 
 TFT_eSPI tft = TFT_eSPI(240, 320);
 TFT_eSprite Screen    = TFT_eSprite(&tft);  // full-screen back buffer, drawn into PSRAM
-TFT_eSprite StatusBar = TFT_eSprite(&tft);
-TFT_eSprite Bottom    = TFT_eSprite(&tft);
 
 static int16_t xpos = 40;
 static int16_t ypos = 60;
@@ -83,164 +83,36 @@ void TFTInit() {
 
     _bootBuf = (char(*)[52]) heap_caps_malloc(BOOT_LOG_LINES * 52, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!_bootBuf) _bootBuf = (char(*)[52]) malloc(BOOT_LOG_LINES * 52);
-
-    StatusBar.createSprite(20, 240);
-    Bottom.createSprite(30, 240);
     // Logo centered horizontally (200px wide) at top for boot screen
     xpos = (320 - 200) / 2;  // = 60
     ypos = 5;
     TFTLogo();
 }
 
-char TFTLastWiFiSig = 0;
-
-void TFTTHBar() {
-    Bottom.setTextSize(2);
-    Bottom.setTextColor(TFT_WHITE);
-    Bottom.setCursor(8, 5);
-    Bottom.println("T: ");
-    Bottom.setCursor(8, 55);
-    Bottom.println(String(getDeviceClimateTemprature(), 1));
-    Bottom.setCursor(8, 108);
-    Bottom.println("H: ");
-    Bottom.setCursor(8, 140);
-    Bottom.println(String(getDeviceClimateHumidity(), 1));
-    Bottom.pushSprite(40, TFTBANNERY);
-}
-
-void TFTIDSet() {
-    StatusBar.setTextSize(1);
-    StatusBar.setCursor(100, 8);
-    StatusBar.setTextColor(TFT_WHITE);
-    StatusBar.print(GetClientId().c_str());
-    StatusBar.pushSprite(40, 8);
-}
-
-void TFTMQTTIconSet(char IconMode) {
-    StatusBar.drawBitmap(20, 8, Clear, 16, 16, TFT_BLACK);
-    if (IconMode == 1)
-        StatusBar.drawBitmap(20, 8, Connected,    16, 16, TFT_WHITE);
-    else
-        StatusBar.drawBitmap(20, 8, NotConnected, 16, 16, TFT_WHITE);
-    StatusBar.pushSprite(40, 8);
-}
-
-void TFTWiFiConnect(char Position) {
-    StatusBar.drawBitmap(0, 8, Clear, 16, 16, TFT_BLACK);
-    if      (Position == 1) StatusBar.drawBitmap(0, 8, SignalSmall, 16, 16, TFT_RED);
-    else if (Position == 2) StatusBar.drawBitmap(0, 8, SignalMed,   16, 16, TFT_YELLOW);
-    else if (Position == 3) StatusBar.drawBitmap(0, 8, Sig,         16, 16, TFT_GREEN);
-    StatusBar.pushSprite(40, 8);
-}
-
-void TFTDisplayInputs() {
-    TFTCenterClear();
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_CYAN, TFT_BLACK);
-    tft.setCursor(10, 22);
-    tft.print("Inputs:");
-    uint8_t cnt = GetInputCount();
-    for (uint8_t i = 0; i < cnt && i < 8; i++) {
-        int cx = 18 + i * 22;
-        bool on = GetInput(i);
-        tft.fillCircle(cx, 50, 8, on ? TFT_GREEN : TFT_DARKGREY);
-        tft.setTextColor(TFT_WHITE, on ? TFT_GREEN : TFT_DARKGREY);
-        tft.setCursor(cx - 3, 46);
-        tft.printf("%u", i);
-    }
-}
-
-void TFTDisplayOutputs() {
-    TFTCenterClear();
-    tft.setTextSize(2);
-    tft.setCursor(30, 20);
-    tft.print("Outputs:");
-    tft.drawCircle(30, 60, 4, TFT_WHITE);
-    tft.drawCircle(50, 60, 4, TFT_WHITE);
-    tft.drawCircle(70, 60, 4, TFT_WHITE);
-    tft.drawCircle(90, 60, 4, TFT_WHITE);
-}
-
-void TFTDisplayRemote() {
-    TFTCenterClear();
-    tft.setTextSize(2);
-    tft.setCursor(60, 50);
-    tft.setTextColor(TFT_WHITE);
-    tft.print("Remote:");
-}
-
-void TFTDisplayIP() {
-    TFTCenterClear();
-    tft.setTextSize(1);
-    tft.setCursor(60, 50);
-    tft.setTextColor(TFT_WHITE);
-    tft.print("IP: 0.0.0.0");
-    tft.setCursor(60, 70);
-    tft.print("MQTT: 0.0.0.0");
-}
-
-void TFTLogoDisplay() { TFTLogo(); }
-
 void TFTLogo() {
-    int16_t rc = png.openFLASH((uint8_t *)Logo, sizeof(Logo), pngDraw);
-    if (rc == PNG_SUCCESS) {
+    void* mem = heap_caps_malloc(sizeof(PNG), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!mem) mem = malloc(sizeof(PNG));
+    if (!mem) return;                       // no logo — not worth failing boot over
+    _png = new (mem) PNG();
+    if (_png->openFLASH((uint8_t *)Logo, sizeof(Logo), pngDraw) == PNG_SUCCESS) {
         tft.startWrite();
-        png.decode(NULL, 0);
+        _png->decode(NULL, 0);
         tft.endWrite();
     }
+    _png->~PNG();
+    free(mem);
+    _png = nullptr;
 }
 
 int pngDraw(PNGDRAW *pDraw) {
     uint16_t lineBuffer[MAX_IMAGE_WIDTH];
-    png.getLineAsRGB565(pDraw, lineBuffer, PNG_RGB565_BIG_ENDIAN, 0xff000000);
+    _png->getLineAsRGB565(pDraw, lineBuffer, PNG_RGB565_BIG_ENDIAN, 0xff000000);
     tft.pushImage(xpos, ypos + pDraw->y, pDraw->iWidth, 1, lineBuffer);
     return 1;
 }
 
-void TFTLog(const char *Comment) {
-    tft.fillRect(INFOX, INFOY, 600, 15, TFT_BLACK);
-    tft.setTextSize(1);
-    tft.setCursor(INFOX + 5, INFOY);
-    tft.setTextColor(TFT_WHITE);
-    tft.print(Comment);
-}
-
-char GraphPos = 0;
-
-void TFTBargraph(char Mode) {
-    if (Mode == 1) {
-        tft.fillRect(35,  86, 5, 16, TFT_RED);
-        tft.fillRect(37,  89, 3, 10, TFT_WHITE);
-        tft.fillRect(210, 86, 5, 16, TFT_RED);
-        tft.fillRect(216, 89, 3, 13, TFT_WHITE);
-        GraphPos = 0;
-    }
-    if (Mode == 2) {
-        tft.fillRect(5, 20, 200, 50, TFT_BLACK);
-    }
-}
-
-void TFTBargraphUpdate(unsigned int Precent) {
-    GraphPos = Precent / 5;
-    int Locx = 0;
-    tft.startWrite();
-    for (char l = 0; l < GraphPos; l++) {
-        Locx = (10 * l) + 40;
-        tft.fillRect(Locx, 90, 3, 13, TFT_WHITE);
-    }
-    tft.endWrite();
-}
-
 void TFTDisplayClear() {
     tft.fillScreen(TFT_BLACK);
-}
-
-void TFTBarClear() {
-    tft.fillRect(0, TFTBANNERY, 200, 20, TFT_BLACK);
-}
-
-void TFTCenterClear() {
-    tft.fillRect(0, 20, 200, 120, TFT_BLACK);
 }
 
 void TFTDisplayAPInfo(const char* ssid) {
@@ -355,15 +227,6 @@ void _hw_init() {
 
 void _hw_clear()                    { TFTDisplayClear(); }
 void _hw_brightness(uint8_t b)      { ledcWrite(0, (4095 / 255) * b); }
-void _hw_wifi_signal(uint8_t lvl)   { TFTWiFiConnect((char)lvl); }
-void _hw_mqtt_icon(uint8_t mode)    { TFTMQTTIconSet((char)mode); }
-void _hw_th_bar()                   { TFTTHBar(); }
-void _hw_id_label()                 { TFTIDSet(); }
-void _hw_logo()                     { TFTLogoDisplay(); }
 void _hw_boot_log(const char* line) { TFTBootLog(line); }
 void _hw_ap_info(const char* ssid)  { TFTDisplayAPInfo(ssid); }
-void _hw_center_input()             { TFTDisplayInputs(); }
-void _hw_center_output()            { TFTDisplayOutputs(); }
-void _hw_center_ip()                { TFTDisplayIP(); }
-void _hw_center_remote()            { TFTDisplayRemote(); }
 #endif // DISPLAY_TFT

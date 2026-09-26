@@ -88,25 +88,14 @@ void SetOutput(uint8_t n, bool val) {
 
 /* ── MCU user controls ───────────────────────────────────────────────────── */
 
-void SetUserLED(bool val) {
-    _userLED = val;
-    digitalWrite(LED, _userLED);
-}
 
 void ToggletUserLED(void) {
     _userLED = !_userLED;
     digitalWrite(LED, _userLED);
 }
 
-void ScanUserInput(void) {
-    bool val = (bool)digitalRead(USER_SW);
-    if (_swLast != val) _swDebounce = millis();
-    if ((millis() - _swDebounce) > 200) _swVal = val;
-    _swLast = val;
-}
 
 bool GetUserSWValue(void) { return !_swVal; }
 
 /* ── Legacy shim ─────────────────────────────────────────────────────────── */
 
-void ScanArrayAdd(char /*pin*/) {}  /* no-op; GPIOStart() path is superseded by IOStart() */

@@ -297,27 +297,6 @@ html, body {
 .io-out-btn.on:hover { border-color: var(--green); color: #fff; }
 
 /* ── Fireworks channels ──────────────────────────────────── */
-.fw-ch {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border);
-}
-.fw-ch:last-child { border-bottom: none; }
-.fw-ch-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 56px;
-  font-weight: 600;
-  font-size: 13px;
-}
-.fw-ch-label input[type=checkbox] { accent-color: var(--cyan); width: 16px; height: 16px; }
-.fw-ch-slider { display: flex; align-items: center; gap: 10px; flex: 1; }
-.fw-ch-slider input[type=range] { flex: 1; accent-color: var(--cyan); }
-.fw-ch-slider output { min-width: 26px; text-align: right; color: var(--muted); font-size: 12px; }
-
 /* ── Service row (home tab) ──────────────────────────────── */
 .svc-row { display: flex; gap: 20px; flex-wrap: wrap; }
 .svc-item { }

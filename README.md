@@ -17,6 +17,7 @@ The PLC's core handles WiFi, MQTT, the web UI, the display and remote Modbus dev
 |---|---|
 | `LEDStripModule` | Drives a WS2812 LED strip. Color can be set from the web App tab or MQTT, and it can be streamed in real time over DDP (for example from xLights). |
 | `FireworksModule` | Sequencer for High Power Output (HPO) remote devices. Supports step/delay sequences, a safety-voltage check before firing, and an optional IN0 hardware trigger. |
+| `OneWireModule` | DS18B20 1-Wire temperature sensors. Every sensor on the bus is found automatically and published to MQTT (`ESPPLC/<host>/<topic>/<sensor-id>`, °F) with Home Assistant discovery. Settings live in `/OneWire.json` (`enable`, `pin` — default GPIO 21, `mqttTopic` — default `onewire`) and are edited on the web I/O page. The file is created with defaults on first boot; a filesystem upload removes it, so re-save the settings afterwards. |
 
 ### Choosing modules at build time
 In `ESP32PLC/platformio.ini`, list the modules you want:
@@ -24,6 +25,7 @@ In `ESP32PLC/platformio.ini`, list the modules you want:
 custom_modules =
 	LEDStripModule
 	FireworksModule
+	OneWireModule
 ```
 Comment out a line to leave that module out of the firmware entirely. The build output shows which modules were included, for example `-- Modules: LEDStripModule, FireworksModule`.
 

@@ -1,9 +1,8 @@
 #include "Display.h"
-#include <WiFi.h>
+#include <Arduino.h>
 #include "UIPages.h"
 #include "Define.h"
 #include "HAL/Digital/Digital.h"
-#include "MQTT.h"
 #include "Devices/JoyStick.h"
 #include "Devices/Log.h"
 
@@ -13,34 +12,18 @@
 extern void _hw_init();
 extern void _hw_clear();
 extern void _hw_brightness(uint8_t b);      // OLED impl is a no-op
-extern void _hw_wifi_signal(uint8_t lvl);   // 0=animation frame, 1-3=strength
-extern void _hw_mqtt_icon(uint8_t mode);
-extern void _hw_th_bar();
-extern void _hw_id_label();
-extern void _hw_logo();
 extern void _hw_boot_log(const char* line);
 extern void _hw_ap_info(const char* ssid);
-extern void _hw_center_input();
-extern void _hw_center_output();
-extern void _hw_center_ip();
-extern void _hw_center_remote();
 
 // ── State ─────────────────────────────────────────────────────────────────────
 char DisplayMode  = 1;
-char ModeActive   = 1;
-char ScreenShow   = 0;
 char DisplaySleepEn = 1;
 
 static bool _apMode = false;
 static char _apSsid[40] = "";
 
-unsigned long TimeReading        = 0;
 unsigned long DisplayOnTime      = 0;
 unsigned long LastDisplayUpdate  = 0;
-
-long          DisplayRefreshRate    = 0;
-long          DisplayUpdateInterval = 1000;
-unsigned long DisplaycurrentMillis  = 0;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -122,70 +105,11 @@ void DisplaySaver() {
     }
 }
 
-// ── WiFi connect animation ────────────────────────────────────────────────────
-
-static char _wifiAnimK = 0;
-
-void DisplayWiFiConnect() {
-    DisplaycurrentMillis = millis();
-    if (DisplaycurrentMillis - DisplayRefreshRate >= 250) {
-        DisplayRefreshRate = DisplaycurrentMillis;
-        if (++_wifiAnimK > 3) _wifiAnimK = 0;
-        _hw_wifi_signal(_wifiAnimK);
-    }
-}
-
-// ── WiFi RSSI indicator ───────────────────────────────────────────────────────
-
-char LastWiFiSig = 0;
-
-void WiFiCheckRSSI(char overide) {
-    long rssi = WiFi.RSSI() * -1;
-    uint8_t lvl = (rssi < HIGHRSSI) ? 1 : (rssi < LOWRSSI) ? 2 : 3;
-    if ((LastWiFiSig != (char)lvl) || overide) {
-        _hw_wifi_signal(lvl);
-        LastWiFiSig = (char)lvl;
-    }
-}
-
-// ── MQTT status ───────────────────────────────────────────────────────────────
-
-char LastMQTT = 0;
-
-void CheckMQTTCon(char overide) {
-    if (GetMQTTStatus() == 1) {
-        if ((LastMQTT != 1) || (overide == 1)) { DisplayMQTT(1); LastMQTT = 1; }
-    } else {
-        if ((LastMQTT != 2) || (overide == 1)) { DisplayMQTT(0); LastMQTT = 2; }
-    }
-}
-
-// ── Center-screen rotation ────────────────────────────────────────────────────
-
-void DisplaySwitchCase() {
-    switch (ScreenShow) {
-        case 0: DisplayCenterInput();  ScreenShow++; break;
-        case 1: DisplayCenterOutput(); ScreenShow++; break;
-        case 2: DisplayCenterIPInfo(); ScreenShow++; break;
-        default: ScreenShow = 0; break;
-    }
-    Log(DEBUG, "Screen = %d\r\n", (int)ScreenShow);
-}
-
 // ── Thin dispatch wrappers ────────────────────────────────────────────────────
 
-void DisplayWiFiRSSI()             { WiFiCheckRSSI(1); }
-void DisplayTHBar()                { _hw_th_bar(); }
-void DisplayID()                   { _hw_id_label(); }
-void DisplayMQTT(char mode)        { _hw_mqtt_icon((uint8_t)mode); }
 void DisplayClear()                { _hw_clear(); }
-void DisplayLogo()                 { _hw_logo(); }
 void DisplayLog(const char* t)     { _hw_boot_log(t); }
 void DisplayAPInfo(const char* s)  { _hw_ap_info(s); }
-void DisplayCenterInput()          { _hw_center_input(); }
-void DisplayCenterOutput()         { _hw_center_output(); }
-void DisplayCenterIPInfo()         { _hw_center_ip(); }
-void DisplayCenterRemoteInfo()     { _hw_center_remote(); }
 void DisplayBrightnes(char b)      { _hw_brightness((uint8_t)b); }
 void DisplayTimeoutReset()         { DisplayOnTime = millis(); }
 void DispalySleepControl(char v)   { DisplaySleepEn = v; }

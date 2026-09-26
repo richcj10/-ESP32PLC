@@ -90,7 +90,6 @@ char RemoteStart() {
 // ----------------------------------------------------------------
 void SuspendRemotePolling() { remoteMaster.suspend(); }
 void ResumeRemotePolling()  { remoteMaster.resume(); }
-bool IsRemotePollingActive(){ return !remoteMaster.suspended(); }
 
 // ----------------------------------------------------------------
 // Device list for FW update UI
@@ -112,33 +111,14 @@ void RemoteRun() {
 }
 
 // ----------------------------------------------------------------
-// Occupancy accessors — first group of first device
+// Occupancy accessor — first group of first device
 // ----------------------------------------------------------------
 bool     GetOccupied()  { return remoteMaster.grpCount() > 0 ? remoteMaster.grpDevice(0)->getRaw(0) != 0 : false; }
-uint16_t GetZoneCount() { return remoteMaster.grpCount() > 0 ? remoteMaster.grpDevice(0)->getRaw(1) : 0; }
-uint16_t GetTimeOnSec() { return remoteMaster.grpCount() > 0 ? remoteMaster.grpDevice(0)->getRaw(2) : 0; }
 
-// ----------------------------------------------------------------
-// Stubs — legacy offline devices
-// ----------------------------------------------------------------
-char  ReadRemoteTemp()    { return 0; }
-char  ReadRemoteWeather() { return 0; }
-char  ReadRemoteCurrent() { return 0; }
 
-float GetRemoteDataFromQue(unsigned char x, bool Divide) { (void)x; (void)Divide; return 0.0f; }
 
-void SetTempPollRate   (unsigned long ms) { (void)ms; }
-void SetWeatherPollRate(unsigned long ms) { (void)ms; }
-void SetCurrentPollRate(unsigned long ms) { (void)ms; }
 
-char SetOcupyLED(int Address, unsigned char R, unsigned char G, unsigned char B) {
-    uint16_t vals[3] = { 12, R, (uint16_t)((G << 8) | B) };
-    return master.queueWriteMulti((uint8_t)Address, 0x02, vals, 3) ? 1 : 0;
-}
 
-int   ReadDeviceType(int Address) { (void)Address; return 0; }
-float readDeviceVIN (int Address) { (void)Address; return -1; }
-char  GetRemoteTemp (char TempCH) { (void)TempCH;  return 0; }
 
 // ----------------------------------------------------------------
 // Modbus bus scan — probes each address with a FC3 read (1 register)

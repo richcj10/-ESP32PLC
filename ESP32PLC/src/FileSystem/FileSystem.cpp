@@ -87,7 +87,25 @@ bool        RemoteConfigRevOK()     { return _remoteRevOk; }
 const char* RemoteConfigRevGot()    { return _remoteRevGot; }
 const char* RemoteConfigRevNeeded() { return REMOTE_CONFIG_REV; }
 
-const RemoteConfig_t* RemoteGetConfig() { return _remoteCfg; }
+// Allocate the (large, ~270 KB) config in PSRAM on first use. Never returns
+// null — callers can rely on a valid (possibly empty) config at any time.
+static RemoteConfig_t* _ensureRemoteCfg() {
+    if (!_remoteCfg) {
+        _remoteCfg = (RemoteConfig_t*)ps_calloc(1, sizeof(RemoteConfig_t));
+        if (!_remoteCfg) _remoteCfg = (RemoteConfig_t*)calloc(1, sizeof(RemoteConfig_t));
+        if (!_remoteCfg) {
+            Log(ERROR, "FS: RemoteConfig alloc failed (%u B) — restarting\r\n",
+                (unsigned)sizeof(RemoteConfig_t));
+            delay(500);
+            ESP.restart();
+        }
+        Log(NOTIFY, "FS: RemoteConfig %u B → %s\r\n", (unsigned)sizeof(RemoteConfig_t),
+            psramFound() ? "PSRAM" : "DRAM");
+    }
+    return _remoteCfg;
+}
+
+const RemoteConfig_t* RemoteGetConfig() { return _ensureRemoteCfg(); }
 
 // ── Streaming JSON helpers ────────────────────────────────────────────────────
 
@@ -143,15 +161,7 @@ static size_t _readJsonObject(File& f, char* buf, size_t bufSize) {
 // ── Load ─────────────────────────────────────────────────────────────────────
 
 void RemoteComfig() {
-    if (!_remoteCfg) {
-        _remoteCfg = (RemoteConfig_t*)ps_calloc(1, sizeof(RemoteConfig_t));
-        if (!_remoteCfg) _remoteCfg = (RemoteConfig_t*)calloc(1, sizeof(RemoteConfig_t));
-        if (!_remoteCfg) { Log(ERROR, "FS: RemoteConfig alloc failed\r\n"); return; }
-        Log(NOTIFY, "FS: RemoteConfig %u B → %s\r\n", (unsigned)sizeof(RemoteConfig_t),
-            psramFound() ? "PSRAM" : "DRAM");
-    } else {
-        memset(_remoteCfg, 0, sizeof(RemoteConfig_t));
-    }
+    memset(_ensureRemoteCfg(), 0, sizeof(RemoteConfig_t));
 
     File f = LittleFS.open(Remotefilename);
     if (!f) { Log(NOTIFY, "FS: no Remote.json\r\n"); return; }
@@ -285,84 +295,6 @@ void RemoteComfig() {
 // ── Save ─────────────────────────────────────────────────────────────────────
 // Streams one device at a time so peak heap is ~8 KB regardless of device count.
 
-void RemoteSaveConfig(const RemoteConfig_t* cfg) {
-    File f = LittleFS.open(Remotefilename, "w");
-    if (!f) { Log(ERROR, "FS: cannot write Remote.json\r\n"); return; }
-
-    f.print("{\"rev\":\"" REMOTE_CONFIG_REV "\",\"devices\":[");
-
-    DynamicJsonDocument devDoc(8192);
-
-    for (uint8_t i = 0; i < cfg->deviceCount; i++) {
-        if (i > 0) f.print(',');
-
-        devDoc.clear();
-        JsonObject dev = devDoc.to<JsonObject>();
-        const RemoteDeviceCfg_t& d = cfg->devices[i];
-
-        dev["name"]    = d.name;
-        dev["address"] = d.address;
-        if (d.typeId)    dev["typeId"]    = d.typeId;
-        if (d.swVersion) dev["swVersion"] = d.swVersion;
-
-        JsonArray grpArr = dev.createNestedArray("groups");
-        for (uint8_t gi = 0; gi < d.groupCount; gi++) {
-            const RemoteGroupCfg_t& grp = d.groups[gi];
-            JsonObject go = grpArr.createNestedObject();
-            go["name"]       = grp.name;
-            go["fc"]         = grp.fc;
-            go["startReg"]   = grp.startReg;
-            go["count"]      = grp.count;
-            go["pollMs"]     = grp.pollMs;
-            go["scale"]      = grp.scale;
-            {
-                bool allSame = true;
-                for (uint8_t r = 1; r < grp.count && r < MAX_REGS_PER_GROUP; r++)
-                    if (strcmp(grp.units[r], grp.units[0]) != 0) { allSame = false; break; }
-                if (allSame) {
-                    go["units"] = grp.units[0];
-                } else {
-                    JsonArray ua = go.createNestedArray("units");
-                    for (uint8_t r = 0; r < grp.count && r < MAX_REGS_PER_GROUP; r++)
-                        ua.add(grp.units[r]);
-                }
-            }
-            go["mqttEnable"] = grp.mqttEnable;
-            go["mqttTopic"]  = grp.mqttTopic;
-            JsonArray regs = go.createNestedArray("regs");
-            for (uint8_t r = 0; r < grp.count && r < MAX_REGS_PER_GROUP; r++)
-                regs.add(grp.regs[r]);
-
-            if (grp.writeCount > 0) {
-                JsonArray wArr = go.createNestedArray("writes");
-                for (uint8_t w = 0; w < grp.writeCount; w++) {
-                    const RemoteWriteGroupCfg_t& wg = grp.writes[w];
-                    JsonObject wo = wArr.createNestedObject();
-                    wo["name"]      = wg.name;
-                    wo["fc"]        = wg.fc;
-                    wo["startReg"]  = wg.startReg;
-                    wo["count"]     = wg.count;
-                    wo["mqttTopic"] = wg.mqttTopic;
-                    JsonArray wregs = wo.createNestedArray("regs");
-                    JsonArray wdefs = wo.createNestedArray("defaults");
-                    for (uint8_t r = 0; r < wg.count && r < MAX_REGS_PER_GROUP; r++) {
-                        wregs.add(wg.regs[r]);
-                        wdefs.add(wg.defaults[r]);
-                    }
-                }
-            }
-        }
-
-        if (serializeJson(devDoc, f) == 0) {
-            Log(ERROR, "FS: device %u write failed\r\n", i);
-            f.close(); return;
-        }
-    }
-
-    f.print("]}");
-    f.close();
-    Log(LOG, "FS: Remote.json saved (%u device(s))\r\n", cfg->deviceCount);
-}
 
 // ----------------------------------------------------------------
 // WiFi — NVS via Preferences (namespace "wifi")

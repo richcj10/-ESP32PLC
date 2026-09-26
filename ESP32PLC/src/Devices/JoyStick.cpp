@@ -93,13 +93,3 @@ void JoyStickLoadMap() {
     prefs.end();
 }
 
-void GetJoystickPrint(char x) {
-    switch (x) {
-        case JOYSTICK_NONE:  break;
-        case JOYSTICK_UP:    Serial.println("Up");    break;
-        case JOYSTICK_DOWN:  Serial.println("Down");  break;
-        case JOYSTICK_LEFT:  Serial.println("Left");  break;
-        case JOYSTICK_RIGHT: Serial.println("Right"); break;
-        default:                                      break;
-    }
-}

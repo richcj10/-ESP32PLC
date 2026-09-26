@@ -327,19 +327,37 @@
         <div id="ctrl-outputs" class="io-ctrl-row"></div>
       </div>
 
-      <!-- Fireworks disabled ─────────────────────────────
-      <div class="card">
-        <div class="card-title">Channels</div>
-        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework1en"> CH 1</label><div class="fw-ch-slider"><input type="range" id="CH1TD" min="0" max="50" value="10" oninput="document.getElementById('o1').value=this.value"><output id="o1">10</output></div></div>
-        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework2en"> CH 2</label><div class="fw-ch-slider"><input type="range" id="CH2TD" min="0" max="50" value="10" oninput="document.getElementById('o2').value=this.value"><output id="o2">10</output></div></div>
-        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework3en"> CH 3</label><div class="fw-ch-slider"><input type="range" id="CH3TD" min="0" max="50" value="10" oninput="document.getElementById('o3').value=this.value"><output id="o3">10</output></div></div>
-        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework4en"> CH 4</label><div class="fw-ch-slider"><input type="range" id="CH4TD" min="0" max="50" value="10" oninput="document.getElementById('o4').value=this.value"><output id="o4">10</output></div></div>
-        <div class="fw-ch"><label class="fw-ch-label"><input type="checkbox" id="firework5en"> CH 5</label><div class="fw-ch-slider"><input type="range" id="CH5TD" min="0" max="50" value="10" oninput="document.getElementById('o5').value=this.value"><output id="o5">10</output></div></div>
+      <!-- 1-Wire temperature (OneWireModule — settings in /OneWire.json) -->
+      <div class="card" id="ow-card" style="display:none;">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          1-Wire Temperature
+          <span id="ow-badge" class="badge badge-grey">—</span>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-bottom:6px;">
+            <input type="checkbox" id="ow-enable"> Enable
+          </label>
+          <div>
+            <div class="stat-label" style="margin-bottom:3px;">Bus pin</div>
+            <select id="ow-pin" class="input" style="width:100px;"></select>
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <div class="stat-label" style="margin-bottom:3px;">MQTT topic &nbsp;<span id="ow-topic-base" style="font-family:monospace;"></span></div>
+            <input id="ow-topic" type="text" class="input" maxlength="32" placeholder="onewire" style="width:100%;">
+          </div>
+          <button class="btn" onclick="owSave()">Save</button>
+          <button class="btn-ghost" onclick="owRescan()">Rescan</button>
+        </div>
+        <span class="status-text" id="ow-status"></span>
+        <table class="data-table" style="margin-top:6px;">
+          <thead><tr><th>Sensor ID</th><th>Temp</th><th>MQTT topic</th></tr></thead>
+          <tbody id="ow-body"><tr><td colspan="3" style="color:var(--muted);text-align:center;">Loading…</td></tr></tbody>
+        </table>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);">
+          DS18B20 sensors are found automatically and published to MQTT with Home Assistant discovery.
+        </div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-red" id="FWFire">&#128293; FIRE</button>
-      </div>
-      ──────────────────────────────────────────────────── -->
+
     </div>
 
     <!-- Files ─────────────────────────────────────────── -->
@@ -674,7 +692,7 @@ function showTab(id) {
   _panels[id].classList.add('active');
   _btns[id].classList.add('active');
   if (id === 'home') { loadHomeStats(); loadVersion(); _startIOPoll(); }
-  else if (id === 'io') { _startIOPoll(); }
+  else if (id === 'io') { _startIOPoll(); owLoad(true); }
   else { _stopIOPoll(); }
   if (id === 'wifi')    loadWifiConfig();
   if (id === 'mqtt')    loadMqttConfig();
@@ -690,7 +708,6 @@ var socket = new WebSocket(
   (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
 
 socket.addEventListener('open', function() {
-  socket.send('CNT');
   setBadge('h-ws', 'Connected', 'green');
 });
 socket.addEventListener('close', function() {
@@ -1738,21 +1755,6 @@ function ledOff() {
   }).catch(function() {});
 }
 
-/* ── Fireworks (disabled) ───────────────────────────────── */
-/*
-document.getElementById('FWFire').addEventListener('click', function() {
-  if (!confirm('OK TO FIRE?')) { alert('Did not activate!'); return; }
-  var ids = [1,2,3,4,5];
-  var payload = { Mode: 'FW' };
-  ids.forEach(function(i) {
-    payload['CH' + i]  = document.getElementById('firework' + i + 'en').checked ? 1 : 0;
-    payload['CH' + i + 'T'] = parseInt(document.getElementById('CH' + i + 'TD').value, 10);
-  });
-  socket.send(JSON.stringify(payload));
-  alert('Fire   Fire   Fire');
-});
-*/
-
 /* ── Log ────────────────────────────────────────────────── */
 function appendLog(data) {
   var el = document.getElementById('history');
@@ -1865,7 +1867,7 @@ function setBadge(id, text, color) {
 
 /* ── App enable / disable ───────────────────────────────── */
 var _appMods = null;   // [{name, enabled}] from /api/modules — state running on the device
-var _appModLabels = { ledstrip: 'LED Strip', fireworks: 'Fireworks' };
+var _appModLabels = { ledstrip: 'LED Strip', fireworks: 'Fireworks', onewire: '1-Wire Temp' };
 
 function _appModOn(name) {
   if (!_appMods) return false;
@@ -1920,6 +1922,72 @@ function appModSet(name, enabled, cb) {
     showPendingRestartBanner();
   }).catch(function() { cb.checked = !enabled; alert('Save failed'); });
 }
+
+/* ── 1-Wire temperature (I/O page) ─────────────────────── */
+var _owTopicBase = '';
+function owLoad(fillForm) {
+  fetch('/api/onewire').then(function(r) {
+    if (!r.ok) throw new Error('off');        // module not built or switched off on the App tab
+    return r.json();
+  }).then(function(d) {
+    document.getElementById('ow-card').style.display = '';
+    _owTopicBase = d.topicBase || '';
+    if (fillForm) {
+      var sel = document.getElementById('ow-pin');
+      var pins = (d.free_pins || []).slice();
+      if (pins.indexOf(d.pin) < 0) pins.unshift(d.pin);
+      sel.innerHTML = pins.map(function(p) { return '<option value="' + p + '">GPIO ' + p + '</option>'; }).join('');
+      sel.value = d.pin;
+      document.getElementById('ow-enable').checked = !!d.enable;
+      document.getElementById('ow-topic').value = d.mqttTopic || '';
+      document.getElementById('ow-topic-base').innerText = _owTopicBase + '/';
+    }
+    if (!d.enable)        setBadge('ow-badge', 'Disabled', 'grey');
+    else if (!d.running)  setBadge('ow-badge', 'Pin error', 'red');
+    else                  setBadge('ow-badge', (d.sensors || []).length + ' sensor(s)', (d.sensors || []).length ? 'green' : 'yellow');
+
+    var body = document.getElementById('ow-body');
+    var msg = function(t) { body.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;">' + t + '</td></tr>'; };
+    if (!d.enable)  return msg('Disabled — tick Enable and Save to start the bus.');
+    if (!d.running) return msg('GPIO ' + d.pin + ' is in use by something else — pick another pin.');
+    if (!d.sensors || !d.sensors.length) return msg('No sensors found on GPIO ' + d.pin + ' — check wiring, then Rescan.');
+    body.innerHTML = d.sensors.map(function(s) {
+      var t = s.ok ? Number(s.tempF).toFixed(1) + '&deg;F' : '<span style="color:var(--red);">read error</span>';
+      return '<tr><td style="font-family:monospace;">' + s.id + '</td><td>' + t + '</td>' +
+             '<td style="font-family:monospace;font-size:11px;color:var(--muted);">' +
+             _owTopicBase + '/' + d.mqttTopic + '/' + s.id + '</td></tr>';
+    }).join('');
+  }).catch(function() { document.getElementById('ow-card').style.display = 'none'; });
+}
+
+function owSave() {
+  var body = {
+    enable:    document.getElementById('ow-enable').checked,
+    pin:       parseInt(document.getElementById('ow-pin').value, 10),
+    mqttTopic: document.getElementById('ow-topic').value.trim()
+  };
+  setStatus('ow-status', 'Saving…');
+  fetch('/api/onewire', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(body) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      setStatus('ow-status', d.ok ? 'Saved to /OneWire.json' : 'Error: ' + d.error, !d.ok);
+      setTimeout(function() { owLoad(true); }, 1500);   // bus restarts + rescans on the main loop
+    }).catch(function() { setStatus('ow-status', 'Save failed', true); });
+}
+
+function owRescan() {
+  setStatus('ow-status', 'Scanning…');
+  fetch('/api/onewire', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ rescan: true }) })
+    .then(function() { setTimeout(function() { setStatus('ow-status', ''); owLoad(false); }, 1500); })
+    .catch(function() { setStatus('ow-status', 'Rescan failed', true); });
+}
+
+// Refresh sensor readings while the I/O page is open (form fields left alone)
+setInterval(function() {
+  if (_panels.io && _panels.io.classList.contains('active')) owLoad(false);
+}, 5000);
 
 /* ── App card hide/show ─────────────────────────────────── */
 function _toggleAppCard(name) {

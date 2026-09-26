@@ -7,10 +7,6 @@ void WebStart();
 void WebHandel();
 void CaptivePortalLoop();
 
-void httpResponseRedirect(WiFiClient c);
-void httpResponseHome(WiFiClient c);
-void processCommand(char* command);
-void httpResponse414(WiFiClient c);
 char WebLogSend(const char* line);
 
 /* Send a firmware-update progress event over WebSocket (Type=20).
