@@ -64,6 +64,9 @@ void WebFwProgressSend(uint8_t percent, bool done, bool success, const char *msg
         snprintf(buf + n, sizeof(buf) - n, ",\"FW_MSG\":\"%s\"}", msg);
     else
         strncat(buf, "}", sizeof(buf) - strlen(buf) - 1);
+    // In-progress updates are lossy (the page also polls /fw/list); never let them
+    // push the WebSocket queue into overflow. The final (done) message always goes.
+    if (!done && !ws.availableForWriteAll()) return;
     ws.textAll(buf);
 }
 
@@ -74,6 +77,7 @@ static struct {
     size_t   hexCap  = 0;
     size_t   hexLen  = 0;
     uint8_t  slaveId = 0;
+    uint8_t  slot    = FW_SLOT_APP;   /* ?slot=blupd → bootloader updater image */
     bool     isHex   = false;
     bool     ok      = false;
     bool     aborted = false; /* set on size violation or alloc failure */
@@ -88,6 +92,8 @@ static void _onFwUpload(AsyncWebServerRequest *req,
     if (index == 0) {
         String idStr  = req->hasParam("id") ? req->getParam("id")->value() : "0";
         fwUp.slaveId  = (uint8_t)idStr.toInt();
+        fwUp.slot     = (req->hasParam("slot") && req->getParam("slot")->value() == "blupd")
+                        ? FW_SLOT_BL_UPDATER : FW_SLOT_APP;
         fwUp.isHex    = filename.endsWith(".hex") || (len > 0 && data[0] == ':');
         fwUp.ok       = false;
         fwUp.aborted  = false;
@@ -128,7 +134,7 @@ static void _onFwUpload(AsyncWebServerRequest *req,
             fwUpdater.init();
             if (fwUp.hexBuf) { free(fwUp.hexBuf); fwUp.hexBuf = nullptr; }
             Log(LOG, "FwUpload: BIN mode — writing to %s\r\n",
-                FwUpdater::fwPath(fwUp.slaveId).c_str());
+                FwUpdater::fwPath(fwUp.slaveId, fwUp.slot).c_str());
         }
     }
 
@@ -143,7 +149,7 @@ static void _onFwUpload(AsyncWebServerRequest *req,
                 (unsigned)fwUp.hexLen, (unsigned)len, (unsigned)fwUp.hexCap);
         }
     } else {
-        File f = LittleFS.open(FwUpdater::fwPath(fwUp.slaveId),
+        File f = LittleFS.open(FwUpdater::fwPath(fwUp.slaveId, fwUp.slot),
                                index == 0 ? "w" : "a");
         if (!f) {
             Log(ERROR, "FwUpload: LittleFS open failed at index=%u\r\n", (unsigned)index);
@@ -167,7 +173,7 @@ static void _onFwUpload(AsyncWebServerRequest *req,
             if (fwUp.hexBuf && fwUp.hexLen > 0) {
                 fwUpdater.init();
                 fwUp.ok = fwUpdater.storeFirmware(fwUp.slaveId, fwUp.hexBuf,
-                                                   fwUp.hexLen, true);
+                                                   fwUp.hexLen, true, fwUp.slot);
                 snprintf(fwUp.msg, sizeof(fwUp.msg),
                          fwUp.ok ? "HEX converted and stored" : "HEX parse failed");
                 Log(fwUp.ok ? LOG : ERROR, "FwUpload: %s\r\n", fwUp.msg);
@@ -177,10 +183,10 @@ static void _onFwUpload(AsyncWebServerRequest *req,
                     fwUp.hexBuf ? "ok" : "null", (unsigned)fwUp.hexLen);
             }
         } else {
-            fwUp.ok = fwUp.writeOk && fwUpdater.hasFirmware(fwUp.slaveId);
+            fwUp.ok = fwUp.writeOk && fwUpdater.hasFirmware(fwUp.slaveId, fwUp.slot);
             if (fwUp.ok)
                 snprintf(fwUp.msg, sizeof(fwUp.msg), "BIN stored (%lu B)",
-                         (unsigned long)fwUpdater.firmwareSize(fwUp.slaveId));
+                         (unsigned long)fwUpdater.firmwareSize(fwUp.slaveId, fwUp.slot));
             else if (!fwUp.writeOk)
                 strncpy(fwUp.msg, "Write error — LittleFS full?", sizeof(fwUp.msg) - 1);
             else
@@ -536,25 +542,53 @@ void WebStart(){
 
   /* GET /fw/list — JSON device + firmware status */
   server.on("/fw/list", HTTP_GET, [](AsyncWebServerRequest *req) {
-    FwDeviceInfo devs[8];
-    uint8_t count = GetFwDeviceList(devs, 8);
+    static FwDeviceInfo devs[MAX_REMOTE_DEVICES];   // was capped at 8
+    uint8_t count = GetFwDeviceList(devs, MAX_REMOTE_DEVICES);
     const FwUpdater::Status &st = fwUpdater.getStatus();
 
-    char buf[512];
-    int n = snprintf(buf, sizeof(buf),
-        "{\"updating\":%s,\"slaveId\":%u,\"progress\":%u,\"devices\":[",
-        st.running ? "true" : "false", (unsigned)st.slaveId, (unsigned)st.progress);
-
-    for (uint8_t i = 0; i < count && n < (int)sizeof(buf) - 80; i++) {
-        bool hasFw  = fwUpdater.hasFirmware(devs[i].slaveId);
-        uint32_t sz = hasFw ? fwUpdater.firmwareSize(devs[i].slaveId) : 0;
-        n += snprintf(buf + n, sizeof(buf) - n,
-            "%s{\"name\":\"%s\",\"id\":%u,\"hasFw\":%s,\"fwSize\":%lu}",
-            i ? "," : "", devs[i].name, (unsigned)devs[i].slaveId,
-            hasFw ? "true" : "false", (unsigned long)sz);
+    AsyncResponseStream *resp = req->beginResponseStream("application/json");
+    char stMsg[64];                                   // job message, quotes made JSON-safe
+    strlcpy(stMsg, st.message, sizeof(stMsg));
+    for (char *c = stMsg; *c; c++) if (*c == '"' || *c == '\\') *c = '\'';
+    resp->printf("{\"updating\":%s,\"blUpdate\":%s,\"slaveId\":%u,\"progress\":%u,"
+                 "\"done\":%s,\"ok\":%s,\"msg\":\"%s\",\"devices\":[",
+        st.running ? "true" : "false", st.blUpdate ? "true" : "false",
+        (unsigned)st.slaveId, (unsigned)st.progress,
+        st.done ? "true" : "false", st.success ? "true" : "false", stMsg);
+    for (uint8_t i = 0; i < count; i++) {
+        uint8_t  id    = devs[i].slaveId;
+        bool     hasFw = fwUpdater.hasFirmware(id);
+        bool     hasBl = fwUpdater.hasFirmware(id, FW_SLOT_BL_UPDATER);
+        resp->printf("%s{\"name\":\"%s\",\"id\":%u,\"hasFw\":%s,\"fwSize\":%lu,\"hasBl\":%s,\"blSize\":%lu,\"blTarget\":%u}",
+            i ? "," : "", devs[i].name, (unsigned)id,
+            hasFw ? "true" : "false", (unsigned long)(hasFw ? fwUpdater.firmwareSize(id) : 0),
+            hasBl ? "true" : "false", (unsigned long)(hasBl ? fwUpdater.firmwareSize(id, FW_SLOT_BL_UPDATER) : 0),
+            (unsigned)(hasBl ? fwUpdater.updaterTargetVersion(id) : 0));
     }
-    if (n < (int)sizeof(buf) - 3) strcpy(buf + n, "]}");
-    req->send(200, "application/json", buf);
+    resp->print("]}");
+    req->send(resp);
+  });
+
+  /* POST /fw/blupdate?id=<slaveId> — guided bootloader update (needs the
+   * updater image, ?slot=blupd upload, and the app image). Progress arrives
+   * over the WebSocket like a normal flash, with a step message. */
+  server.on("/fw/blupdate", HTTP_POST, [](AsyncWebServerRequest *req) {
+    if (!req->hasParam("id")) {
+      req->send(400, "application/json", "{\"ok\":false,\"msg\":\"missing id\"}");
+      return;
+    }
+    uint8_t id = (uint8_t)req->getParam("id")->value().toInt();
+    if (fwUpdater.getStatus().running) {
+      req->send(409, "application/json", "{\"ok\":false,\"msg\":\"update already running\"}");
+      return;
+    }
+    if (!fwUpdater.hasFirmware(id, FW_SLOT_BL_UPDATER) || !fwUpdater.hasFirmware(id)) {
+      req->send(400, "application/json", "{\"ok\":false,\"msg\":\"upload both the updater and the app first\"}");
+      return;
+    }
+    bool ok = fwUpdater.startBootloaderUpdate(id);
+    req->send(200, "application/json", ok ? "{\"ok\":true,\"msg\":\"Bootloader update started\"}"
+                                          : "{\"ok\":false,\"msg\":\"Failed to start\"}");
   });
 
   /* POST /fw/upload?id=<slaveId> — upload .hex or .bin */
@@ -709,10 +743,10 @@ void WebStart(){
     if (!revOk)
         resp->printf(",\"_revGot\":\"%s\",\"_revNeeded\":\"%s\"",
             RemoteConfigRevGot(), RemoteConfigRevNeeded());
-    bool seen[8] = {};  // MAX_REMOTE_DEVICES = 8
+    bool seen[MAX_REMOTE_DEVICES] = {};   // was a hard-coded 8: devices past the 8th got no status
     for (uint8_t g = 0; g < RemoteGrpCount(); g++) {
         uint8_t di = RemoteGrpDevIdx(g);
-        if (di >= cfg.deviceCount || di >= 8 || seen[di]) continue;
+        if (di >= cfg.deviceCount || di >= MAX_REMOTE_DEVICES || seen[di]) continue;
         seen[di] = true;
         ModuleStatus_t st = RemoteDevStatus(di);
         resp->print(",");

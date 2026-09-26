@@ -1,4 +1,5 @@
 #include "ModBusBLMaster.h"
+#include <stdarg.h>
 #include "Devices/Log.h"
 
 #define RSP_BUF_SIZE (MBBP_MAX_PAYLOAD + 4)
@@ -14,6 +15,30 @@ void ModBusBLMaster::begin(long baud) {
         digitalWrite(_dirPin, LOW);
     }
     delay(10);
+}
+
+/* ── Error text ─────────────────────────────────────────────────────────── */
+
+void ModBusBLMaster::_setErrorf(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(_errBuf, sizeof(_errBuf), fmt, ap);
+    va_end(ap);
+    _lastError = _errBuf;
+}
+
+/* MBBP_ERR_* code carried in an MBBP_RSP_ERROR reply */
+const char *ModBusBLMaster::_errName(uint8_t code) {
+    switch (code) {
+        case MBBP_ERR_BAD_CRC:       return "BAD_CRC (frame corrupted on the bus)";
+        case MBBP_ERR_WRONG_MAGIC:   return "WRONG_MAGIC";
+        case MBBP_ERR_PAGE_OVERFLOW: return "PAGE_OVERFLOW (image too big)";
+        case MBBP_ERR_FLASH_FAIL:    return "FLASH_FAIL (page write/verify on device)";
+        case MBBP_ERR_VERIFY_FAIL:   return "VERIFY_FAIL";
+        case MBBP_ERR_WRONG_STATE:   return "WRONG_STATE (session out of step)";
+        case MBBP_ERR_TIMEOUT:       return "TIMEOUT (device)";
+        default:                     return "unknown code";
+    }
 }
 
 /* ── Direction control ──────────────────────────────────────────────────── */
@@ -170,6 +195,30 @@ bool ModBusBLMaster::_sendFC65(uint8_t slaveId) {
     return true;
 }
 
+/* Retries per frame before the whole session is abandoned and restarted. */
+#define MBBP_FRAME_RETRIES   3
+/* Full HELLO→VERIFY sessions attempted before updateFirmware gives up. */
+#define MBBP_SESSION_RETRIES 3
+
+bool ModBusBLMaster::_transact(uint8_t addr, uint8_t cmd, const uint8_t *data,
+                               uint16_t dataLen, uint8_t expectRsp,
+                               uint8_t *outData, uint16_t *outLen, uint32_t timeoutMs)
+{
+    for (uint8_t i = 0; i < MBBP_FRAME_RETRIES; i++) {
+        _sendFrame(addr, cmd, data, dataLen);
+        uint8_t rsp = _recvFrame(addr, outData, outLen, timeoutMs);
+        if (rsp == expectRsp) return true;
+        if (rsp == MBBP_RSP_ERROR) {
+            uint8_t code = (outData && outLen && *outLen >= 1) ? outData[0] : 0;
+            _setErrorf("slave error 0x%02X %s", code, _errName(code));
+        }
+        Log(ERROR, "[BL] cmd 0x%02X try %u/%u failed: %s\r\n",
+            cmd, (unsigned)(i + 1), (unsigned)MBBP_FRAME_RETRIES, _lastError);
+        delay(20);
+    }
+    return false;
+}
+
 /* ── Public API ─────────────────────────────────────────────────────────── */
 
 bool ModBusBLMaster::triggerBootloader(uint8_t slaveId, uint32_t waitAfterMs) {
@@ -197,7 +246,8 @@ bool ModBusBLMaster::connect(uint8_t slaveId) {
         _setError("HELLO failed");
         return false;
     }
-    Log(NOTIFY, "[BL] HELLO OK — bootloader confirmed\r\n");
+    _blVersion = (rlen >= 3) ? rsp[2] : MBBP_BL_VERSION_LEGACY;
+    Log(NOTIFY, "[BL] HELLO OK — bootloader v%u confirmed\r\n", (unsigned)_blVersion);
     return true;
 }
 
@@ -218,8 +268,13 @@ bool ModBusBLMaster::flashFirmware(uint8_t slaveId,
 
     uint8_t  rsp[MBBP_MAX_PAYLOAD];
     uint16_t rlen = 0;
-    if (_recvFrame(slaveId, rsp, &rlen, 2000) != MBBP_RSP_START) {
-        _setError("START rejected");
+    uint8_t startRsp = _recvFrame(slaveId, rsp, &rlen, 2000);
+    if (startRsp != MBBP_RSP_START) {
+        if (startRsp == MBBP_RSP_ERROR && rlen >= 1)
+            _setErrorf("START rejected: %s", _errName(rsp[0]));
+        else
+            _setErrorf("START rejected (%s)", _lastError ? _lastError : "no reply");
+        Log(ERROR, "[BL] %s\r\n", _lastError);
         return false;
     }
 
@@ -237,9 +292,12 @@ bool ModBusBLMaster::flashFirmware(uint8_t slaveId,
             page_buf[2 + i] = (src < firmwareSize) ? firmware[src] : 0xFF;
         }
 
-        _sendFrame(slaveId, MBBP_CMD_WRITE_PAGE, page_buf, 2 + MBBP_PAGE_SIZE);
-        if (_recvFrame(slaveId, rsp, &rlen, 3000) != MBBP_RSP_WRITE_PAGE) {
-            _setError("WRITE_PAGE rejected");
+        if (!_transact(slaveId, MBBP_CMD_WRITE_PAGE, page_buf, 2 + MBBP_PAGE_SIZE,
+                       MBBP_RSP_WRITE_PAGE, rsp, &rlen, 3000)) {
+            char why[48];
+            strlcpy(why, _lastError ? _lastError : "?", sizeof(why));
+            _setErrorf("WRITE_PAGE %lu/%lu: %s", (unsigned long)pg, (unsigned long)total_pages, why);
+            Log(ERROR, "[BL] %s\r\n", _lastError);
             return false;
         }
 
@@ -248,8 +306,8 @@ bool ModBusBLMaster::flashFirmware(uint8_t slaveId,
     }
 
     /* VERIFY */
-    _sendFrame(slaveId, MBBP_CMD_VERIFY, NULL, 0);
-    if (_recvFrame(slaveId, rsp, &rlen, 5000) != MBBP_RSP_VERIFY_OK) {
+    if (!_transact(slaveId, MBBP_CMD_VERIFY, NULL, 0,
+                   MBBP_RSP_VERIFY_OK, rsp, &rlen, 5000)) {
         _setError("VERIFY failed");
         return false;
     }
@@ -272,28 +330,41 @@ bool ModBusBLMaster::updateFirmware(uint8_t slaveId, const uint8_t *firmware,
         skipTrigger ? "YES" : "no");
 
     if (!skipTrigger) {
-        if (!triggerBootloader(slaveId)) {
-            Log(ERROR, "[BL] triggerBootloader FAILED: %s\r\n", _lastError);
-            return false;
-        }
+        /* No ACK may just mean the device is already sitting in the bootloader
+           (e.g. after an earlier failed update), so try HELLO anyway. */
+        if (!triggerBootloader(slaveId))
+            Log(ERROR, "[BL] triggerBootloader FAILED: %s — trying bootloader HELLO anyway\r\n",
+                _lastError);
     } else {
         Log(NOTIFY, "[BL] skipping FC65 trigger — assuming device already in BL mode\r\n");
     }
 
-    for (uint8_t i = 0; i < connectRetries; i++) {
-        Log(NOTIFY, "[BL] connect attempt %u/%u\r\n", (unsigned)(i + 1), (unsigned)connectRetries);
-        if (connect(slaveId)) goto connected;
-        Log(ERROR, "[BL] connect attempt %u failed: %s — retrying in 200ms\r\n",
-            (unsigned)(i + 1), _lastError);
-        delay(200);
-    }
-    Log(ERROR, "[BL] connect FAILED after %u attempts\r\n", (unsigned)connectRetries);
-    _setError("connect failed after retries");
-    return false;
+    /* The bootloader accepts HELLO in any state, so a failed session is
+       restarted from scratch instead of leaving the device half-flashed. */
+    for (uint8_t s = 0; s < MBBP_SESSION_RETRIES; s++) {
+        bool connected = false;
+        for (uint8_t i = 0; i < connectRetries; i++) {
+            Log(NOTIFY, "[BL] connect attempt %u/%u\r\n", (unsigned)(i + 1), (unsigned)connectRetries);
+            if (connect(slaveId)) { connected = true; break; }
+            Log(ERROR, "[BL] connect attempt %u failed: %s — retrying in 200ms\r\n",
+                (unsigned)(i + 1), _lastError);
+            delay(200);
+        }
+        if (!connected) {
+            Log(ERROR, "[BL] connect FAILED after %u attempts\r\n", (unsigned)connectRetries);
+            _setError("connect failed after retries");
+            return false;
+        }
 
-connected:
-    Log(NOTIFY, "[BL] connected — starting flashFirmware\r\n");
-    bool ok = flashFirmware(slaveId, firmware, firmwareSize);
-    Log(ok ? NOTIFY : ERROR, "[BL] flashFirmware %s: %s\r\n", ok ? "OK" : "FAILED", _lastError);
-    return ok;
+        Log(NOTIFY, "[BL] connected — starting flashFirmware (session %u/%u)\r\n",
+            (unsigned)(s + 1), (unsigned)MBBP_SESSION_RETRIES);
+        if (flashFirmware(slaveId, firmware, firmwareSize)) {
+            Log(NOTIFY, "[BL] flashFirmware OK\r\n");
+            return true;
+        }
+        Log(ERROR, "[BL] flashFirmware FAILED: %s — restarting session\r\n", _lastError);
+        /* Give the bootloader time to finish its error blink before the next HELLO. */
+        delay(1000);
+    }
+    return false;
 }

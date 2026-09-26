@@ -43,11 +43,16 @@ public:
     void setProgressCallback(void (*cb)(uint8_t percent)) { _progressCb = cb; }
     const char *lastError() const { return _lastError; }
 
+    /* Bootloader version from the most recent successful HELLO
+     * (MBBP_BL_VERSION_LEGACY for bootloaders that don't report one). */
+    uint8_t blVersion() const { return _blVersion; }
+
 private:
     HardwareSerial &_serial;
     int8_t          _dirPin;
     void          (*_progressCb)(uint8_t percent);
     const char     *_lastError;
+    uint8_t         _blVersion = 0;
 
     void     _txEnable();
     void     _txDisable();
@@ -57,11 +62,19 @@ private:
                        const uint8_t *data, uint16_t dataLen);
     uint8_t _recvFrame(uint8_t expectedAddr, uint8_t *outData,
                        uint16_t *outLen, uint32_t timeoutMs = 2000);
+    /* Send a frame and wait for expectRsp, resending on timeout/garbled reply.
+       Only for idempotent commands (WRITE_PAGE, VERIFY). */
+    bool    _transact(uint8_t addr, uint8_t cmd, const uint8_t *data, uint16_t dataLen,
+                      uint8_t expectRsp, uint8_t *outData, uint16_t *outLen,
+                      uint32_t timeoutMs);
 
     uint16_t _modbusCalcCRC(const uint8_t *buf, uint8_t len);
     bool     _sendFC65(uint8_t slaveId);
 
     void _setError(const char *msg) { _lastError = msg; }
+    char _errBuf[64] = {};            /* backing store for formatted errors */
+    void _setErrorf(const char *fmt, ...);
+    static const char *_errName(uint8_t code);
 };
 
 #endif /* MODBUS_BL_MASTER_H */

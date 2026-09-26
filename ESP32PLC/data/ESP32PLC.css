@@ -244,6 +244,9 @@ html, body {
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
+  user-select: text;
+  resize: vertical;       /* drag the corner to make the log taller */
+  min-height: 150px;
 }
 
 /* ── Progress bar ────────────────────────────────────────── */

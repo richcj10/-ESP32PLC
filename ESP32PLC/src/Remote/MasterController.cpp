@@ -211,6 +211,51 @@ static bool _probeFC4(uint8_t addr, uint16_t* ver, uint16_t* tid) {
     return true;
 }
 
+// ── Direct bus access for the guided bootloader update ──────────────────────
+// Only valid while normal polling is suspended (the caller owns the bus).
+
+bool ProbeModbusAddr(uint8_t addr) { return _probeAddr(addr); }
+
+// FC16 write straight to the bus; true when the slave echoes a valid reply.
+bool RawWriteRegs(uint8_t addr, uint16_t startReg, const uint16_t* vals, uint8_t n) {
+    if (n == 0 || n > 8) return false;
+    uint8_t req[9 + 2 * 8 + 2];
+    uint8_t len = 0;
+    req[len++] = addr;
+    req[len++] = 0x10;
+    req[len++] = (uint8_t)(startReg >> 8);
+    req[len++] = (uint8_t)(startReg & 0xFF);
+    req[len++] = 0;
+    req[len++] = n;
+    req[len++] = (uint8_t)(n * 2);
+    for (uint8_t i = 0; i < n; i++) {
+        req[len++] = (uint8_t)(vals[i] >> 8);
+        req[len++] = (uint8_t)(vals[i] & 0xFF);
+    }
+    uint16_t crc = _mbCRC(req, len);
+    req[len++] = (uint8_t)(crc & 0xFF);
+    req[len++] = (uint8_t)(crc >> 8);
+
+    digitalWrite(MB_TX_EN, LOW);
+    while (Serial1.available()) Serial1.read();
+    digitalWrite(MB_TX_EN, HIGH);
+    delayMicroseconds(200);
+    Serial1.write(req, len);
+    Serial1.flush();                       // wait for the last stop bit
+    digitalWrite(MB_TX_EN, LOW);
+
+    // FC16 reply: addr, 0x10, start(2), count(2), crc(2) = 8 bytes
+    uint8_t resp[8]; uint8_t got = 0;
+    unsigned long t = millis();
+    while (got < 8 && millis() - t < 500) {
+        if (Serial1.available()) resp[got++] = (uint8_t)Serial1.read();
+        else delay(1);
+    }
+    if (got < 8 || resp[0] != addr || resp[1] != 0x10) return false;
+    uint16_t rc = (uint16_t)resp[6] | ((uint16_t)resp[7] << 8);
+    return rc == _mbCRC(resp, 6);
+}
+
 static volatile bool    _scanRunning = false;
 static volatile uint8_t _scanProg    = 0;
 static volatile uint8_t _scanTotal   = 0;

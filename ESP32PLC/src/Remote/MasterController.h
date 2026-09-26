@@ -35,6 +35,11 @@ const char* GetBusScanProbe();    // JSON array of {a,v,t} per responding device
 uint8_t     GetBusScanProgress(); // addresses probed so far
 uint8_t     GetBusScanTotal();    // total addresses in range
 
+/* ── Direct bus access (only while polling is suspended) ───────────────── */
+bool ProbeModbusAddr(uint8_t addr);                        // app answers FC03 at addr?
+bool RawWriteRegs(uint8_t addr, uint16_t startReg,         // FC16, waits for the reply
+                  const uint16_t* vals, uint8_t n);
+
 /* ── Device list for FW update UI ──────────────────────────────────────── */
 using FwDeviceInfo = RemoteMaster::DeviceInfo;
 

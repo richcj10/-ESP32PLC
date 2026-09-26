@@ -31,6 +31,11 @@
 #define MBBP_RSP_JUMP           0xC5
 #define MBBP_RSP_ERROR          0xFF
 
+/* HELLO reply payload: [pages_H][pages_L][bootloader version]. Bootloaders from
+ * before versioning send only the 2 page-count bytes — treat that as version 1.
+ * (Version value is defined by the bootloader: MBBP_BL_VERSION in ModBussLibrary_BL.) */
+#define MBBP_BL_VERSION_LEGACY  1
+
 /* ── Error codes ─────────────────────────────────────────────────────────── */
 #define MBBP_ERR_BAD_CRC        0x01
 #define MBBP_ERR_WRONG_MAGIC    0x02

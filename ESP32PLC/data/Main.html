@@ -291,7 +291,8 @@
       <div class="card" id="addr-change-card" style="display:none">
         <div class="card-title">Change Device Address</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
-          Current address: <strong id="addr-change-current">—</strong>
+          <strong id="addr-change-name">—</strong> — current address: <strong id="addr-change-current">—</strong><br>
+          Sends the new address to the device, checks it answers there, then updates Remote.json.
         </div>
         <div class="form-row">
           <label>New Address</label>
@@ -433,6 +434,11 @@
         <div class="terminal" id="history"></div>
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="ClearLog">Clear</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" title="Keep receiving lines but stop jumping to the bottom">
+            <input type="checkbox" id="log-pause"> Pause scroll
+          </label>
+          <button class="btn-ghost" onclick="copyLog(this)">Copy</button>
+          <button class="btn-ghost" onclick="saveLog()">Save .txt</button>
           <button class="btn-ghost" onclick="loadMem()">Refresh Mem</button>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);" title="Higher levels print more and slow the loop down — use Debug only while troubleshooting">
             Level
@@ -586,13 +592,37 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Device</th><th>ID</th><th>Stored FW</th><th>Upload</th><th>Flash</th>
+              <th>Device</th><th>ID</th><th>Stored FW</th><th>Upload</th><th>Flash</th><th>Bootloader</th>
             </tr>
           </thead>
           <tbody id="fw-body">
             <tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">Loading…</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="card" id="bl-card" style="display:none;">
+        <div class="card-title">Bootloader Update — <span id="bl-name"></span> (address <span id="bl-addr"></span>)</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+          Replaces the device's ModBusBL bootloader over RS-485, then puts the app back:
+          flash the updater &rarr; wait for the new bootloader &rarr; flash the app &rarr;
+          restore the address if it fell back to 200 &rarr; check the app answers.
+          <strong style="color:var(--yellow);">Keep the device powered until it finishes.</strong>
+        </div>
+        <div class="form-row">
+          <label style="min-width:130px;">Updater (.hex)</label>
+          <input type="file" id="bl-upd-file" accept=".hex,.bin" onchange="blUpload('blupd')">
+          <span class="status-text" id="bl-upd-state"></span>
+        </div>
+        <div class="form-row">
+          <label style="min-width:130px;">App (.hex)</label>
+          <input type="file" id="bl-app-file" accept=".hex,.bin" onchange="blUpload('app')">
+          <span class="status-text" id="bl-app-state"></span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-red" id="bl-start" onclick="startBlUpdate()">Start Bootloader Update</button>
+          <button class="btn-ghost" onclick="document.getElementById('bl-card').style.display='none'">Cancel</button>
+          <span class="status-text" id="bl-status"></span>
+        </div>
       </div>
       <div class="card">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
@@ -685,12 +715,18 @@ function _renderPeers(list) {
 }
 
 function showTab(id) {
+  if (!_panels[id]) return;
   Object.keys(_panels).forEach(function(k) {
     _panels[k].classList.remove('active');
     _btns[k].classList.remove('active');
   });
   _panels[id].classList.add('active');
   _btns[id].classList.add('active');
+  // Remember the tab in the address (#fw, #log, …) so a refresh or the reload
+  // after a reboot comes back here. replaceState: tab clicks don't pile up in Back.
+  if (location.hash !== '#' + id) {
+    try { history.replaceState(null, '', '#' + id); } catch (e) {}
+  }
   if (id === 'home') { loadHomeStats(); loadVersion(); _startIOPoll(); }
   else if (id === 'io') { _startIOPoll(); owLoad(true); }
   else { _stopIOPoll(); }
@@ -700,7 +736,7 @@ function showTab(id) {
   if (id === 'files')   loadFileList();
   if (id === 'fw')         loadFwDeviceList();
   if (id === 'app')        { appModLoad(); _initAppVisibility(); }
-  if (id === 'log')     { document.getElementById('history').innerHTML = ''; loadMem(); loadLogLevel(); }
+  if (id === 'log')     { loadLogHistory(); loadMem(); loadLogLevel(); }
 }
 
 /* ── WebSocket ──────────────────────────────────────────── */
@@ -725,7 +761,9 @@ socket.addEventListener('message', function(ev) {
     if (obj.FW_MSG) document.getElementById('fw-msg').innerText = obj.FW_MSG;
     if (obj.FW_DONE) {
       document.getElementById('fw-msg').innerText =
-        obj.FW_OK ? 'Update successful!' : 'FAILED: ' + (obj.FW_MSG || 'unknown');
+        obj.FW_OK ? (obj.FW_MSG && obj.FW_MSG !== 'Update complete' ? obj.FW_MSG : 'Update successful!')
+                  : 'FAILED: ' + (obj.FW_MSG || 'unknown');
+      if (_blId !== null) setStatus('bl-status', obj.FW_OK ? 'Done' : 'Failed — see message below', !obj.FW_OK);
       loadFwDeviceList();
     }
   }
@@ -1100,14 +1138,16 @@ function uploadFile() {
     .catch(function(e) { st.className = 'status-text status-err'; st.innerText = 'Error: ' + e; });
 }
 
+var _fwDevs = {};   // id -> row from /fw/list (for the bootloader card)
 function loadFwDeviceList() {
   fetch('/fw/list')
     .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(data) {
+      if (data.updating) { document.getElementById('fw-panel').style.display = 'block'; _fwWatch(); }
       var body = document.getElementById('fw-body');
       body.innerHTML = '';
       if (!data.devices || !data.devices.length) {
-        body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:12px 8px;">No devices configured</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" style="color:var(--muted);padding:12px 8px;">No devices configured</td></tr>';
         return;
       }
       data.devices.forEach(function(dev) {
@@ -1122,12 +1162,15 @@ function loadFwDeviceList() {
               '<button class="btn-ghost" onclick="document.getElementById(\'fw-file-' + dev.id + '\').click()">Upload</button></td>' +
           '<td><button class="btn-ghost" id="fw-flash-' + dev.id + '" ' + (flashOk ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"') +
               ' onclick="flashFw(' + dev.id + ')">Flash</button></td>' +
+          '<td><button class="btn-ghost" ' + (data.updating ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '') +
+              ' onclick="showBlUpdate(' + dev.id + ')">Update BL</button></td>' +
           '</tr>';
+        _fwDevs[dev.id] = dev;
       });
     })
     .catch(function(e) {
       document.getElementById('fw-body').innerHTML =
-        '<tr><td colspan="5" style="color:var(--red);padding:10px 8px;">Error: ' + e.message + '</td></tr>';
+        '<tr><td colspan="6" style="color:var(--red);padding:10px 8px;">Error: ' + e.message + '</td></tr>';
     });
 }
 
@@ -1154,6 +1197,102 @@ function uploadFw(slaveId) {
   xhr.send(form);
 }
 
+/* ── Guided bootloader update ─────────────────────────────── */
+var _blId = null;
+function _blRefresh() {
+  var dev = _fwDevs[_blId];
+  if (!dev) return;
+  var kb = function(b) { return (b / 1024).toFixed(1) + ' KB'; };
+  var badImg = dev.hasBl && !dev.blTarget;   // no 'MBBL' version record inside — not a ModBusBLUpdater v2+ image
+  setStatus('bl-upd-state', !dev.hasBl ? 'Not uploaded'
+                            : badImg ? 'Stored ' + kb(dev.blSize) + ' — no bootloader version inside (wrong file?)'
+                            : 'Stored ' + kb(dev.blSize) + ' — installs bootloader v' + dev.blTarget,
+            !dev.hasBl || badImg);
+  setStatus('bl-app-state', dev.hasFw ? 'Stored ' + kb(dev.fwSize) + ' (same as the Flash column)' : 'Not uploaded', !dev.hasFw);
+  var ready = dev.hasBl && dev.hasFw && !!dev.blTarget;
+  var btn = document.getElementById('bl-start');
+  btn.disabled = !ready;
+  btn.style.opacity = ready ? '' : '0.35';
+}
+function showBlUpdate(id) {
+  _blId = id;
+  var dev = _fwDevs[id] || { name: 'Device ' + id };
+  document.getElementById('bl-name').innerText = dev.name;
+  document.getElementById('bl-addr').innerText = id;
+  document.getElementById('bl-upd-file').value = '';
+  document.getElementById('bl-app-file').value = '';
+  setStatus('bl-status', '');
+  _blRefresh();
+  var card = document.getElementById('bl-card');
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function blUpload(slot) {
+  var input = document.getElementById(slot === 'blupd' ? 'bl-upd-file' : 'bl-app-file');
+  var file = input.files[0];
+  if (!file) return;
+  var stateId = slot === 'blupd' ? 'bl-upd-state' : 'bl-app-state';
+  setStatus(stateId, 'Uploading…');
+  var form = new FormData();
+  form.append('fw', file, file.name);
+  var xhr = new XMLHttpRequest();
+  xhr.onload = function() {
+    var d;
+    try { d = JSON.parse(xhr.responseText); } catch (ex) { d = { ok: false, msg: xhr.responseText }; }
+    if (!d.ok) { setStatus(stateId, 'Failed: ' + d.msg, true); return; }
+    fetch('/fw/list').then(function(r) { return r.json(); }).then(function(l) {
+      (l.devices || []).forEach(function(dv) { _fwDevs[dv.id] = dv; });
+      _blRefresh();
+      loadFwDeviceList();
+    });
+  };
+  xhr.onerror = function() { setStatus(stateId, 'Upload error', true); };
+  xhr.open('POST', '/fw/upload?id=' + _blId + (slot === 'blupd' ? '&slot=blupd' : ''));
+  xhr.send(form);
+}
+function startBlUpdate() {
+  var dev = _fwDevs[_blId] || {};
+  if (!confirm('Replace the bootloader on ' + (dev.name || 'device') + ' (address ' + _blId + ')?\n\n' +
+               'Modbus polling pauses for about a minute. Keep the device powered — a power loss while the ' +
+               'bootloader is being rewritten leaves it needing the ISP programmer.')) return;
+  setStatus('bl-status', 'Starting…');
+  document.getElementById('fw-panel').style.display = 'block';
+  document.getElementById('fw-msg').innerText = 'Bootloader update for ' + _blId + ' starting…';
+  setFwProgress(0);
+  fetch('/fw/blupdate?id=' + _blId, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      setStatus('bl-status', d.ok ? 'Running — progress below' : 'Error: ' + d.msg, !d.ok);
+      if (d.ok) { loadFwDeviceList(); _fwWatch(); }
+    })
+    .catch(function(e) { setStatus('bl-status', 'Error: ' + e, true); });
+}
+
+/* Poll the job while it runs — the WebSocket can drop messages, so this is what
+   guarantees the page reaches the final result. */
+var _fwPollTimer = null;
+function _fwWatch() {
+  if (_fwPollTimer) return;
+  _fwPollTimer = setInterval(function() {
+    fetch('/fw/list', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(d) {
+      var msgEl = document.getElementById('fw-msg');
+      if (d.updating) {
+        setFwProgress(d.progress || 0);
+        if (d.msg) msgEl.innerText = d.msg;
+        return;
+      }
+      clearInterval(_fwPollTimer); _fwPollTimer = null;
+      if (d.done) {
+        setFwProgress(d.ok ? 100 : (d.progress || 0));
+        msgEl.innerText = d.ok ? (d.msg && d.msg !== 'Update complete' ? d.msg : 'Update successful!')
+                               : 'FAILED: ' + (d.msg || 'unknown');
+        if (_blId !== null) setStatus('bl-status', d.ok ? 'Done' : 'Failed — see message below', !d.ok);
+      }
+      loadFwDeviceList();
+    }).catch(function() {});   // device busy or restarting — keep polling
+  }, 1000);
+}
+
 function flashFw(slaveId) {
   var skipTrigger = document.getElementById('fw-skip-trigger').checked;
   var msg = 'Flash firmware to device ID ' + slaveId + '?\nModbus polling pauses during update.';
@@ -1166,7 +1305,10 @@ function flashFw(slaveId) {
   var url = '/fw/flash?id=' + slaveId + (skipTrigger ? '&skip_trigger=1' : '');
   fetch(url, { method:'POST' })
     .then(function(r) { return r.json(); })
-    .then(function(d) { if (!d.ok) document.getElementById('fw-msg').innerText = 'Error: ' + d.msg; })
+    .then(function(d) {
+      if (!d.ok) document.getElementById('fw-msg').innerText = 'Error: ' + d.msg;
+      else _fwWatch();
+    })
     .catch(function(e) { document.getElementById('fw-msg').innerText = 'Flash error: ' + e; });
 }
 
@@ -1180,51 +1322,74 @@ var MBBP_ADDR_CHANGE_KEY = 0xA5B0;  // matches ModBusBL2000 firmware
 function showAddrChange(devIdx) {
   _addrChangeIdx = devIdx;
   var dev = _devList[devIdx];
+  document.getElementById('addr-change-name').innerText = dev.name || 'Device';
   document.getElementById('addr-change-current').innerText = dev.address;
   document.getElementById('addr-change-new').value = '';
   setStatus('addr-change-status', '');
   document.getElementById('addr-change-card').style.display = 'block';
 }
 
+// Scan a single address; resolves true if a device answered there.
+function _probeAddress(addr) {
+  return fetch('/api/devices/scan?from=' + addr + '&to=' + addr, { method: 'POST' })
+    .then(function() {
+      return new Promise(function(resolve) {
+        var tries = 0;
+        (function poll() {
+          fetch('/api/devices/scan', { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(d) {
+            if (d.running && ++tries < 20) { setTimeout(poll, 400); return; }
+            resolve((d.addresses || []).indexOf(addr) >= 0);
+          }).catch(function() { resolve(false); });
+        })();
+      });
+    });
+}
+
 function sendAddrChange() {
   var dev     = _devList[_addrChangeIdx];
+  var oldAddr = dev.address;
   var newAddr = parseInt(document.getElementById('addr-change-new').value, 10);
-  if (isNaN(newAddr) || newAddr < 1 || newAddr > 247) {
-    setStatus('addr-change-status', 'Address must be 1–247', true); return;
-  }
-  setStatus('addr-change-status', 'Sending…');
-  fetch('/api/modbus/write-regs', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ addr: dev.address, startReg: 0,
-                           values: [newAddr, MBBP_ADDR_CHANGE_KEY] })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (!d.ok) { setStatus('addr-change-status', 'Write failed: ' + (d.msg || ''), true); return; }
-    setStatus('addr-change-status', 'Sent — updating config…');
-    setTimeout(function() {
-      dev.address = newAddr;
-      var body = { rev: '2.0', devices: _devList.map(function(d) {
-        var c = Object.assign({}, d); delete c.status; delete c.statusDetail; return c;
-      })};
-      fetch('/api/devices/save', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.ok) {
-          document.getElementById('addr-change-card').style.display = 'none';
-          loadDeviceList();
-        } else {
-          setStatus('addr-change-status', 'Config save failed: ' + (d.msg || ''), true);
-        }
-      })
-      .catch(function(e) { setStatus('addr-change-status', 'Save error: ' + e, true); });
-    }, 1500);
-  })
-  .catch(function(e) { setStatus('addr-change-status', 'Error: ' + e, true); });
+  var st = function(t, err) { setStatus('addr-change-status', t, err); };
+
+  if (isNaN(newAddr) || newAddr < 1 || newAddr > 247) { st('Address must be 1–247', true); return; }
+  if (newAddr === oldAddr) { st('That is already its address', true); return; }
+  var clash = _devList.filter(function(d) { return d !== dev && d.address === newAddr; })[0];
+  if (clash) { st('Address ' + newAddr + ' is already used by ' + (clash.name || 'another device'), true); return; }
+  if (!confirm('Change ' + (dev.name || 'device') + ' from address ' + oldAddr + ' to ' + newAddr + '?')) return;
+
+  st('Checking ' + newAddr + ' is free on the bus…');
+  _probeAddress(newAddr).then(function(taken) {
+    if (taken) { st('Something already answers at ' + newAddr + ' — pick another address', true); throw 'stop'; }
+    st('Sending new address to the device…');
+    return fetch('/api/modbus/write-regs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ addr: oldAddr, startReg: 0, values: [newAddr, MBBP_ADDR_CHANGE_KEY] })
+    }).then(function(r) { return r.json(); });
+  }).then(function(d) {
+    if (!d.ok) { st('Write failed: ' + (d.msg || ''), true); throw 'stop'; }
+    st('Sent — checking the device answers at ' + newAddr + '…');
+    return new Promise(function(r) { setTimeout(r, 1500); }).then(function() { return _probeAddress(newAddr); });
+  }).then(function(found) {
+    if (!found) {
+      st('No reply at ' + newAddr + ' — config not changed. The device may not support address change, ' +
+         'or kept address ' + oldAddr + '.', true);
+      throw 'stop';
+    }
+    st('Device answers at ' + newAddr + ' — saving Remote.json…');
+    dev.address = newAddr;
+    var body = { rev: '2.0', devices: _devList.map(function(d) {
+      var c = Object.assign({}, d); delete c.status; delete c.statusDetail; delete c.statusTip; return c;
+    })};
+    return fetch('/api/devices/save', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(function(r) { return r.json(); });
+  }).then(function(d) {
+    if (!d.ok) { st('Device moved, but saving Remote.json failed: ' + (d.msg || '') +
+                     ' — use Edit to set address ' + newAddr, true); return; }
+    document.getElementById('addr-change-card').style.display = 'none';
+    loadDeviceList();
+    showPendingRestartBanner();   // polling uses the new address after restart
+  }).catch(function(e) { if (e !== 'stop') st('Error: ' + e, true); });
 }
 // GitHub device library — browser fetches directly (zero MCU flash cost).
 var DEVICE_LIBRARY_URL = 'https://raw.githubusercontent.com/richcj10/ESP32PLC-DeviceLibrary/main/devices.json';
@@ -1306,7 +1471,7 @@ function renderDeviceList() {
         'onclick="showLiveData(' + (dev.address !== undefined ? dev.address : 'undefined') + ')">Live</button>' +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
         'onclick="editDevice(' + i + ')">Edit</button>' +
-        (dev.status === 'valid' ?
+        (['valid', 'invalid', 'type_mismatch'].indexOf(dev.status) >= 0 ?   // device is answering
           '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;margin-right:4px;" ' +
           'onclick="showAddrChange(' + i + ')">Addr</button>' : '') +
         '<button class="btn-ghost" style="padding:3px 8px;font-size:12px;" ' +
@@ -1756,11 +1921,63 @@ function ledOff() {
 }
 
 /* ── Log ────────────────────────────────────────────────── */
+var LOG_MAX_LINES = 2000;   // older lines are dropped so a long session stays fast
 function appendLog(data) {
   var el = document.getElementById('history');
   if (data.charAt(data.length - 1) !== '\n') data += '\n';   // newer firmware sends bare lines
-  el.innerText += data;
-  el.scrollTop = el.scrollHeight;
+  el.appendChild(document.createTextNode(data));             // no full re-render per line
+  while (el.childNodes.length > LOG_MAX_LINES) el.removeChild(el.firstChild);
+  if (!document.getElementById('log-pause').checked) el.scrollTop = el.scrollHeight;
+}
+
+// On opening the Log tab, start from the device's recent-lines buffer (/log keeps
+// the last 64) instead of an empty terminal; live lines append after it.
+function loadLogHistory() {
+  var el = document.getElementById('history');
+  fetch('/log', { cache: 'no-store' }).then(function(r) { return r.text(); }).then(function(t) {
+    el.textContent = '';
+    t.split('\n').forEach(function(line) { if (line) appendLog(line); });
+  }).catch(function() { el.textContent = ''; });
+}
+
+function _logText() {
+  return document.getElementById('history').textContent;
+}
+
+// Copy the whole log. navigator.clipboard only exists on HTTPS/localhost, and the
+// device is plain http://, so fall back to a hidden textarea + execCommand('copy').
+function copyLog(btn) {
+  var text = _logText();
+  var done = function(ok) {
+    var old = btn.innerText;
+    btn.innerText = ok ? 'Copied!' : 'Copy failed';
+    setTimeout(function() { btn.innerText = old; }, 1500);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(function() { done(true); }, function() { done(false); });
+    return;
+  }
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  done(ok);
+}
+
+function saveLog() {
+  var host = (document.getElementById('h-host') || {}).innerText || 'esp32plc';
+  var ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+  var blob = new Blob([_logText()], { type: 'text/plain' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = host.replace(/[^\w-]/g, '_') + '-log-' + ts + '.txt';
+  document.body.appendChild(a); a.click();
+  setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 /* Log level — applies immediately on the device and is saved in NVS */
@@ -1779,7 +1996,7 @@ function setLogLevel(v) {
 }
 
 document.getElementById('ClearLog').addEventListener('click', function() {
-  document.getElementById('history').innerText = '';
+  document.getElementById('history').textContent = '';
 });
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -2190,6 +2407,17 @@ function fwSetInputTrigger(enabled) {
 setInterval(function() {
   if (document.getElementById('tab-app').classList.contains('active') && _appModOn('fireworks')) fwLoad();
 }, 2000);
+
+/* Open the tab from the address (#fw etc.) — runs last so everything the tab's
+   loaders use is defined. Also follows a hash typed into the address bar. */
+(function() {
+  var t = location.hash.slice(1);
+  if (t && _panels[t] && t !== 'home') showTab(t);
+  window.addEventListener('hashchange', function() {
+    var h = location.hash.slice(1);
+    if (h && _panels[h] && !_panels[h].classList.contains('active')) showTab(h);
+  });
+})();
 </script>
 </body>
 </html>
