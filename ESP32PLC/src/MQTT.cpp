@@ -19,6 +19,13 @@ char MQTTLockout = 0;
 char temp[50];
 char ErrorCounter = 0;
 
+// SendLocalIO state — on-change publish + hourly heartbeat (see SendLocalIO)
+#define IO_HEARTBEAT_MS  (60UL * 60UL * 1000UL)   // 1 hour
+#define IO_MAX_INPUTS    32
+static int8_t        _ioLast[IO_MAX_INPUTS];
+static unsigned long _ioLastBeat = 0;
+static bool          _ioForceAll = true;           // set on (re)connect → publish all
+
 /* Persistent server IP buffer — PubSubClient keeps a pointer, must outlive setServer() */
 static char _mqttServerBuf[40] = {};
 
@@ -160,6 +167,7 @@ void MqttLoop(void) {
     if (client.connected()) {
         client.loop();
     } else {
+        MQTTActive = 0;   // connection dropped — stop publishers until reconnected
         MQTTreconnect();
     }
 }
@@ -197,6 +205,7 @@ void MQTTreconnect(void) {
         Log(NOTIFY, "MQTT: connecting...\r\n");
         if (client.connect(GetClientId().c_str(), user.c_str(), pass.c_str())) {
             MQTTActive = 1;
+            _ioForceAll = true;   // republish all inputs after (re)connect
             Log(LOG, "MQTT: connected\r\n");
             char subTopic[128];
 
@@ -420,19 +429,37 @@ char GetMQTTStatus(void) {
     return MQTTActive;
 }
 
+// Live state for the web UI: "disabled" | "connected" | "connecting" | "ap_mode" | "failed"
+const char* GetMQTTState(void) {
+    if (!GetMQTTEnabled())        return "disabled";
+    if (client.connected())       return "connected";
+    if (GetWiFiStatus() != 1)     return "ap_mode";   // running its own AP — no route to broker
+    if (MQTTLockout)              return "failed";
+    return "connecting";
+}
+
 // ----------------------------------------------------------------
-// SendLocalIO — publishes all shield input states
+// SendLocalIO — publishes shield input states
 // Topic: ESPPLC/<host>/io/in/<n>   Payload: "0" or "1"
-// Call from main loop on a slow timer (e.g. every 2 s).
+// Publishes an input only when it changes, plus all inputs on every
+// (re)connect and as an hourly heartbeat. Cheap enough to call every loop.
 // ----------------------------------------------------------------
 void SendLocalIO() {
     if (!MQTTActive) return;
+
+    bool all = _ioForceAll || (millis() - _ioLastBeat >= IO_HEARTBEAT_MS);
+    if (all) { _ioForceAll = false; _ioLastBeat = millis(); }
+
     char topic[80];
-    char buf[2];
-    for (uint8_t n = 0; n < GetInputCount(); n++) {
+    char buf[2] = {0, 0};
+    uint8_t cnt = GetInputCount();
+    if (cnt > IO_MAX_INPUTS) cnt = IO_MAX_INPUTS;
+    for (uint8_t n = 0; n < cnt; n++) {
+        int8_t v = GetInput(n) ? 1 : 0;
+        if (!all && v == _ioLast[n]) continue;
+        _ioLast[n] = v;
         snprintf(topic, sizeof(topic), "%s/io/in/%u", _mqttBase, (unsigned)n);
-        buf[0] = GetInput(n) ? '1' : '0';
-        buf[1] = '\0';
+        buf[0] = v ? '1' : '0';
         client.publish(topic, buf);
     }
 }

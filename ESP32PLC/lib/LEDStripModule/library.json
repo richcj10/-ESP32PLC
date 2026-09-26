@@ -1,0 +1,6 @@
+{
+  "name": "LEDStripModule",
+  "version": "1.0.0",
+  "description": "ESP32PLC app: WS2812 LED strip with DDP + MQTT control",
+  "build": { "libArchive": false, "libLDFMode": "deep+" }
+}

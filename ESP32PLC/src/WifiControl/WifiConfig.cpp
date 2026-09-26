@@ -127,14 +127,19 @@ static void startAP(bool recovery) {
     SetMQTTLockout(true);
     String apSsid = sanitizeHostname(GetHostName());
     Log(LOG, "WiFi: AP mode — SSID=%s\r\n", apSsid.c_str());
-    Log(NOTIFY, "WiFi: AP password — %s\r\n", GetAPPassword().c_str());
+    if (IsAPOpen())
+        Log(NOTIFY_FORCE, "WiFi: AP is OPEN (no password) after button reset — save WiFi settings to secure it\r\n");
+    else
+        // FORCE: must reach the serial port at any log level — it's how you
+        // find the password on a unit with a dead LCD
+        Log(NOTIFY_FORCE, "WiFi: AP password — %s\r\n", GetAPPassword().c_str());
     WiFi.disconnect(true);
     delay(250);
     WiFi.mode(WIFI_AP);
     delay(250);
     WiFi.setHostname(apSsid.c_str());
-    String apPass = GetAPPassword();
-    if (!WiFi.softAP(apSsid.c_str(), apPass.c_str()))
+    String apPass = GetAPPassword();   // empty = open network
+    if (!WiFi.softAP(apSsid.c_str(), apPass.length() ? apPass.c_str() : nullptr))
         Log(ERROR, "WiFi: softAP() FAILED — SSID=%s pass_len=%u\r\n",
             apSsid.c_str(), (unsigned)apPass.length());
     Log(LOG, "WiFi: AP IP %s\r\n", WiFi.softAPIP().toString().c_str());
@@ -207,7 +212,9 @@ String GetMACStr() {
 
 String GetSanitizedHostname() { return sanitizeHostname(GetHostName()); }
 
+// Empty string = open AP (after a boot-button reset, see IsAPOpen()).
 String GetAPPassword() {
+    if (IsAPOpen()) return String();
     byte mac[6];
     WiFi.macAddress(mac);
     char buf[9];  // 8 hex chars — WPA2 minimum is 8

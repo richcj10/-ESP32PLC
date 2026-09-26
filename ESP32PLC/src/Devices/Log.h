@@ -11,6 +11,12 @@
 void LogSetup(char DebugLevel, bool WebPage);
 char Log(char level,const char* format, ...);
 
+// Runtime log level (ERROR..DEBUG). Lines above this level are dropped
+// before any formatting, so a quiet level costs one compare per Log() call.
+extern volatile uint8_t g_logLevel;
+void    LogSetLevel(uint8_t level);
+uint8_t LogGetLevel();
+
 // PSRAM-backed ring buffer — call LogRingInit() once before Log() is used
 void        LogRingInit();
 uint8_t     LogRingCount();

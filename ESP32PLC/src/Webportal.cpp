@@ -15,9 +15,11 @@
 #include "HAL/Digital/Digital.h"
 #include "HAL/DeviceConfig.h"
 #include "Modules/ModuleManager.h"
+#include "MQTT.h"
 
 #include "Devices/Log.h"
 #include <esp_heap_caps.h>
+#include <nvs.h>
 
 // ArduinoJson allocator that uses PSRAM so large device configs don't
 // exhaust internal DRAM.  Falls back to internal heap if PSRAM is full.
@@ -385,11 +387,24 @@ void WebStart(){
     size_t psMin     = ps.minimum_free_bytes;
     size_t psLargest = ps.largest_free_block;
 
+    // NVS usage is counted in 32-byte entries (a string takes 1 + ceil(len/32))
+    nvs_stats_t ns = {};
+    nvs_get_stats(NULL, &ns);
+
+    // Main-loop timing since the previous /api/mem call
+    uint32_t lMax, lPeak, lAvg, lHz;
+    LoopStatsRead(&lMax, &lPeak, &lAvg, &lHz);
+
     resp->printf(
       "{\"heap\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u},"
-       "\"psram\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u}}",
+       "\"psram\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u},"
+       "\"nvs\":{\"total\":%u,\"used\":%u,\"free\":%u,\"namespaces\":%u},"
+       "\"loop\":{\"max_us\":%u,\"peak_us\":%u,\"avg_us\":%u,\"per_sec\":%u}}",
       heapTotal, heapFree, heapMin, heapLargest,
-      psTotal,   psFree,   psMin,   psLargest);
+      psTotal,   psFree,   psMin,   psLargest,
+      (unsigned)ns.total_entries, (unsigned)ns.used_entries,
+      (unsigned)ns.free_entries,  (unsigned)ns.namespace_count,
+      (unsigned)lMax, (unsigned)lPeak, (unsigned)lAvg, (unsigned)lHz);
 
     req->send(resp);
   });
@@ -457,11 +472,12 @@ void WebStart(){
 
   /* ── Config: GET /config/mqtt ──────────────────────────────────────────── */
   server.on("/config/mqtt", HTTP_GET, [](AsyncWebServerRequest *req) {
-    char buf[200];
+    char buf[240];
     snprintf(buf, sizeof(buf),
-        "{\"enabled\":%s,\"ip\":\"%s\",\"port\":%u,\"user\":\"%s\"}",
+        "{\"enabled\":%s,\"ip\":\"%s\",\"port\":%u,\"user\":\"%s\",\"state\":\"%s\"}",
         GetMQTTEnabled() ? "true" : "false",
-        GetMQTTIP().c_str(), (unsigned)GetMQTTPort(), GetMQTTUser().c_str());
+        GetMQTTIP().c_str(), (unsigned)GetMQTTPort(), GetMQTTUser().c_str(),
+        GetMQTTState());
     req->send(200, "application/json", buf);
   });
 
@@ -497,8 +513,9 @@ void WebStart(){
 
   /* ── Config: GET /config/backup — download full config as JSON file ──────── */
   server.on("/config/backup", HTTP_GET, [](AsyncWebServerRequest *req) {
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<768> doc;
     doc["device"] = GetHostName();
+    doc["label"]  = GetDeviceLabel();
     JsonObject w  = doc.createNestedObject("wifi");
     w["mode"] = GetWiFiMode();
     w["ssid"] = GetSSID();
@@ -510,7 +527,7 @@ void WebStart(){
     m["port"]    = GetMQTTPort();
     m["user"]    = GetMQTTUser();
     m["pass"]    = GetMQTTPassword();
-    char buf[512];
+    char buf[768];
     serializeJson(doc, buf, sizeof(buf));
     AsyncWebServerResponse *resp = req->beginResponse(200, "application/json", buf);
     resp->addHeader("Content-Disposition",
@@ -527,6 +544,10 @@ void WebStart(){
         return;
       }
       bool saved = false;
+      if (doc["label"].is<const char*>()) {
+        SetDeviceLabel(doc["label"]);
+        saved = true;
+      }
       if (doc.containsKey("wifi")) {
         JsonObject w = doc["wifi"];
         SaveWiFiConfig(w["mode"] | (uint8_t)2,
@@ -992,25 +1013,22 @@ void WebStart(){
     }
   );
 
-  /* GET /api/label  — read device label from LittleFS */
+  /* GET /api/label  — read device label from NVS */
   server.on("/api/label", HTTP_GET, [](AsyncWebServerRequest* req) {
-    String label = "";
-    if (LittleFS.exists("/label.txt")) {
-      File f = LittleFS.open("/label.txt", "r");
-      if (f) { label = f.readString(); f.close(); }
-    }
-    req->send(200, "application/json", "{\"label\":\"" + label + "\"}");
+    StaticJsonDocument<192> doc;
+    doc["label"] = GetDeviceLabel();
+    String out;
+    serializeJson(doc, out);   // escapes quotes/backslashes in the label
+    req->send(200, "application/json", out);
   });
 
-  /* POST /api/label  — save device label to LittleFS */
+  /* POST /api/label  — save device label to NVS (survives filesystem uploads) */
   server.on("/api/label", HTTP_POST, [](AsyncWebServerRequest*){},
     nullptr,
     [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
-      StaticJsonDocument<128> doc;
+      StaticJsonDocument<192> doc;
       if (deserializeJson(doc, data, len) != DeserializationError::Ok) { req->send(400); return; }
-      const char* label = doc["label"] | "";
-      File f = LittleFS.open("/label.txt", "w");
-      if (f) { f.print(label); f.close(); }
+      SetDeviceLabel(doc["label"] | "");
       req->send(200, "application/json", "{\"ok\":true}");
     }
   );
@@ -1073,20 +1091,27 @@ void WebStart(){
   });
   /* GET /api/debug/settings */
   server.on("/api/debug/settings", HTTP_GET, [](AsyncWebServerRequest* req) {
-    char buf[48];
-    snprintf(buf, sizeof(buf), "{\"joy_cal\":%s}", GetJoyCalPageEnabled() ? "true" : "false");
+    char buf[64];
+    snprintf(buf, sizeof(buf), "{\"joy_cal\":%s,\"log_level\":%u}",
+             GetJoyCalPageEnabled() ? "true" : "false", (unsigned)LogGetLevel());
     req->send(200, "application/json", buf);
   });
 
-  /* POST /api/debug/settings  body: {"joy_cal":true} */
+  /* POST /api/debug/settings  body: {"joy_cal":true} and/or {"log_level":1..4}
+   * log_level applies immediately (no restart) and is saved to NVS. */
   server.on("/api/debug/settings", HTTP_POST,
-    [](AsyncWebServerRequest* req) { req->send(200, "application/json", "{\"ok\":true}"); },
+    [](AsyncWebServerRequest*) {},   // response sent from the body handler
     nullptr,
     [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t, size_t) {
         StaticJsonDocument<64> doc;
         if (deserializeJson(doc, data, len) == DeserializationError::Ok) {
             if (doc.containsKey("joy_cal"))
                 SetJoyCalPageEnabled(doc["joy_cal"].as<bool>());
+            if (doc.containsKey("log_level")) {
+                LogSetLevel(doc["log_level"].as<uint8_t>());
+                SetSavedLogLevel(LogGetLevel());
+                Log(NOTIFY_FORCE, "Log level set to %u", (unsigned)LogGetLevel());
+            }
         }
         req->send(200, "application/json", "{\"ok\":true}");
     });
@@ -1098,60 +1123,26 @@ void WebStart(){
   server.begin();
 }
 
+// Periodic WebSocket housekeeping. (This used to push an empty "{}" status
+// frame every 2 s — its fields had all moved to REST endpoints like /api/io.)
 void WebHandel(){
-  if((millis() - LastTime) > 2000){
+  if ((millis() - LastTime) > 2000) {
     LastTime = millis();
-    if(wsconnected == true){
-      lastButtonState = digitalRead(USER_SW);
-      jsonDocTx.clear();
-      //jsonDocTx["SSID"] = GetSSID();
-      //jsonDocTx["IP"] = GetIPStr();
-      //jsonDocTx["HN"] = GetHostName();
-      //jsonDocTx["RSSI"] = GetRSSIStr();
-      //jsonDocTx["MAC"] = GetMACStr();
-      //jsonDocTx["Temp"]  — served via GET /api/io instead
-      //jsonDocTx["Humid"] — served via GET /api/io instead
-      //jsonDocTx["button"] = lastButtonState;
-      //jsonDocTx["Input1"] = lastButtonState;
-      //jsonDocTx["Input2"] = lastButtonState;
-      //jsonDocTx["Input3"] = lastButtonState;
-      //jsonDocTx["Input4"] = lastButtonState;
-      //jsonDocTx["Output1"] = lastButtonState;
-      //jsonDocTx["Output2"] = lastButtonState;
-      //jsonDocTx["Output3"] = lastButtonState;
-      //jsonDocTx["Output4"] = lastButtonState;
-
-      serializeJson(jsonDocTx, output, OUTPUT_BUF_SIZE);
-
-      Log(DEBUG,"Sending Data\r\n");
-      if (ws.availableForWriteAll()) {
-        ws.textAll(output);
-        Log(DEBUG,"Data Sent\r\n");
-      } 
-      else {
-        Log(DEBUG,"Data que\r\n");
-      }
-    }
+    ws.cleanupClients();   // free closed/dead clients — AsyncWebSocket needs this called
   }
 }
 
-char WebLogSend(String LogString){
-  if(wsconnected == true){
-    //Serial.println(LogString);
-    jsonDocTx.clear();
-    jsonDocTx["Type"] = 10; //Log Send Command
-    jsonDocTx["LOG"] = LogString + "\n";//\n";
-    serializeJson(jsonDocTx, output, OUTPUT_BUF_SIZE);
-    if (ws.availableForWriteAll()) {
-      ws.textAll(output);
-        //Log(NOTIFY,"Sent Log");
-    } 
-/*       else {
-        Log(ERROR,"Queue Is Full");
-      } */
-    return 1;
-  }
-  return 0;
+// Called from Log() on any task — uses local buffers, not the shared jsonDocTx/output.
+// Skips (drops the line) when the WebSocket queue is full rather than waiting.
+char WebLogSend(const char* line){
+  if (ws.count() == 0 || !ws.availableForWriteAll()) return 0;
+  StaticJsonDocument<64> doc;           // line is stored by pointer, not copied
+  doc["Type"] = 10;                     // Log Send Command
+  doc["LOG"]  = line;
+  char buf[320];
+  serializeJson(doc, buf, sizeof(buf));   // no trailing newline — appendLog() adds it
+  ws.textAll(buf);
+  return 1;
 }
 
 void WSRunJSON(){

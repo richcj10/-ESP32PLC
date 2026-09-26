@@ -30,13 +30,19 @@ uint16_t GetMQTTPort()          { return mqconfig.MQTTPort; }
 bool SaveWiFiConfig(uint8_t mode, const char* ssid, const char* pass, const char* host) {
     wfconfig.WIFIMode = mode;
     strlcpy(wfconfig.SSID,     ssid ? ssid : "", sizeof(wfconfig.SSID));
-    strlcpy(wfconfig.Passcode, pass ? pass : "", sizeof(wfconfig.Passcode));
+    // Blank password = keep the stored one. The web page never sends the saved
+    // password back to the browser, so a save with the field left blank must NOT
+    // wipe it. Pass a real password only to change it.
+    if (pass && pass[0])
+        strlcpy(wfconfig.Passcode, pass, sizeof(wfconfig.Passcode));
     if (host && host[0])
         strlcpy(wfconfig.Host, host, sizeof(wfconfig.Host));
     wfconfig.SSIDLN  = strlen(wfconfig.SSID);
     wfconfig.PswdLN  = strlen(wfconfig.Passcode);
     wfconfig.HoastLN = strlen(wfconfig.Host);
     WifisaveConfiguration(&wfconfig);
+    // User configured WiFi from the web — the open AP after a button reset is no longer needed
+    if (IsAPOpen()) SetAPOpen(false);
     // Clear forced-AP flag whenever mode changes away from AP via any path.
     if (mode != WIFI_AP_MODE) LittleFS.remove("/forced_ap.flag");
     Log(LOG, "Config: WiFi saved (mode=%u ssid=%s)\r\n", mode, wfconfig.SSID);
@@ -76,13 +82,84 @@ void SetJoyCalPageEnabled(bool en) {
     p.end();
 }
 
+// Log level (1=ERROR .. 4=DEBUG) — read once at boot, written when changed on the web
+uint8_t GetSavedLogLevel() {
+    Preferences p; p.begin("debug", true);
+    uint8_t v = p.getUChar("log_lvl", LOG);
+    p.end(); return v;
+}
+void SetSavedLogLevel(uint8_t level) {
+    Preferences p; p.begin("debug", false);
+    p.putUChar("log_lvl", level);
+    p.end();
+}
+
+// ── Device label ──────────────────────────────────────────────────────────────
+// Stored in NVS so a filesystem upload does not wipe it.
+// Falls back to legacy /label.txt once, then migrates.
+String GetDeviceLabel() {
+    Preferences p; p.begin("device", true);
+    bool found = p.isKey("label");
+    String v = found ? p.getString("label", "") : String();
+    p.end();
+    if (found) return v;
+
+    if (LittleFS.exists("/label.txt")) {
+        File f = LittleFS.open("/label.txt", "r");
+        if (f) { v = f.readString(); f.close(); }
+        SetDeviceLabel(v.c_str());
+        LittleFS.remove("/label.txt");
+        Log(LOG, "NVS: device label migrated from label.txt\r\n");
+    }
+    return v;
+}
+
+void SetDeviceLabel(const char* label) {
+    char buf[65];
+    strlcpy(buf, label ? label : "", sizeof(buf));
+    Preferences p; p.begin("device", false);
+    p.putString("label", buf);
+    p.end();
+}
+
 // ── Factory reset ─────────────────────────────────────────────────────────────
-void FactoryReset() {
+void NetworkReset(bool openAP) {
     Preferences p;
     p.begin("wifi", false); p.clear(); p.end();
     p.begin("mqtt", false); p.clear(); p.end();
+    // Legacy JSON configs would be migrated back into NVS on next boot — remove them
+    LittleFS.remove("/WiFiconfig.json");
+    LittleFS.remove("/MQTTconfig.json");
+    SetAPOpen(openAP);
+    Log(NOTIFY_FORCE, "FS: network reset complete (AP %s)\r\n", openAP ? "open" : "with password");
+}
+
+void FactoryReset(bool openAP) {
+    NetworkReset(openAP);
+    Preferences p;
+    p.begin("device", false); p.clear(); p.end();
     LittleFS.remove("/Remote.json");
+    LittleFS.remove("/label.txt");
     Log(NOTIFY_FORCE, "FS: factory reset complete\r\n");
+}
+
+// ── Open-AP flag ──────────────────────────────────────────────────────────────
+static int8_t _apOpen = -1;   // -1 = not read yet
+
+bool IsAPOpen() {
+    if (_apOpen < 0) {
+        Preferences p; p.begin("apcfg", true);
+        _apOpen = p.getBool("open", false) ? 1 : 0;
+        p.end();
+    }
+    return _apOpen == 1;
+}
+
+void SetAPOpen(bool open) {
+    Preferences p; p.begin("apcfg", false);
+    if (open) p.putBool("open", true); else p.remove("open");
+    p.end();
+    _apOpen = open ? 1 : 0;
 }
 
 // ── Save MQTT config ──────────────────────────────────────────────────────────

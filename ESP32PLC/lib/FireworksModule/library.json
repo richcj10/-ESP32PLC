@@ -1,0 +1,6 @@
+{
+  "name": "FireworksModule",
+  "version": "1.0.0",
+  "description": "ESP32PLC app: fireworks sequencer for HPO remote devices",
+  "build": { "libArchive": false, "libLDFMode": "deep+" }
+}

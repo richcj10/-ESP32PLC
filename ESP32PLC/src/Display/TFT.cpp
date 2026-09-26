@@ -292,9 +292,26 @@ void TFTDisplayAPInfo(const char* ssid) {
     tft.setTextSize(1);
     tft.setCursor(22, 118);
     tft.print("Password");
-    tft.setTextColor(TFT_WHITE);
     tft.setTextSize(2);
     tft.setCursor(22, 128);
+    if (apPass.length() == 0) {
+        // Open AP after a boot-button reset — no password, no QR code
+        tft.setTextColor(TFT_YELLOW);
+        tft.print("OPEN");
+        tft.setTextSize(1);
+        tft.setCursor(190, 40);
+        tft.print("Button reset:");
+        tft.setCursor(190, 52);
+        tft.print("open network.");
+        tft.setCursor(190, 70);
+        tft.print("Save WiFi on the");
+        tft.setCursor(190, 82);
+        tft.print("web page to");
+        tft.setCursor(190, 94);
+        tft.print("secure it.");
+        return;
+    }
+    tft.setTextColor(TFT_WHITE);
     tft.print(apPass);
 
     // ── QR code — version 3 (29 modules), scale 3 = 87x87 px ───────────────

@@ -6,8 +6,10 @@
 #include "FileSystem/FSInterface.h"
 #include "Devices/Log.h"
 #include "HAL/Digital/Digital.h"
+#include "Modules/ModuleManager.h"
 
 FireworksModule fwModule;
+REGISTER_MODULE(fwModule);
 
 // ── begin: scan Remote.json for devices with typeId == HPO_DEVICE_TYPE ────────
 void FireworksModule::begin() {

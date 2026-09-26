@@ -14,6 +14,8 @@ void SystemStart(void);
 void ClientIdCreation(void);
 void WiFiStart(void);
 void SyncLoop(void);
+// Main-loop timing since the last call (resets the window). Defined in main.cpp.
+void LoopStatsRead(uint32_t* maxUs, uint32_t* peakUs, uint32_t* avgUs, uint32_t* perSec);
 char GetWiFiStatus(void);
 void WiFiFaiure(void);
 void SaveResetReason(void);

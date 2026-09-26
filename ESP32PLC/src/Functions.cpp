@@ -19,6 +19,7 @@
 #include "FileSystem/FSInterface.h"
 #include "Devices/LEDStrip.h"
 #include "Modules/ModuleManager.h"
+#include "Devices/BootReset.h"
 
 unsigned long lastMsg = 0;
 unsigned long lastUpdate = 0;
@@ -34,9 +35,11 @@ void print_reset_reason(RESET_REASON reason);
 
 void SystemStart(){
   StatusLEDStart();
+  Serial.setTxBufferSize(2048);   // log writes queue instead of blocking the loop
   Serial.begin(115200);
-  LogSetup(DEBUG,1);
+  LogSetup(GetSavedLogLevel(), 1);   // level set on the web Log tab, kept in NVS
   LogRingInit();
+  BootResetStart();   // watches the button for 10 s in the background — see BootReset.cpp
   SaveResetReason();
   ClientIdCreation();
   Log(DEBUG,"LED Start-");
@@ -82,7 +85,8 @@ void SystemStart(){
   modules.begin();
   for (uint8_t i = 0; i < modules.count(); i++) {
     char mmsg[32];
-    snprintf(mmsg, sizeof(mmsg), "Mod: %s", modules.get(i)->name());
+    snprintf(mmsg, sizeof(mmsg), "Mod: %s%s", modules.get(i)->name(),
+             modules.isEnabled(i) ? "" : " (off)");
     DisplayLog(mmsg);
   }
   if (modules.count() == 0)
@@ -226,7 +230,7 @@ void ClientIdCreation(void){
   clientId = "ESPPLC-";
   clientId = clientId + String(mac[4]) + String(mac[5]);
   //Serial.print(WiFi.macAddress());
-  Log(NOTIFY_FORCE,"ClientID = %s",clientId);
+  Log(NOTIFY_FORCE,"ClientID = %s",clientId.c_str());
   //Serial.print("ClientID = ");
   //Serial.println(clientId);
 }

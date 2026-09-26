@@ -12,6 +12,7 @@ void SendDeviceEnviroment(void);
 //void SendChestPower(char Mode);
 //void MQTTMessageInit(void);
 char        GetMQTTStatus(void);
+const char* GetMQTTState(void);      // "disabled" | "connected" | "connecting" | "ap_mode" | "failed"
 const char* GetMQTTBaseTopic(void);  // "ESPPLC/<hostname>"
 void SendRemoteDevices();   // publishes all JSON-configured devices per group mqttTopic
 void PublishHADiscovery();  // HA MQTT auto-discovery config topics (called on connect)

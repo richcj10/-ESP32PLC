@@ -23,7 +23,6 @@
 int BuffSize = 0;
 
 void setup() {
-  RegisterModules();
   SystemStart();
    delay(1);
   Log(DEBUG,">> SystemStart done");
@@ -87,7 +86,24 @@ char Prect = 0;
 unsigned long LastSendTimeCH1, LastSendTimeCH2, LastSendTimeCH3, LastSendTimeCH4, LastSendTimeCH5 =0;
 char CH1FT, CH2FT, CH3FT, CH4FT, CH5FT = 0;
 
+// ── Loop timing (shown on the web Log tab via /api/mem) ─────────────────────
+// Max is since the last read (reset by LoopStatsRead) plus an all-time peak.
+static uint32_t _loopMaxUs = 0, _loopPeakUs = 0;
+static uint64_t _loopSumUs = 0;
+static uint32_t _loopCount = 0;
+static uint32_t _loopWinStartMs = 0;
+
+void LoopStatsRead(uint32_t* maxUs, uint32_t* peakUs, uint32_t* avgUs, uint32_t* perSec) {
+  uint32_t winMs = millis() - _loopWinStartMs;
+  *maxUs  = _loopMaxUs;
+  *peakUs = _loopPeakUs;
+  *avgUs  = _loopCount ? (uint32_t)(_loopSumUs / _loopCount) : 0;
+  *perSec = winMs ? (uint32_t)((uint64_t)_loopCount * 1000 / winMs) : 0;
+  _loopMaxUs = 0; _loopSumUs = 0; _loopCount = 0; _loopWinStartMs = millis();
+}
+
 void loop() {
+  uint32_t _t0 = micros();
   WiFiRecoveryLoop();
   CaptivePortalLoop();
   ScanIO();
@@ -102,6 +118,7 @@ void loop() {
   
   //ScanUserInput();
   SyncLoop();
+  SendLocalIO();   // publishes only on change (+ hourly heartbeat) — cheap every loop
 /*   if(millis() - LastSendTime > 3000){
     LastSendTime = millis();
     //SetCHFire(4, 1);
@@ -113,7 +130,6 @@ void loop() {
   if(millis() - LastSendTime2 > 1500){
     LastSendTime2 = millis();
     SendRemoteDevices();
-    SendLocalIO();
     modules.mqttPublish();
   }
 
@@ -133,6 +149,11 @@ void loop() {
   //delay(1000);
   //SetOcupyLED(0x11,0,200,0);
   //SetOcupyLED(0x10,0,0,200);
+  // Loop work time — measured before delay(1) so the idle yield isn't counted
+  uint32_t _dt = micros() - _t0;
+  if (_dt > _loopMaxUs)  _loopMaxUs  = _dt;
+  if (_dt > _loopPeakUs) _loopPeakUs = _dt;
+  _loopSumUs += _dt; _loopCount++;
   delay(1);
   //Serial.println(readDeviceVIN(0x10));
   //Serial.println(readDeviceVIN(0x11));

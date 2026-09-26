@@ -395,7 +395,8 @@ static void _drawWiFiSwitch() {
 
             Screen.setCursor(CONTENT_X, y);
             Screen.setTextColor(TFT_CYAN, HDR_BG); Screen.print("AP Pass: ");
-            Screen.setTextColor(TFT_WHITE, HDR_BG); Screen.print(GetAPPassword().c_str());
+            { String pw = GetAPPassword();
+              Screen.setTextColor(TFT_WHITE, HDR_BG); Screen.print(pw.length() ? pw.c_str() : "(open)"); }
             y += 18;
 
             Screen.setCursor(CONTENT_X, y);

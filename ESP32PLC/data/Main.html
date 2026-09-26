@@ -149,7 +149,7 @@
         </div>
         <div class="form-row">
           <label>Password</label>
-          <input type="password" id="PWDin" placeholder="Password">
+          <input type="password" id="PWDin" placeholder="Leave blank to keep current">
           <button class="btn-ghost" onclick="togglePwd('PWDin',this)" title="Show/hide">&#128065;</button>
         </div>
         <div class="form-row">
@@ -401,6 +401,14 @@
           <div class="card-title" style="margin-bottom:8px;">PSRAM</div>
           <table id="mem-psram"><tbody></tbody></table>
         </div>
+        <div class="card" id="mem-loop-card" style="flex:1;min-width:140px;margin:0;display:none;" title="How long one pass of the main loop takes. Anything that blocks here also delays I/O, Modbus and fireworks timing.">
+          <div class="card-title" style="margin-bottom:8px;">Main loop</div>
+          <table id="mem-loop"><tbody></tbody></table>
+        </div>
+        <div class="card" id="mem-nvs-card" style="flex:1;min-width:140px;margin:0;display:none;">
+          <div class="card-title" style="margin-bottom:8px;">NVS (settings)</div>
+          <table id="mem-nvs"><tbody></tbody></table>
+        </div>
       </div>
 
       <div class="card">
@@ -408,6 +416,15 @@
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="ClearLog">Clear</button>
           <button class="btn-ghost" onclick="loadMem()">Refresh Mem</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);" title="Higher levels print more and slow the loop down — use Debug only while troubleshooting">
+            Level
+            <select id="log-level" class="input" style="width:auto;" onchange="setLogLevel(this.value)">
+              <option value="1">Error</option>
+              <option value="2">Log</option>
+              <option value="3">Notify</option>
+              <option value="4">Debug</option>
+            </select>
+          </label>
           <button class="btn-ghost" id="scan-btn" onclick="scanNeighbors(this)">Find PLCs</button>
         </div>
       </div>
@@ -417,8 +434,15 @@
     <div class="panel" id="tab-app">
       <div class="page-header">App</div>
 
+      <!-- ── Installed apps (enable / disable) ────────── -->
+      <div class="card" id="app-card-mods">
+        <div class="card-title">Apps</div>
+        <div id="app-mod-list" style="font-size:13px;color:var(--muted);">Loading…</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);">Changes apply after restart.</div>
+      </div>
+
       <!-- ── LED Strip module ─────────────────────────── -->
-      <div class="card" id="app-card-led">
+      <div class="card" id="app-card-led" data-mod="ledstrip">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
           LED Strip
           <button id="app-tog-led" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('led')">&#9660;</button>
@@ -453,7 +477,7 @@
       </div>
 
       <!-- ── Fireworks module ──────────────────────────── -->
-      <div class="card" id="app-card-fwd">
+      <div class="card" id="app-card-fwd" data-mod="fireworks">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
           Fireworks &#8212; Devices
           <button id="app-tog-fwd" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('fwd')">&#9660;</button>
@@ -468,7 +492,7 @@
         </div>
       </div>
 
-      <div class="card" id="app-card-fws">
+      <div class="card" id="app-card-fws" data-mod="fireworks">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
           Fireworks &#8212; Sequence
           <div style="display:flex;align-items:center;gap:8px;">
@@ -510,7 +534,7 @@
         </div>
       </div>
 
-      <div class="card" id="app-card-fwc">
+      <div class="card" id="app-card-fwc" data-mod="fireworks">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
           Fireworks &#8212; Control
           <button id="app-tog-fwc" class="btn-ghost" style="padding:2px 8px;font-size:12px;line-height:1;" onclick="_toggleAppCard('fwc')">&#9660;</button>
@@ -657,8 +681,8 @@ function showTab(id) {
   if (id === 'devices') loadDeviceList();
   if (id === 'files')   loadFileList();
   if (id === 'fw')         loadFwDeviceList();
-  if (id === 'app')        { fwLoad(); _initAppVisibility(); }
-  if (id === 'log')     { document.getElementById('history').innerHTML = ''; loadMem(); }
+  if (id === 'app')        { appModLoad(); _initAppVisibility(); }
+  if (id === 'log')     { document.getElementById('history').innerHTML = ''; loadMem(); loadLogLevel(); }
 }
 
 /* ── WebSocket ──────────────────────────────────────────── */
@@ -693,19 +717,16 @@ socket.addEventListener('message', function(ev) {
 /* ── Home tab ───────────────────────────────────────────── */
 function rebootDevice() {
   if (!confirm('Reboot device?')) return;
-  fetch('/api/reboot', { method: 'POST' })
-    .then(function(r) { return r.json(); })
-    .then(function() { alert('Rebooting — reconnect in a few seconds.'); })
-    .catch(function() { alert('Rebooting…'); });
+  fetch('/api/reboot', { method: 'POST' }).catch(function() {});
+  showRebootBanner('Rebooting.');
 }
 
 function factoryReset() {
   if (!confirm('Factory reset will erase all WiFi, MQTT, and device configuration.\n\nAre you sure?')) return;
   if (!confirm('This cannot be undone. Confirm factory reset?')) return;
-  fetch('/api/factory-reset', { method: 'POST' })
-    .then(function(r) { return r.json(); })
-    .then(function() { alert('Factory reset complete — device is rebooting.\nReconnect to the default AP to reconfigure.'); })
-    .catch(function() { alert('Reset sent — device rebooting.'); });
+  fetch('/api/factory-reset', { method: 'POST' }).catch(function() {});
+  showRebootBanner('Factory reset — device is rebooting.',
+    'Connect to the device\'s default WiFi access point to set it up again.', true);
 }
 
 function loadHomeStats() {
@@ -720,16 +741,34 @@ function loadHomeStats() {
       nvs.innerText = d.nvs ? 'NVS' : 'LittleFS';
       nvs.style.color = d.nvs ? 'var(--green)' : 'var(--yellow)';
     }).catch(function() {});
+  loadMqttBadge();
+}
+loadHomeStats();
+
+/* MQTT badge — live connection state, not just the saved enable setting */
+var _mqttStates = {
+  connected:  ['Connected',  'green'],
+  connecting: ['Connecting', 'yellow'],
+  ap_mode:    ['AP Mode',    'yellow'],   // device is its own access point — broker unreachable
+  failed:     ['Failed',     'red'],
+  disabled:   ['Disabled',   'grey']
+};
+function loadMqttBadge() {
   fetch('/config/mqtt')
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (!d.enabled)
-        setBadge('h-mqtt', 'Disabled', 'grey');
-      else
-        setBadge('h-mqtt', d.enabled ? 'Enabled' : 'Disabled', d.enabled ? 'green' : 'grey');
+      // Older firmware has no "state" — fall back to the enable setting
+      var st = _mqttStates[d.state] || (d.enabled ? ['Enabled', 'green'] : _mqttStates.disabled);
+      setBadge('h-mqtt', st[0], st[1]);
+      var b = document.getElementById('h-mqtt');
+      b.title = d.state === 'ap_mode'
+        ? 'Device is running its own access point — MQTT needs it joined to your network (STA mode)'
+        : (d.enabled ? (d.ip + ':' + d.port) : '');
     }).catch(function() {});
 }
-loadHomeStats();
+setInterval(function() {
+  if (_panels.home && _panels.home.classList.contains('active')) loadMqttBadge();
+}, 5000);
 
 var GITHUB_REPO = 'https://github.com/richcj10/-ESP32PLC';
 
@@ -813,6 +852,10 @@ function loadWifiConfig() {
     .then(function(d) {
       document.getElementById('wifiMode').value  = d.mode || 2;
       document.getElementById('SSIDIn').value    = d.ssid || '';
+      // Password is never sent back; blank = keep. Placeholder reflects that only
+      // when a network is already saved.
+      document.getElementById('PWDin').placeholder = d.ssid
+        ? 'Leave blank to keep current' : 'Network password';
       document.getElementById('HostIn').value    = d.host || '';
       document.getElementById('dIP').innerText   = d.ip   || '—';
       document.getElementById('dCon2').innerText = d.mode == 1 ? 'STA' : 'AP';
@@ -830,7 +873,12 @@ function saveWifiConfig() {
   setStatus('wifi-status', 'Saving…');
   fetch('/config/wifi', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
     .then(function(r) { return r.json(); })
-    .then(function(d) { setStatus('wifi-status', d.ok ? d.msg : 'Error: ' + d.error, !d.ok); })
+    .then(function(d) {
+      if (!d.ok) { setStatus('wifi-status', 'Error: ' + d.error, true); return; }
+      setStatus('wifi-status', '');
+      showRebootBanner('WiFi saved — rebooting.',
+        'If you changed the network, mode or hostname, reconnect to the device at its new address.');
+    })
     .catch(function(e) { setStatus('wifi-status', 'Save error: ' + e, true); });
 }
 
@@ -858,7 +906,11 @@ function saveMqttConfig() {
   setStatus('mqtt-status', 'Saving…');
   fetch('/config/mqtt', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
     .then(function(r) { return r.json(); })
-    .then(function(d) { setStatus('mqtt-status', d.ok ? d.msg : 'Error: ' + d.error, !d.ok); })
+    .then(function(d) {
+      if (!d.ok) { setStatus('mqtt-status', 'Error: ' + d.error, true); return; }
+      setStatus('mqtt-status', '');
+      showRebootBanner('MQTT saved — rebooting.');
+    })
     .catch(function(e) { setStatus('mqtt-status', 'Save error: ' + e, true); });
 }
 
@@ -971,6 +1023,34 @@ function loadMem() {
         pc.style.display = '';
         document.querySelector('#mem-psram tbody').innerHTML = memRows(d.psram);
       } else { pc.style.display = 'none'; }
+      // Main loop timing — max/avg are since the previous refresh
+      var lc = document.getElementById('mem-loop-card');
+      if (d.loop) {
+        lc.style.display = '';
+        var fmtUs = function(us) { return us >= 1000 ? (us / 1000).toFixed(1) + ' ms' : us + ' µs'; };
+        document.querySelector('#mem-loop tbody').innerHTML = [
+          ['Slowest', fmtUs(d.loop.max_us)],
+          ['Average', fmtUs(d.loop.avg_us)],
+          ['Loops/sec', d.loop.per_sec],
+          ['Slowest since boot', fmtUs(d.loop.peak_us)]
+        ].map(function(r) {
+          return '<tr><td style="padding:3px 8px">' + r[0] + '</td><td style="padding:3px 8px;font-family:monospace">' + r[1] + '</td></tr>';
+        }).join('');
+      } else { lc.style.display = 'none'; }
+      // NVS — counted in 32-byte entries, not bytes
+      var nc = document.getElementById('mem-nvs-card');
+      if (d.nvs && d.nvs.total > 0) {
+        nc.style.display = '';
+        var npct = Math.round(d.nvs.used / d.nvs.total * 100);
+        document.querySelector('#mem-nvs tbody').innerHTML = [
+          ['Used', npct + '%'],
+          ['Entries', d.nvs.used + ' / ' + d.nvs.total],
+          ['Size', fmtBytes(d.nvs.total * 32)],
+          ['Namespaces', d.nvs.namespaces]
+        ].map(function(r) {
+          return '<tr><td style="padding:3px 8px">' + r[0] + '</td><td style="padding:3px 8px;font-family:monospace">' + r[1] + '</td></tr>';
+        }).join('');
+      } else { nc.style.display = 'none'; }
     })
     .catch(function(e) { console.error('loadMem', e); });
 }
@@ -1676,8 +1756,24 @@ document.getElementById('FWFire').addEventListener('click', function() {
 /* ── Log ────────────────────────────────────────────────── */
 function appendLog(data) {
   var el = document.getElementById('history');
+  if (data.charAt(data.length - 1) !== '\n') data += '\n';   // newer firmware sends bare lines
   el.innerText += data;
   el.scrollTop = el.scrollHeight;
+}
+
+/* Log level — applies immediately on the device and is saved in NVS */
+function loadLogLevel() {
+  fetch('/api/debug/settings').then(function(r) { return r.json(); }).then(function(d) {
+    var sel = document.getElementById('log-level');
+    if (d.log_level) sel.value = d.log_level;
+    else sel.parentNode.style.display = 'none';   // older firmware
+  }).catch(function() {});
+}
+function setLogLevel(v) {
+  fetch('/api/debug/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ log_level: parseInt(v, 10) })
+  }).catch(function() { alert('Could not set log level'); });
 }
 
 document.getElementById('ClearLog').addEventListener('click', function() {
@@ -1698,17 +1794,33 @@ function setStatus(id, msg, isErr) {
   el.className = 'status-text' + (isErr ? ' status-err' : (msg ? ' status-ok' : ''));
 }
 
-function showRebootBanner() {
+/* Unified restart banner — used by every action that restarts the device.
+ *   title:    first line (default 'Config saved — rebooting.')
+ *   note:     optional second line, e.g. "reconnect at the new address"
+ *   noReload: true when the device will not come back at this address (factory reset) */
+function showRebootBanner(title, note, noReload) {
+  var pending = document.getElementById('pending-restart-banner');
+  if (pending) pending.remove();
   var existing = document.getElementById('reboot-banner');
   if (existing) return;
   var banner = document.createElement('div');
   banner.id = 'reboot-banner';
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#e6a817;' +
     'color:#000;text-align:center;padding:14px 20px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+  var line = document.createElement('div');
+  banner.appendChild(line);
+  if (note) {
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-weight:400;font-size:12px;margin-top:4px;';
+    sub.innerText = note;
+    banner.appendChild(sub);
+  }
   document.body.appendChild(banner);
+  title = title || 'Config saved — rebooting.';
+  if (noReload) { line.innerText = title; return; }
   var secs = 15;
   function tick() {
-    banner.innerText = 'Config saved — rebooting. Page reloads in ' + secs + 's…';
+    line.innerText = title + ' Page reloads in ' + secs + 's…';
     if (secs-- <= 0) { location.reload(); return; }
     setTimeout(tick, 1000);
   }
@@ -1749,6 +1861,64 @@ function setBadge(id, text, color) {
   var el = document.getElementById(id);
   el.innerText = text;
   el.className = 'badge badge-' + (color || 'grey');
+}
+
+/* ── App enable / disable ───────────────────────────────── */
+var _appMods = null;   // [{name, enabled}] from /api/modules — state running on the device
+var _appModLabels = { ledstrip: 'LED Strip', fireworks: 'Fireworks' };
+
+function _appModOn(name) {
+  if (!_appMods) return false;
+  for (var i = 0; i < _appMods.length; i++)
+    if (_appMods[i].name === name) return _appMods[i].enabled;
+  return false;   // not compiled into this firmware
+}
+
+function appModLoad() {
+  fetch('/api/modules').then(function(r) { return r.json(); }).then(function(list) {
+    _appMods = list;
+    var el = document.getElementById('app-mod-list');
+    el.innerHTML = '';
+    if (!list.length) el.innerText = 'No apps compiled into this firmware.';
+    list.forEach(function(m) {
+      var row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;color:var(--text);';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = m.enabled;
+      cb.onchange = function() { appModSet(m.name, cb.checked, cb); };
+      var txt = document.createElement('span');
+      txt.innerText = _appModLabels[m.name] || m.name;
+      row.appendChild(cb);
+      row.appendChild(txt);
+      el.appendChild(row);
+    });
+    // Show a module's cards only if it is compiled in and running
+    document.querySelectorAll('#tab-app [data-mod]').forEach(function(card) {
+      card.style.display = _appModOn(card.dataset.mod) ? '' : 'none';
+    });
+    if (_appModOn('fireworks')) fwLoad();
+  }).catch(function() {
+    // Older firmware without /api/modules — treat everything as enabled
+    _appMods = [{ name: 'ledstrip', enabled: true }, { name: 'fireworks', enabled: true }];
+    document.getElementById('app-mod-list').innerText = 'Enable/disable needs newer firmware.';
+    fwLoad();
+  });
+}
+
+function appModSet(name, enabled, cb) {
+  if (name === 'fireworks' && !enabled &&
+      !confirm('Disable Fireworks? Fire, sequence and the IN0 trigger stop working after restart.')) {
+    cb.checked = true;
+    return;
+  }
+  fetch('/api/modules/enable', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, enabled: enabled })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.ok) { cb.checked = !enabled; alert('Error: ' + (d.error || '?')); return; }
+    showPendingRestartBanner();
+  }).catch(function() { cb.checked = !enabled; alert('Save failed'); });
 }
 
 /* ── App card hide/show ─────────────────────────────────── */
@@ -1950,7 +2120,7 @@ function fwSetInputTrigger(enabled) {
 
 // Poll while fireworks tab is active
 setInterval(function() {
-  if (document.getElementById('tab-app').classList.contains('active')) fwLoad();
+  if (document.getElementById('tab-app').classList.contains('active') && _appModOn('fireworks')) fwLoad();
 }, 2000);
 </script>
 </body>

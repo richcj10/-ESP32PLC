@@ -11,7 +11,7 @@ void httpResponseRedirect(WiFiClient c);
 void httpResponseHome(WiFiClient c);
 void processCommand(char* command);
 void httpResponse414(WiFiClient c);
-char WebLogSend(String LogString);
+char WebLogSend(const char* line);
 
 /* Send a firmware-update progress event over WebSocket (Type=20).
  * Call from any task — ws.textAll() is thread-safe in ESPAsyncWebServer.
