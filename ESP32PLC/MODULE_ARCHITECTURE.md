@@ -148,7 +148,7 @@ an HTML file in LittleFS. No C++ changes needed to add or update the UI.
 
 ### How it works
 
-1. Main.html's Modules tab calls `GET /api/modules` → list of registered module names
+1. Main.html's Modules tab calls `GET /api/modules` → list of registered modules and their enable state
 2. For each name, it fetches `GET /api/modules/<name>/ui`
 3. ModuleManager checks if `/modules/<name>.html` exists in LittleFS and serves it
 4. If no file exists, that module has no UI — silently skipped
@@ -183,7 +183,8 @@ an HTML file in LittleFS. No C++ changes needed to add or update the UI.
 
 | Endpoint                        | Returns                                              |
 |---------------------------------|------------------------------------------------------|
-| `GET /api/modules`              | `["ledstrip","climate"]`                             |
+| `GET /api/modules`              | `[{"name":"ledstrip","enabled":true}, ...]`          |
+| `POST /api/modules/enable`      | Body `{"name":"ledstrip","enabled":false}` — saved to NVS, applies after restart |
 | `GET /api/modules/<name>/ui`    | Contents of `/modules/<name>.html` from LittleFS     |
 | `GET /api/modules/<name>/data`  | JSON from `getLiveData()`                            |
 
@@ -222,24 +223,49 @@ extern ModuleManager modules;
 
 ---
 
-## Registration — Single File
+## Registration — Self-Registering, Chosen in platformio.ini
 
-```cpp
-// src/Modules/Modules.cpp  <-- THE ONLY FILE YOU EDIT TO ADD/REMOVE A MODULE
+Same idea as WLED usermods. Each module is a folder in `lib/` and registers itself —
+no central list to edit.
 
-#include "ModuleManager.h"
-#include "Devices/LEDStripModule.h"
-#include "Devices/TempHumidModule.h"
+**1. Module folder**
 
-ModuleManager modules;
-
-void RegisterModules() {
-    modules.add(new LEDStripModule());
-    modules.add(new TempHumidModule());
-}
+```
+lib/ClimateModule/
+    library.json        { "name": "ClimateModule", "version": "1.0.0",
+                          "build": { "libArchive": false, "libLDFMode": "deep+" } }
+    ClimateModule.h
+    ClimateModule.cpp
 ```
 
-`RegisterModules()` is called once at the top of `SystemStart()`.
+- `libArchive: false` — without it the linker drops the registrar (nothing references it)
+- `libLDFMode: deep+` — lets PlatformIO find libraries included via `src/` headers (ArduinoJson, etc.)
+
+**2. Register in the module's .cpp**
+
+```cpp
+#include "ClimateModule.h"
+#include "Modules/ModuleManager.h"
+
+static ClimateModule climateModule;
+REGISTER_MODULE(climateModule);
+```
+
+**3. Select it in platformio.ini**
+
+```ini
+custom_modules =
+    LEDStripModule
+    FireworksModule
+    ClimateModule
+```
+
+`scripts/modules.py` adds each listed folder to `lib_deps`. Modules not listed are not
+compiled at all. The build prints `-- Modules: ...` and fails if a name has no `lib/` folder.
+
+**Runtime enable/disable** — a compiled-in module can be switched off on the web App tab.
+The state is kept in NVS (namespace `mods`, key = `name()`, default on) and applies after
+restart. A disabled module gets no lifecycle calls, no MQTT, and no web routes.
 
 ---
 

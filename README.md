@@ -9,6 +9,35 @@
 *Joystick Menu
 
 
+## Modules (Apps)
+The PLC's core handles WiFi, MQTT, the web UI, the display and remote Modbus devices. Features for a specific job are added as **modules** (shown as "Apps" in the web UI), in the same way WLED uses usermods. A module can add its own MQTT topics, web API routes and live data without changing the core code.
+
+### Included modules
+| Module | What it does |
+|---|---|
+| `LEDStripModule` | Drives a WS2812 LED strip. Color can be set from the web App tab or MQTT, and it can be streamed in real time over DDP (for example from xLights). |
+| `FireworksModule` | Sequencer for High Power Output (HPO) remote devices. Supports step/delay sequences, a safety-voltage check before firing, and an optional IN0 hardware trigger. |
+
+### Choosing modules at build time
+In `ESP32PLC/platformio.ini`, list the modules you want:
+```ini
+custom_modules =
+	LEDStripModule
+	FireworksModule
+```
+Comment out a line to leave that module out of the firmware entirely. The build output shows which modules were included, for example `-- Modules: LEDStripModule, FireworksModule`.
+
+### Turning modules on and off at runtime
+Modules built into the firmware can be switched on or off from the **Apps** card on the web UI's App tab, with no rebuild needed. The change applies after a restart and is kept in the device's NVS, so it survives firmware and filesystem updates. A disabled module doesn't run at all, and its MQTT topics and web routes are removed. For example, the fireworks fire endpoint doesn't exist while Fireworks is disabled.
+
+### Writing your own module
+A module is a folder in `ESP32PLC/lib/` that contains:
+1. a `library.json` (copy one from an existing module),
+2. a class that derives from `Module` and overrides only the hooks it needs (`begin`, `update`, `handleMQTT`, `getLiveData`, `registerRoutes`, ...),
+3. one `REGISTER_MODULE(instance);` line in its `.cpp`.
+
+Then add the folder name to `custom_modules`. No other files need to change. Modules can read and write remote Modbus devices by name through the `plcRead` / `plcWrite` API. See [MODULE_ARCHITECTURE.md](ESP32PLC/MODULE_ARCHITECTURE.md) for the full hook list, the data API and examples.
+
 ## Getting Started
 
 ### Required repositories
@@ -56,13 +85,13 @@ These are listed under `lib_deps` in `platformio.ini`. PlatformIO downloads them
 The ESP32 Arduino core (`espressif32` platform) and the toolchain are also downloaded automatically. The first build can take several minutes.
 
 ### Libraries included in this repo
-These are in `ESP32PLC/lib/` and need no setup: `ModBusBLMaster`, `SimpleModbusSlave`, `OneWire-Stickbreaker`, `LEDStripModule`, and `FireworksModule`.
+These are in `ESP32PLC/lib/` and need no setup: `ModBusBLMaster`, `SimpleModbusSlave` and `OneWire-Stickbreaker`. The app modules (`LEDStripModule`, `FireworksModule`) are also in `lib/`. See [Modules (Apps)](#modules-apps).
 
 ### Build configuration
 Everything is set in `ESP32PLC/platformio.ini` (`env:esp32s3`):
 - **Board:** ESP32-S3 with **8 MB flash + PSRAM** (`partitions_8mb.csv`, `-DBOARD_HAS_PSRAM`).
 - **Display:** `-DDISPLAY_TFT` is the default. Swap it for `-DDISPLAY_OLED` if you have OLED hardware. The TFT pins and driver are set with `-D` flags, so you don't need to edit TFT_eSPI's `User_Setup.h`.
-- **Modules:** `-DMOD_LEDSTRIP` and `-DMOD_FIREWORKS` are optional. Comment them out to leave those modules out of the build (see `MODULE_ARCHITECTURE.md`).
+- **Apps:** listed under `custom_modules`. See [Modules (Apps)](#modules-apps).
 
 ### Building and flashing
 1. Open the `ESP32PLC` folder in VS Code and build the `esp32s3` environment.
