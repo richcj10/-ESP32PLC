@@ -245,6 +245,7 @@ void FwUpdater::_updateTask(void *vParam) {
         bl.setProgressCallback(FwUpdater::_progressCb);
 
         bool ok = bl.updateFirmware(slaveId, fwBuf, fwSize, 5, skipTrigger);
+        if (bl.blVersion()) self->_blVer[slaveId] = bl.blVersion();
 
         g_activeUpdater = nullptr;
         free(fwBuf);
@@ -301,6 +302,7 @@ bool FwUpdater::startUpdate(uint8_t slaveId, bool skipTrigger) {
     _status.progress = 0;
     _status.slaveId  = slaveId;
     _status.blUpdate = false;
+    _status.blQuery  = false;
     snprintf(_status.message, sizeof(_status.message),
              "Starting update for slave %u%s", slaveId, skipTrigger ? " (skip trigger)" : "");
 
@@ -367,7 +369,8 @@ void FwUpdater::_finish(bool ok, const char *msg) {
     _status.done     = true;
     _status.running  = false;
     _status.blUpdate = false;
-    Log(ok ? NOTIFY_FORCE : ERROR, "BLUpdate[%u]: %s", (unsigned)_status.slaveId, msg);
+    _status.blQuery  = false;
+    Log(ok ? NOTIFY_FORCE : ERROR, "BL[%u]: %s", (unsigned)_status.slaveId, msg);
     WebFwProgressSend(ok ? 100 : _status.progress, true, ok, msg);
 }
 
@@ -481,6 +484,7 @@ void FwUpdater::_blUpdateTask(void *vParam) {
                 if (!ok) vTaskDelay(pdMS_TO_TICKS(300));
             }
         }
+        if (newVer) self->_blVer[id] = newVer;
         if (!ok) {
             snprintf(msg, sizeof(msg), "App flashed but no reply at %u - check device", id);
         } else if (target && oldVer == target && newVer == target) {
@@ -532,6 +536,105 @@ bool FwUpdater::startBootloaderUpdate(uint8_t slaveId) {
         _status.running  = false;
         _status.blUpdate = false;
         Log(ERROR, "FwUpdater: xTaskCreate failed\r\n");
+        return false;
+    }
+    return true;
+}
+
+/* ── Manual bootloader-version check ───────────────────────────────────── */
+
+// The bootloader returns to the app after ~1 s with no traffic (TIMEOUT_FIRST_BYTE/5
+// in ST_START) — but only if nothing is sent: any frame, even an FC03 probe,
+// restarts its wait. So stay completely silent this long before probing the app.
+#define BLQ_QUIET_MS        3000
+#define BLQ_APP_TIMEOUT_MS  6000
+
+void FwUpdater::_blQueryTask(void *vParam) {
+    auto      *p    = (FwTaskParam *)vParam;
+    FwUpdater *self = p->self;
+    uint8_t    id   = p->slaveId;
+    delete p;
+
+    char    msg[64];
+    uint8_t ver  = 0;
+    bool    back = false;
+
+    auto step = [&](uint8_t pct, const char *fmt, unsigned a = 0) {
+        snprintf(self->_status.message, sizeof(self->_status.message), fmt, a);
+        self->_status.progress = pct;
+        Log(NOTIFY_FORCE, "BL[%u]: %s", (unsigned)id, self->_status.message);
+        WebFwProgressSend(pct, false, false, self->_status.message);
+    };
+
+    // 1 ── take the bus: no polling while the device restarts
+    step(5, "Pausing Modbus polling");
+    SuspendRemotePolling();
+    vTaskDelay(pdMS_TO_TICKS(600));
+    {
+        ModBusBLMaster bl(self->_serial, self->_dirPin);
+        bl.begin(38400);
+
+        // 2 ── FC65: the app resets into its bootloader
+        step(20, "Restarting %u into its bootloader", id);
+        bool trig = bl.triggerBootloader(id);   // no ACK may mean it's already there
+
+        // 3 ── HELLO for the version
+        step(40, "Reading bootloader version");
+        for (uint8_t i = 0; i < 5 && !ver; i++) {
+            if (bl.connect(id)) ver = bl.blVersion();
+            else vTaskDelay(pdMS_TO_TICKS(200));
+        }
+        if (!ver) {
+            snprintf(msg, sizeof(msg), trig ? "Restarted, but no bootloader reply at %u"
+                                            : "No reply at %u (not in app or bootloader)", id);
+            ResumeRemotePolling();
+            self->_finish(false, msg);
+            goto out;
+        }
+        self->_blVer[id] = ver;
+
+        // 4 ── silence: the bootloader times out back into the app
+        snprintf(msg, sizeof(msg), "Bootloader v%u - waiting for the app to restart", ver);
+        step(60, msg);
+        vTaskDelay(pdMS_TO_TICKS(BLQ_QUIET_MS));
+
+        // 5 ── confirm the app answers again
+        step(85, "Checking the app answers at %u", id);
+        unsigned long t0 = millis();
+        while (!back && millis() - t0 < BLQ_APP_TIMEOUT_MS) {
+            back = ProbeModbusAddr(id);
+            if (!back) vTaskDelay(pdMS_TO_TICKS(500));
+        }
+    }
+    ResumeRemotePolling();
+    if (back) snprintf(msg, sizeof(msg), "Bootloader v%u - app running again at %u", ver, id);
+    else      snprintf(msg, sizeof(msg), "Bootloader v%u - app did not restart (no valid app?) - Flash it", ver);
+    self->_finish(back, msg);
+out:
+    self->_taskHandle = nullptr;
+    vTaskDelete(nullptr);
+}
+
+bool FwUpdater::startBlVersionQuery(uint8_t slaveId) {
+    if (_status.running) {
+        Log(ERROR, "FwUpdater: a device job is already running\r\n");
+        return false;
+    }
+    _status.running  = true;
+    _status.done     = false;
+    _status.success  = false;
+    _status.progress = 0;
+    _status.slaveId  = slaveId;
+    _status.blUpdate = false;
+    _status.blQuery  = true;
+    snprintf(_status.message, sizeof(_status.message), "Bootloader check for %u starting", slaveId);
+
+    auto *param   = new FwTaskParam{ this, slaveId, false };
+    BaseType_t rc = xTaskCreate(_blQueryTask, "blQuery", 6144, param, 1, &_taskHandle);
+    if (rc != pdPASS) {
+        delete param;
+        _status.running = false;
+        _status.blQuery = false;
         return false;
     }
     return true;

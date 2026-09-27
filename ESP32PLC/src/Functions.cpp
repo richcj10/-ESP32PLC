@@ -98,7 +98,7 @@ void UIUpdateLoop(){
     _fwDoneShown = false;
     char msg[32];
     snprintf(msg, sizeof(msg), "Slave 0x%02X", (unsigned)fws.slaveId);
-    DisplayUploadStatus("DEVICE UPDATE", fws.progress, msg);
+    DisplayUploadStatus(fws.blQuery ? "BL VERSION CHECK" : "DEVICE UPDATE", fws.progress, msg);
     WebHandel();
     return;
   }

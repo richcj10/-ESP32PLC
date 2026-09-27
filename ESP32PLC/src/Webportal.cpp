@@ -16,6 +16,7 @@
 #include "HAL/DeviceConfig.h"
 #include "Modules/ModuleManager.h"
 #include "MQTT.h"
+#include "FwVersion.h"
 
 #include "Devices/Log.h"
 #include <esp_heap_caps.h>
@@ -377,19 +378,10 @@ void WebStart(){
 
   /* GET /api/version — git-derived FW and web asset versions */
   server.on("/api/version", HTTP_GET, [](AsyncWebServerRequest *req) {
-#ifndef FW_VERSION
-#define FW_VERSION "dev"
-#endif
-#ifndef FW_SHA
-#define FW_SHA "0000000"
-#endif
-#ifndef WEB_VERSION
-#define WEB_VERSION "0000000"
-#endif
     char buf[128];
     snprintf(buf, sizeof(buf),
         "{\"fw\":\"%s\",\"fw_sha\":\"%s\",\"web\":\"%s\"}",
-        FW_VERSION, FW_SHA, WEB_VERSION);
+        GetFwVersion(), GetFwSha(), GetWebVersion());
     req->send(200, "application/json", buf);
   });
 
@@ -559,14 +551,32 @@ void WebStart(){
         uint8_t  id    = devs[i].slaveId;
         bool     hasFw = fwUpdater.hasFirmware(id);
         bool     hasBl = fwUpdater.hasFirmware(id, FW_SLOT_BL_UPDATER);
-        resp->printf("%s{\"name\":\"%s\",\"id\":%u,\"hasFw\":%s,\"fwSize\":%lu,\"hasBl\":%s,\"blSize\":%lu,\"blTarget\":%u}",
+        resp->printf("%s{\"name\":\"%s\",\"id\":%u,\"hasFw\":%s,\"fwSize\":%lu,\"hasBl\":%s,\"blSize\":%lu,\"blTarget\":%u,\"blVer\":%u}",
             i ? "," : "", devs[i].name, (unsigned)id,
             hasFw ? "true" : "false", (unsigned long)(hasFw ? fwUpdater.firmwareSize(id) : 0),
             hasBl ? "true" : "false", (unsigned long)(hasBl ? fwUpdater.firmwareSize(id, FW_SLOT_BL_UPDATER) : 0),
-            (unsigned)(hasBl ? fwUpdater.updaterTargetVersion(id) : 0));
+            (unsigned)(hasBl ? fwUpdater.updaterTargetVersion(id) : 0),
+            (unsigned)fwUpdater.knownBlVersion(id));
     }
     resp->print("]}");
     req->send(resp);
+  });
+
+  /* POST /fw/blquery?id=<slaveId> — manual bootloader-version check. The device
+   * restarts into its bootloader and back (~3-5 s offline). Never run automatically. */
+  server.on("/fw/blquery", HTTP_POST, [](AsyncWebServerRequest *req) {
+    if (!req->hasParam("id")) {
+      req->send(400, "application/json", "{\"ok\":false,\"msg\":\"missing id\"}");
+      return;
+    }
+    uint8_t id = (uint8_t)req->getParam("id")->value().toInt();
+    if (fwUpdater.getStatus().running) {
+      req->send(409, "application/json", "{\"ok\":false,\"msg\":\"a device job is already running\"}");
+      return;
+    }
+    bool ok = fwUpdater.startBlVersionQuery(id);
+    req->send(200, "application/json", ok ? "{\"ok\":true,\"msg\":\"Bootloader check started\"}"
+                                          : "{\"ok\":false,\"msg\":\"Failed to start\"}");
   });
 
   /* POST /fw/blupdate?id=<slaveId> — guided bootloader update (needs the

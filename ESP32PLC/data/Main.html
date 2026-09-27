@@ -1162,7 +1162,13 @@ function loadFwDeviceList() {
               '<button class="btn-ghost" onclick="document.getElementById(\'fw-file-' + dev.id + '\').click()">Upload</button></td>' +
           '<td><button class="btn-ghost" id="fw-flash-' + dev.id + '" ' + (flashOk ? '' : 'disabled style="opacity:0.35;cursor:not-allowed;"') +
               ' onclick="flashFw(' + dev.id + ')">Flash</button></td>' +
-          '<td><button class="btn-ghost" ' + (data.updating ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : '') +
+          '<td style="white-space:nowrap;">' +
+              '<span style="display:inline-block;min-width:26px;color:' + (dev.blVer ? 'var(--text)' : 'var(--muted)') + ';" ' +
+              'title="Last bootloader version seen — from Check, Flash or Update BL (cleared when the PLC restarts)">' +
+              (dev.blVer ? 'v' + dev.blVer : '?') + '</span> ' +
+              '<button class="btn-ghost" ' + (data.updating ? 'disabled ' : '') + 'style="padding:3px 8px;font-size:12px;' + (data.updating ? 'opacity:0.35;cursor:not-allowed;' : '') + '"' +
+              ' onclick="checkBlVersion(' + dev.id + ')">Check</button> ' +
+              '<button class="btn-ghost" ' + (data.updating ? 'disabled ' : '') + 'style="padding:3px 8px;font-size:12px;' + (data.updating ? 'opacity:0.35;cursor:not-allowed;' : '') + '"' +
               ' onclick="showBlUpdate(' + dev.id + ')">Update BL</button></td>' +
           '</tr>';
         _fwDevs[dev.id] = dev;
@@ -1291,6 +1297,26 @@ function _fwWatch() {
       loadFwDeviceList();
     }).catch(function() {});   // device busy or restarting — keep polling
   }, 1000);
+}
+
+/* Manual bootloader-version check — never automatic. The device restarts into its
+   bootloader and back, so ask first. */
+function checkBlVersion(id) {
+  var dev = _fwDevs[id] || {};
+  if (!confirm('Check the bootloader version on ' + (dev.name || 'device') + ' (address ' + id + ')?\n\n' +
+               'The device restarts into its bootloader and back: about 3-5 s offline, and its ' +
+               'outputs reset. Modbus polling pauses for all devices meanwhile.')) return;
+  document.getElementById('fw-panel').style.display = 'block';
+  document.getElementById('fw-msg').innerText = 'Bootloader check for ' + id + ' starting…';
+  setFwProgress(0);
+  fetch('/fw/blquery?id=' + id, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { document.getElementById('fw-msg').innerText = 'Error: ' + d.msg; return; }
+      loadFwDeviceList();
+      _fwWatch();
+    })
+    .catch(function(e) { document.getElementById('fw-msg').innerText = 'Error: ' + e; });
 }
 
 function flashFw(slaveId) {

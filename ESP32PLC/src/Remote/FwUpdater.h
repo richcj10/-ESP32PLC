@@ -21,6 +21,7 @@ public:
         volatile uint8_t progress = 0;
         uint8_t          slaveId  = 0;
         bool             blUpdate = false;   // true while a guided bootloader update runs
+        bool             blQuery  = false;   // true while a manual bootloader-version check runs
         char             message[64] = {};
     };
 
@@ -51,6 +52,16 @@ public:
      *   5. confirm the app answers at the original address                   */
     bool startBootloaderUpdate(uint8_t slaveId);
 
+    /* Manual bootloader-version check (never automatic): pause polling, FC65 the
+     * device into its bootloader, HELLO for the version, then stay silent so the
+     * bootloader times out (~1 s) back into the app, and confirm the app answers.
+     * The device restarts — ~3-5 s offline, outputs reset.                       */
+    bool startBlVersionQuery(uint8_t slaveId);
+
+    /* Last bootloader version seen for a slave (manual check, or any flash /
+     * bootloader update that said HELLO). 0 = unknown. RAM only. */
+    uint8_t knownBlVersion(uint8_t slaveId) const { return _blVer[slaveId]; }
+
     bool     hasFirmware(uint8_t slaveId, uint8_t slot = FW_SLOT_APP);
 
     /* Bootloader version the stored updater image installs, read from the
@@ -76,6 +87,8 @@ private:
     static void _progressCb(uint8_t pct);
     static void _updateTask(void *param);
     static void _blUpdateTask(void *param);
+    static void _blQueryTask(void *param);
+    uint8_t     _blVer[256] = {};
     void        _finish(bool ok, const char *msg);
 };
 
