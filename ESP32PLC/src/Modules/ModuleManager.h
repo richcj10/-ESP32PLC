@@ -10,7 +10,8 @@ public:
 
     void begin();
     void startNetwork();
-    void update();
+    void update(bool realtime);   // realtime=true: control task; false: loop()
+    bool anyBusy();               // any enabled module busy() — automatic reboots wait
 
     void onMQTTConnect();
     bool handleMQTT(const char* topic, const char* payload);

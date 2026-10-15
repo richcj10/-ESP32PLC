@@ -117,7 +117,7 @@ void UIUpdateLoop(){
 
   DisplayManager();
   WebHandel();
-  modules.update();
+  modules.update(false);   // non-realtime modules; realtime ones run in the control task
 }
 
 void SensorUpdateLoop(){
@@ -128,18 +128,35 @@ void SensorUpdateLoop(){
   }
 }
 
+#define WIFI_LOST_REBOOT_MS  (5UL * 60UL * 1000UL)   // 5 min of continuous WiFi loss
+
 void SyncLoop(){
   ArduinoOTA.handle();
   unsigned long now = millis();
   if (now - lastUpdate > 700){
     lastUpdate = now;
     ToggletUserLED();
-    if(GetWiFisetupMode() != 2){
-      if ((WiFi.status() != WL_CONNECTED)) {
-        Serial.println("Rebooting - Lost WiFi");
-        delay(1000);
+    // WiFi loss: the ESP32 reconnects by itself, and the control task keeps
+    // Modbus/inputs/firing running meanwhile — so only reboot if the network has
+    // been gone for WIFI_LOST_REBOOT_MS straight. (It used to reboot ~1 s after
+    // any drop, killing everything on each router blip.) Never while our own AP is
+    // up: WiFiRecoveryLoop() manages the recovery AP.
+    static unsigned long wifiLostSince = 0;
+    bool staMode = (GetWiFisetupMode() != 2);
+    bool apUp    = (WiFi.getMode() & WIFI_AP) != 0;
+    if (staMode && !apUp && WiFi.status() != WL_CONNECTED) {
+      if (!wifiLostSince) {
+        wifiLostSince = now;
+        Log(ERROR, "WiFi: connection lost - reconnecting (reboot only after %lu min)",
+            WIFI_LOST_REBOOT_MS / 60000UL);
+      } else if (now - wifiLostSince > WIFI_LOST_REBOOT_MS) {
+        Log(NOTIFY_FORCE, "WiFi: lost for %lu min - rebooting", WIFI_LOST_REBOOT_MS / 60000UL);
+        delay(500);
         ESP.restart();
       }
+    } else if (wifiLostSince) {
+      Log(LOG, "WiFi: reconnected after %lus", (now - wifiLostSince) / 1000);
+      wifiLostSince = 0;
     }
   }
 }

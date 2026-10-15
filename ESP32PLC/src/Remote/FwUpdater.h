@@ -53,9 +53,9 @@ public:
     bool startBootloaderUpdate(uint8_t slaveId);
 
     /* Manual bootloader-version check (never automatic): pause polling, FC65 the
-     * device into its bootloader, HELLO for the version, then stay silent so the
-     * bootloader times out (~1 s) back into the app, and confirm the app answers.
-     * The device restarts — ~3-5 s offline, outputs reset.                       */
+     * device into its bootloader, HELLO for the version, then keep the whole bus
+     * silent until the bootloader times out (~2-5 s idle) back into the app, and
+     * confirm the app answers. The device restarts — ~10 s offline, outputs reset. */
     bool startBlVersionQuery(uint8_t slaveId);
 
     /* Last bootloader version seen for a slave (manual check, or any flash /

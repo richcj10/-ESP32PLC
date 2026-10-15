@@ -204,7 +204,7 @@
         </div>
         <div class="form-row">
           <label>Password</label>
-          <input type="password" id="mqttPass">
+          <input type="password" id="mqttPass" placeholder="Leave blank to keep current">
           <button class="btn-ghost" onclick="togglePwd('mqttPass',this)" title="Show/hide">&#128065;</button>
         </div>
         <div class="btn-row">
@@ -805,6 +805,7 @@ var _mqttStates = {
   connected:  ['Connected',  'green'],
   connecting: ['Connecting', 'yellow'],
   ap_mode:    ['AP Mode',    'yellow'],   // device is its own access point — broker unreachable
+  auth_failed:['Auth failed','red'],      // broker rejects user/password — retrying, but check settings
   failed:     ['Failed',     'red'],
   disabled:   ['Disabled',   'grey']
 };
@@ -1088,7 +1089,11 @@ function loadMem() {
           ['Average', fmtUs(d.loop.avg_us)],
           ['Loops/sec', d.loop.per_sec],
           ['Slowest since boot', fmtUs(d.loop.peak_us)]
-        ].map(function(r) {
+        ].concat(d.ctrl ? [
+          ['Control task slowest', fmtUs(d.ctrl.max_us)],     // inputs + Modbus + fireworks
+          ['Control task average', fmtUs(d.ctrl.avg_us)],
+          ['Control passes/sec',   d.ctrl.per_sec]
+        ] : []).map(function(r) {
           return '<tr><td style="padding:3px 8px">' + r[0] + '</td><td style="padding:3px 8px;font-family:monospace">' + r[1] + '</td></tr>';
         }).join('');
       } else { lc.style.display = 'none'; }
@@ -1304,8 +1309,9 @@ function _fwWatch() {
 function checkBlVersion(id) {
   var dev = _fwDevs[id] || {};
   if (!confirm('Check the bootloader version on ' + (dev.name || 'device') + ' (address ' + id + ')?\n\n' +
-               'The device restarts into its bootloader and back: about 3-5 s offline, and its ' +
-               'outputs reset. Modbus polling pauses for all devices meanwhile.')) return;
+               'The device restarts into its bootloader and back: about 10 s offline, and its ' +
+               'outputs reset. Modbus polling pauses for all devices meanwhile (the bus must stay ' +
+               'quiet for the device to return to its app).')) return;
   document.getElementById('fw-panel').style.display = 'block';
   document.getElementById('fw-msg').innerText = 'Bootloader check for ' + id + ' starting…';
   setFwProgress(0);

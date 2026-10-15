@@ -11,10 +11,11 @@
 #include "HAL/Digital/Digital.h"
 #include "Devices/LEDStrip.h"
 #include "Modules/ModuleManager.h"
+#include "Remote/FwUpdater.h"
+#include <WiFi.h>
 
 char MQTTActive  = 0;
 char MQTTLockout = 0;
-char ErrorCounter = 0;
 
 // SendLocalIO state — on-change publish + hourly heartbeat (see SendLocalIO)
 #define IO_HEARTBEAT_MS  (60UL * 60UL * 1000UL)   // 1 hour
@@ -25,6 +26,7 @@ static bool          _ioForceAll = true;           // set on (re)connect → pub
 
 /* Persistent server IP buffer — PubSubClient keeps a pointer, must outlive setServer() */
 static char _mqttServerBuf[40] = {};
+static char _mqttClientId[24]  = "ESPPLC";   // set in MQTTStart() from the full MAC
 
 /* Base topic: "ESPPLC/<hostname>" — built once at MQTTStart, reused everywhere */
 static char _mqttBase[48] = "ESPPLC";
@@ -156,16 +158,78 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 }
 
+// ── Health and reboot policy ────────────────────────────────────────────────
+// Retrying forever handles a broker restart or a WiFi blip. If MQTT still can't
+// stay up, reboot — but only when a reboot can help:
+//   - no connection for MQTT_DOWN_REBOOT_MS straight while WiFi is up, or
+//   - MQTT_FLAP_LIMIT drops within MQTT_FLAP_WINDOW_MS (connects, then keeps dropping)
+// Never for bad credentials (state 4/5): a reboot can't fix those — shown as
+// "Auth failed" instead. Never mid firing sequence or device firmware job.
+#define MQTT_DOWN_REBOOT_MS  (15UL * 60UL * 1000UL)
+#define MQTT_FLAP_WINDOW_MS  (30UL * 60UL * 1000UL)
+#define MQTT_FLAP_LIMIT      8
+
+static unsigned long _mqttDownSince = 0;     // start of the current outage, 0 = up
+static unsigned long _flapStart     = 0;
+static uint8_t       _flapCount     = 0;
+static bool          _wasConnected  = false;
+static int           _lastConnState = 0;     // PubSubClient state of the last failed connect
+static const char*   _rebootReason  = nullptr;
+
+static const char* _stateText(int s) {
+    switch (s) {
+        case -4: return "timeout";            case -3: return "connection lost";
+        case -2: return "broker unreachable"; case -1: return "disconnected";
+        case  1: return "bad protocol";       case  2: return "client ID rejected";
+        case  3: return "broker unavailable"; case  4: return "bad username/password";
+        case  5: return "not authorized";     default: return "unknown";
+    }
+}
+static bool _authFailed() { return _lastConnState == 4 || _lastConnState == 5; }
+
+static void _requestReboot(const char* why) {
+    if (!_rebootReason) {
+        _rebootReason = why;
+        Log(ERROR, "MQTT: %s - rebooting%s", why,
+            (fwUpdater.getStatus().running || modules.anyBusy()) ? " when the current job finishes" : "");
+    }
+}
+
 void MqttLoop(void) {
-    if (MQTTLockout) {
-        if (ErrorCounter > 20) ESP.restart();
+    if (MQTTLockout) return;
+
+    if (_rebootReason && !fwUpdater.getStatus().running && !modules.anyBusy()) {
+        Log(NOTIFY_FORCE, "MQTT: rebooting (%s)", _rebootReason);
+        delay(500);
+        ESP.restart();
+    }
+
+    if (client.connected()) {
+        _wasConnected  = true;
+        _mqttDownSince = 0;
+        client.loop();
         return;
     }
-    if (client.connected()) {
-        client.loop();
+
+    MQTTActive = 0;   // stop publishers until reconnected
+    unsigned long now = millis();
+    if (_wasConnected) {                       // it was up and dropped
+        _wasConnected = false;
+        if (!_flapStart || now - _flapStart > MQTT_FLAP_WINDOW_MS) { _flapStart = now; _flapCount = 0; }
+        _flapCount++;
+        Log(ERROR, "MQTT: connection lost (%s) - drop %u of %u allowed in 30 min",
+            _stateText(client.state()), (unsigned)_flapCount, (unsigned)MQTT_FLAP_LIMIT);
+        if (_flapCount >= MQTT_FLAP_LIMIT) _requestReboot("connection keeps dropping");
+    }
+
+    MQTTreconnect();
+
+    // Outage clock: only while WiFi is really up and it isn't a credentials problem
+    if (WiFi.status() == WL_CONNECTED && !_authFailed()) {
+        if (!_mqttDownSince) _mqttDownSince = now;
+        else if (now - _mqttDownSince > MQTT_DOWN_REBOOT_MS) _requestReboot("no broker connection for 15 min");
     } else {
-        MQTTActive = 0;   // connection dropped — stop publishers until reconnected
-        MQTTreconnect();
+        _mqttDownSince = 0;
     }
 }
 
@@ -182,25 +246,50 @@ void MQTTStart() {
         return;
     }
     strlcpy(_mqttServerBuf, ip.c_str(), sizeof(_mqttServerBuf));
+    // Broker-facing client ID: full MAC in hex, unique per device. The old ID
+    // (GetClientId: last two MAC bytes in DECIMAL, run together) could collide —
+    // e.g. 18,152 and 181,52 both give "ESPPLC-18152" — and a broker kicks the
+    // older of two same-ID clients, so two such PLCs knock each other off forever.
+    {
+        uint8_t mac[6];
+        WiFi.macAddress(mac);
+        snprintf(_mqttClientId, sizeof(_mqttClientId), "ESPPLC-%02X%02X%02X%02X%02X%02X",
+                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
     snprintf(_mqttBase, sizeof(_mqttBase), "ESPPLC/%s", GetHostName().c_str());
     uint16_t port = GetMQTTPort();
-    Log(LOG, "MQTT: starting — server=%s port=%u base=%s\r\n", _mqttServerBuf, port, _mqttBase);
+    Log(LOG, "MQTT: starting — server=%s port=%u base=%s id=%s\r\n",
+        _mqttServerBuf, port, _mqttBase, _mqttClientId);
     client.setBufferSize(512);
+    client.setSocketTimeout(2);   // was PubSubClient's 15 s default — bounds each attempt
     client.setServer(_mqttServerBuf, port);
     client.setCallback(callback);
 }
 
+// One connect attempt per call, rate-limited: every 5 s for the first few misses,
+// then every 30 s — and it never gives up for good. (It used to try 6 times back
+// to back with the 15 s socket timeout, freezing loop() for up to a minute and a
+// half, then lock MQTT out until reboot.)
+static unsigned long _mqttLastTry = 0;
+static uint8_t       _mqttFails   = 0;
+#define MQTT_RETRY_FAST_MS   5000UL
+#define MQTT_RETRY_SLOW_MS  30000UL
+
 void MQTTreconnect(void) {
     if (!GetMQTTEnabled() || MQTTLockout) return;
     if (GetWiFiStatus() != 1) return;
+    unsigned long wait = (_mqttFails < 3) ? MQTT_RETRY_FAST_MS : MQTT_RETRY_SLOW_MS;
+    if (_mqttLastTry && millis() - _mqttLastTry < wait) return;
+    _mqttLastTry = millis();
 
-    char counter = 0;
     String user = GetMQTTUser();
     String pass = GetMQTTPassword();
 
-    while (!client.connected()) {
+    {
         Log(NOTIFY, "MQTT: connecting...\r\n");
-        if (client.connect(GetClientId().c_str(), user.c_str(), pass.c_str())) {
+        if (client.connect(_mqttClientId, user.c_str(), pass.c_str())) {
+            _mqttFails     = 0;
+            _lastConnState = 0;
             MQTTActive = 1;
             _ioForceAll = true;   // republish all inputs after (re)connect
             Log(LOG, "MQTT: connected\r\n");
@@ -237,14 +326,14 @@ void MQTTreconnect(void) {
             }
             PublishHADiscovery();
             modules.onMQTTConnect();
+        } else {
+            if (_mqttFails < 255) _mqttFails++;
+            _lastConnState = client.state();
+            Log(ERROR, "MQTT: connect to %s:%u failed: %s (state %d)%s - retry in %lus\r\n",
+                _mqttServerBuf, (unsigned)GetMQTTPort(), _stateText(_lastConnState), _lastConnState,
+                _authFailed() ? " - check MQTT user/password" : "",
+                (_mqttFails < 3 ? MQTT_RETRY_FAST_MS : MQTT_RETRY_SLOW_MS) / 1000);
         }
-        counter++;
-        if (counter > 5) {
-            Log(ERROR, "MQTT: connection failed — locking out\r\n");
-            MQTTLockout = 1;
-            break;
-        }
-        delay(200);
     }
 }
 
@@ -403,8 +492,7 @@ void SendRemoteDevices() {
 
             char buf[20];
             snprintf(buf, sizeof(buf), "%.2f", val);
-            if (!client.publish(topic, buf)) ErrorCounter++;
-            else ErrorCounter = 0;
+            client.publish(topic, buf);
 
             _lastPubVal[gi][r] = val;
             published = true;
@@ -424,6 +512,8 @@ const char* GetMQTTState(void) {
     if (client.connected())       return "connected";
     if (GetWiFiStatus() != 1)     return "ap_mode";   // running its own AP — no route to broker
     if (MQTTLockout)              return "failed";
+    if (_authFailed())            return "auth_failed";   // still retrying, but needs new credentials
+    if (_mqttFails >= 3)          return "failed";        // still retrying every 30 s
     return "connecting";
 }
 

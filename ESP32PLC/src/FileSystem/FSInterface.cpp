@@ -168,7 +168,11 @@ bool SaveMQTTConfig(bool enabled, const char* ip, uint16_t port, const char* use
     mqconfig.MQTTEnabble = enabled ? 1 : 0;
     strlcpy(mqconfig.MQTTIP,       ip   ? ip   : "", sizeof(mqconfig.MQTTIP));
     strlcpy(mqconfig.MQTTUser,     user ? user : "esp32plc", sizeof(mqconfig.MQTTUser));
-    strlcpy(mqconfig.MQTTPassword, pass ? pass : "", sizeof(mqconfig.MQTTPassword));
+    // Blank password = keep the stored one. The web page never receives the saved
+    // password, so saving the MQTT form without retyping it used to ERASE it —
+    // after which the broker rejects every connect ("not authorized").
+    if (pass && pass[0])
+        strlcpy(mqconfig.MQTTPassword, pass, sizeof(mqconfig.MQTTPassword));
     mqconfig.MQTTPasswordLN = strlen(mqconfig.MQTTPassword);
     mqconfig.MQTTPort       = port ? port : 1883;
     MqttsaveConfiguration(&mqconfig);

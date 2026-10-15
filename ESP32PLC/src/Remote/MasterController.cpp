@@ -10,12 +10,29 @@ ModbusMasterController master(Serial1, 38400, 16, 17, 20, 500, 10);
 static RemoteMaster    remoteMaster;
 
 // MQTT publish bridge — called by RemoteMaster for online/offline events.
-// Prepends "ESPPLC/<hostname>/" so device status lands under the same root as all other topics.
+// RemoteMaster runs in the control task, and PubSubClient isn't thread-safe, so
+// messages are queued here and published by loop() via RemoteFlushPublishes().
+// Topic gets "ESPPLC/<hostname>/" so device status lands under the same root.
+struct PendingPub { char topic[64]; char payload[64]; };
+static QueueHandle_t _pubQueue = nullptr;
+
 static void _mqttPublish(const char* subTopic, const char* payload) {
-    if (!GetMQTTStatus()) return;
-    char fullTopic[128];
-    snprintf(fullTopic, sizeof(fullTopic), "%s/%s", GetMQTTBaseTopic(), subTopic);
-    GetMQTTClient().publish(fullTopic, payload);
+    if (!_pubQueue) return;
+    PendingPub m;
+    strlcpy(m.topic,   subTopic, sizeof(m.topic));
+    strlcpy(m.payload, payload,  sizeof(m.payload));
+    xQueueSend(_pubQueue, &m, 0);          // drop if full — status is re-sent on change
+}
+
+void RemoteFlushPublishes() {
+    if (!_pubQueue) return;
+    PendingPub m;
+    while (xQueueReceive(_pubQueue, &m, 0) == pdTRUE) {
+        if (!GetMQTTStatus()) continue;    // not connected: discard (state is live anyway)
+        char fullTopic[128];
+        snprintf(fullTopic, sizeof(fullTopic), "%s/%s", GetMQTTBaseTopic(), m.topic);
+        GetMQTTClient().publish(fullTopic, m.payload);
+    }
 }
 
 // ----------------------------------------------------------------
@@ -31,6 +48,7 @@ ModuleStatus_t RemoteDevStatus(uint8_t devIdx) { return remoteMaster.devStatus(d
 // Setup
 // ----------------------------------------------------------------
 char RemoteStart() {
+    if (!_pubQueue) _pubQueue = xQueueCreate(8, sizeof(PendingPub));
     remoteMaster.setPublishCallback(_mqttPublish);
 
     const RemoteConfig_t& cfg = GetRemoteConfig();

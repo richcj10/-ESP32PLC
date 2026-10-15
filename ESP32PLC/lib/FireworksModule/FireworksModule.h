@@ -25,6 +25,8 @@ public:
     void update() override;
 
     uint32_t updateIntervalMs() override { return 10; }
+    bool     realtime()         override { return true; }   // firing timing: control task
+    bool     busy()             override { return _seqRunning; }
 
     void getLiveData(JsonObject& out) override;
     void registerRoutes(AsyncWebServer& svr) override;

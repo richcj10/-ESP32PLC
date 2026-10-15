@@ -17,6 +17,7 @@
 #include "Remote/FwUpdater.h"
 #include "Display/TFT.h"
 #include "Modules/ModuleManager.h"
+#include "ControlTask.h"
 
 void setup() {
   SystemStart();
@@ -31,6 +32,9 @@ void setup() {
   DigitalStart();
   Log(DEBUG,">> IOStart");
   IOStart();
+  // Inputs, Modbus and realtime modules run in their own high-priority task from
+  // here on — before WiFi, so they keep running while WiFi/MQTT connect.
+  StartControlTask();
   DisplayLog("WiFi: Connecting...");
   Log(DEBUG,">> SetupWiFi");
   SetupWiFi();   // retries STA 3x then falls back to AP internally
@@ -96,11 +100,10 @@ void loop() {
   uint32_t _t0 = micros();
   WiFiRecoveryLoop();
   CaptivePortalLoop();
-  ScanIO();
-  RemoteRun();
   UIUpdateLoop();
   SensorUpdateLoop();
   MqttLoop();
+  RemoteFlushPublishes();   // device online/offline messages queued by the control task
   SyncLoop();
   SendLocalIO();   // publishes only on change (+ hourly heartbeat) — cheap every loop
 

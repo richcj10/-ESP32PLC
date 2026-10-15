@@ -17,6 +17,7 @@
 #include "Modules/ModuleManager.h"
 #include "MQTT.h"
 #include "FwVersion.h"
+#include "ControlTask.h"
 
 #include "Devices/Log.h"
 #include <esp_heap_caps.h>
@@ -361,17 +362,21 @@ void WebStart(){
     // Main-loop timing since the previous /api/mem call
     uint32_t lMax, lPeak, lAvg, lHz;
     LoopStatsRead(&lMax, &lPeak, &lAvg, &lHz);
+    uint32_t cMax, cPeak, cAvg, cHz;
+    ControlStatsRead(&cMax, &cPeak, &cAvg, &cHz);
 
     resp->printf(
       "{\"heap\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u},"
        "\"psram\":{\"total\":%u,\"free\":%u,\"min_free\":%u,\"largest_block\":%u},"
        "\"nvs\":{\"total\":%u,\"used\":%u,\"free\":%u,\"namespaces\":%u},"
-       "\"loop\":{\"max_us\":%u,\"peak_us\":%u,\"avg_us\":%u,\"per_sec\":%u}}",
+       "\"loop\":{\"max_us\":%u,\"peak_us\":%u,\"avg_us\":%u,\"per_sec\":%u},"
+       "\"ctrl\":{\"max_us\":%u,\"peak_us\":%u,\"avg_us\":%u,\"per_sec\":%u}}",
       heapTotal, heapFree, heapMin, heapLargest,
       psTotal,   psFree,   psMin,   psLargest,
       (unsigned)ns.total_entries, (unsigned)ns.used_entries,
       (unsigned)ns.free_entries,  (unsigned)ns.namespace_count,
-      (unsigned)lMax, (unsigned)lPeak, (unsigned)lAvg, (unsigned)lHz);
+      (unsigned)lMax, (unsigned)lPeak, (unsigned)lAvg, (unsigned)lHz,
+      (unsigned)cMax, (unsigned)cPeak, (unsigned)cAvg, (unsigned)cHz);
 
     req->send(resp);
   });

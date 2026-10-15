@@ -15,7 +15,8 @@ ModuleStatus_t RemoteDevStatus(uint8_t devIdx);
 
 // Setup / runtime
 char RemoteStart();
-void RemoteRun();
+void RemoteRun();              // control task — see ControlTask.cpp
+void RemoteFlushPublishes();   // loop(): publish device status queued by the control task
 
 // Occupancy sensor accessor
 bool     GetOccupied();

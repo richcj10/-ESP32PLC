@@ -14,6 +14,16 @@ public:
     virtual void update()       {}
     virtual uint32_t updateIntervalMs() { return 1000; }
 
+    // true: update() runs in the high-priority control task (with Modbus and the
+    // inputs), so WiFi/MQTT/display stalls in loop() can't delay it — for
+    // time-critical work like firing sequences. It must not use MQTT, FastLED or
+    // the display from update() (those belong to loop()).
+    virtual bool realtime() { return false; }
+
+    // true while the module is doing something a reboot must not interrupt
+    // (e.g. a firing sequence). Automatic reboots wait until no module is busy.
+    virtual bool busy() { return false; }
+
     // ── MQTT ─────────────────────────────────────────────────────────────────
     virtual void mqttSubscribe()                                       {}
     virtual void mqttDiscovery()                                       {}

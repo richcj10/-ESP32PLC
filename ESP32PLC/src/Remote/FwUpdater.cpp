@@ -543,11 +543,15 @@ bool FwUpdater::startBootloaderUpdate(uint8_t slaveId) {
 
 /* ── Manual bootloader-version check ───────────────────────────────────── */
 
-// The bootloader returns to the app after ~1 s with no traffic (TIMEOUT_FIRST_BYTE/5
-// in ST_START) — but only if nothing is sent: any frame, even an FC03 probe,
-// restarts its wait. So stay completely silent this long before probing the app.
-#define BLQ_QUIET_MS        3000
-#define BLQ_APP_TIMEOUT_MS  6000
+// After HELLO the bootloader returns to the app when the bus has been idle for
+// TIMEOUT_FIRST_BYTE/5 loop iterations (4 M) — about 2-5 s at 16 MHz, not the
+// ~1 s the comment there suggests. ANY frame on the bus, to any address (an FC03
+// probe, normal polling of other devices) restarts that wait. So: stay completely
+// silent well past it, probe once, and if the app isn't back, that probe just
+// restarted the wait — go silent again. Never probe in a loop, and never resume
+// polling early, or the device stays in its bootloader while the bus is busy.
+#define BLQ_QUIET_MS   8000   // silence per round (> bootloader idle timeout + app start-up)
+#define BLQ_ROUNDS     3
 
 void FwUpdater::_blQueryTask(void *vParam) {
     auto      *p    = (FwTaskParam *)vParam;
@@ -593,22 +597,29 @@ void FwUpdater::_blQueryTask(void *vParam) {
         }
         self->_blVer[id] = ver;
 
-        // 4 ── silence: the bootloader times out back into the app
-        snprintf(msg, sizeof(msg), "Bootloader v%u - waiting for the app to restart", ver);
-        step(60, msg);
-        vTaskDelay(pdMS_TO_TICKS(BLQ_QUIET_MS));
-
-        // 5 ── confirm the app answers again
-        step(85, "Checking the app answers at %u", id);
-        unsigned long t0 = millis();
-        while (!back && millis() - t0 < BLQ_APP_TIMEOUT_MS) {
+        // 4+5 ── silence so the bootloader times out into the app, then one probe
+        for (uint8_t round = 0; round < BLQ_ROUNDS && !back; round++) {
+            snprintf(msg, sizeof(msg), "Bootloader v%u - bus quiet so the app restarts (%u/%u)",
+                     ver, (unsigned)(round + 1), (unsigned)BLQ_ROUNDS);
+            step(55 + round * 13, msg);
+            vTaskDelay(pdMS_TO_TICKS(BLQ_QUIET_MS));
             back = ProbeModbusAddr(id);
-            if (!back) vTaskDelay(pdMS_TO_TICKS(500));
+            if (!back) {                       // app may still be starting — one quick retry
+                vTaskDelay(pdMS_TO_TICKS(400));
+                back = ProbeModbusAddr(id);
+            }
         }
     }
     ResumeRemotePolling();
-    if (back) snprintf(msg, sizeof(msg), "Bootloader v%u - app running again at %u", ver, id);
-    else      snprintf(msg, sizeof(msg), "Bootloader v%u - app did not restart (no valid app?) - Flash it", ver);
+    if (back) {
+        snprintf(msg, sizeof(msg), "Bootloader v%u - app running again at %u", ver, id);
+    } else {
+        // Not a flash problem: its app is valid, it's still sitting in the bootloader.
+        Log(ERROR, "BL[%u]: still in bootloader after %u quiet rounds. It returns to its app "
+                   "after a few seconds of bus silence - power-cycle it, or restart the PLC",
+            (unsigned)id, (unsigned)BLQ_ROUNDS);
+        snprintf(msg, sizeof(msg), "BL v%u read; app not back - power-cycle device %u", ver, id);
+    }
     self->_finish(back, msg);
 out:
     self->_taskHandle = nullptr;

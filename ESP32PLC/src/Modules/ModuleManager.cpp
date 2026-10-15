@@ -43,16 +43,22 @@ void ModuleManager::startNetwork() {
         if (_enabled[i]) _mods[i]->startNetwork();
 }
 
-void ModuleManager::update() {
+void ModuleManager::update(bool realtime) {
     uint32_t now = millis();
     for (uint8_t i = 0; i < _count; i++) {
-        if (!_enabled[i]) continue;
+        if (!_enabled[i] || _mods[i]->realtime() != realtime) continue;
         uint32_t interval = _mods[i]->updateIntervalMs();
         if (interval == 0 || (now - _lastMs[i]) >= interval) {
             _lastMs[i] = now;
             _mods[i]->update();
         }
     }
+}
+
+bool ModuleManager::anyBusy() {
+    for (uint8_t i = 0; i < _count; i++)
+        if (_enabled[i] && _mods[i]->busy()) return true;
+    return false;
 }
 
 void ModuleManager::onMQTTConnect() {
